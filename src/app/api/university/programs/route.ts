@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { currentUser, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { text } from "@/lib/input";
+import { createTrackingNumber, trackingEvent } from "@/lib/application-tracking";
 
 export async function GET() {
   const user = await currentUser();
@@ -29,6 +30,11 @@ export async function POST(request: Request) {
   const program = await db.academicProgram.findFirst({ where: { id: programId, active: true } });
   if (!program) return NextResponse.json({ error: "Program not found" }, { status: 404 });
   const application = await db.programApplication.upsert({ where: { programId_userId: { programId, userId: user.id } }, update: { statement, experience, weeklyHours, status: "SUBMITTED", submittedAt: new Date(), decisionNote: null, decidedAt: null }, create: { programId, userId: user.id, statement, experience, weeklyHours } });
+  await db.$transaction(async (tx) => {
+    const open = await tx.applicationTracking.findMany({ where: { programApplicationId: application.id, status: { in: ["OPEN", "IN_REVIEW"] } } });
+    for (const record of open) await tx.applicationTracking.update({ where: { id: record.id }, data: { status: "CLOSED", outcome: "SUPERSEDED", closedAt: new Date(), statusHistory: [...(Array.isArray(record.statusHistory) ? record.statusHistory : []), trackingEvent("CLOSED", "A newer application submission replaced this tracking record")] } });
+    await tx.applicationTracking.create({ data: { trackingNumber: createTrackingNumber("PROGRAM"), userId: user.id, type: "PROGRAM", status: "OPEN", programApplicationId: application.id, submittedAt: application.submittedAt, statusHistory: [trackingEvent("SUBMITTED", `${program.code} application received`), trackingEvent("OPEN", "Awaiting academic decision")] } });
+  });
   await db.auditLog.create({ data: { actorId: user.id, action: "PROGRAM_APPLICATION_SUBMITTED", entity: "ProgramApplication", entityId: application.id, detail: { programId } } });
   return NextResponse.json({ application }, { status: 201 });
 }
@@ -42,6 +48,8 @@ export async function PATCH(request: Request) {
   if (!["ADMITTED", "WAITLISTED", "DECLINED"].includes(status)) return NextResponse.json({ error: "Invalid decision" }, { status: 400 });
   const application = await db.programApplication.update({ where: { id: applicationId }, data: { status: status as never, decisionNote: text(body.decisionNote, 1000) || null, decidedAt: new Date() } });
   if (status === "ADMITTED") await db.programEnrollment.upsert({ where: { programId_userId: { programId: application.programId, userId: application.userId } }, update: { status: "ACTIVE", programApplicationId: application.id }, create: { programId: application.programId, userId: application.userId, programApplicationId: application.id } });
+  const tracker = await db.applicationTracking.findFirst({ where: { programApplicationId: application.id, status: { in: ["OPEN", "IN_REVIEW"] } }, orderBy: { createdAt: "desc" } });
+  if (tracker) await db.applicationTracking.update({ where: { id: tracker.id }, data: { status: "CLOSED", outcome: status, closedAt: application.decidedAt, statusHistory: [...(Array.isArray(tracker.statusHistory) ? tracker.statusHistory : []), trackingEvent(status, application.decisionNote || "Academic decision completed"), trackingEvent("CLOSED", "Application tracking closed")] } });
   await db.notification.create({ data: { userId: application.userId, type: "ACADEMIC", title: `Program application ${status.toLowerCase()}`, body: status === "ADMITTED" ? "Your pathway is active and ready for term planning." : application.decisionNote || "Your program application record has been updated.", actionUrl: "/university?view=programs", dedupeKey: `program-decision:${application.id}:${status}` } });
   return NextResponse.json({ application });
 }

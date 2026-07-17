@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Award = { academicIdentity: string; studentNumber: string; estimatedProgramValueCents: number; grantAwardCents: number; studentDueCents: number; availableGrantBalanceCents: number; breakdown: { label: string; amountCents: number }[]; disclosure: string };
+type Award = { academicIdentity: string; studentNumber: string; applicationTrackingNumber: string; estimatedProgramValueCents: number; grantAwardCents: number; studentDueCents: number; availableGrantBalanceCents: number; breakdown: { label: string; amountCents: number }[]; disclosure: string };
 const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
 const steps = [
   { title: "Identity + contact", copy: "Create your secure learner record" },

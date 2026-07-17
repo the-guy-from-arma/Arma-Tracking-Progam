@@ -9,7 +9,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   await getOrCreateFundingStanding(user.id);
   const standing = await recalculateFundingStanding(user.id);
-  const [account, enrollments, grades] = await Promise.all([
+  const [account, enrollments, grades, applications] = await Promise.all([
     db.user.findUniqueOrThrow({ where: { id: user.id }, select: { grantBalanceCents: true } }),
     db.courseEnrollment.findMany({ where: { userId: user.id }, include: { course: { select: { id: true, code: true, title: true, academy: true, serviceValueCents: true, estimatedDays: true } } }, orderBy: { enrolledAt: "desc" } }),
     db.aiGradeDecision.findMany({
@@ -26,8 +26,9 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
       take: 30,
     }),
+    db.applicationTracking.findMany({ where: { userId: user.id }, include: { programApplication: { select: { program: { select: { code: true, title: true } } } }, studentApplication: { select: { status: true } } }, orderBy: { createdAt: "desc" } }),
   ]);
-  return NextResponse.json({ balanceCents: account.grantBalanceCents, standing, enrollments, grades, policy: { withdrawalReturnPercent: 30, withdrawalPenaltyPercent: 5, minimumRenewalPercent: 60, continuingGrade: 70, gradeReviewMinimum: 2 } });
+  return NextResponse.json({ balanceCents: account.grantBalanceCents, standing, enrollments, grades, applications, policy: { withdrawalReturnPercent: 30, withdrawalPenaltyPercent: 5, minimumRenewalPercent: 60, continuingGrade: 70, gradeReviewMinimum: 2 } });
 }
 
 export async function POST(request: Request) {

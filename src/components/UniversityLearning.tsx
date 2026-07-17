@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { UniversityView } from "./UniversityPortal";
 import styles from "./UniversityLearning.module.css";
 import { StudentCenter } from "./StudentCenter";
+import { StudentProfile } from "./StudentProfile";
 
 type Enrollment = { id: string; status: string; progress: number };
 type Course = { id: string; code: string; title: string; summary: string; deliverable: string; studio: string; level: string; academy: string; estimatedDays: number; workloadHours: number; learningCredits: number; serviceValueCents: number; outcomes: string[]; completedDays: number; enrollments: Enrollment[]; prerequisites: { prerequisite: { id: string; code: string; title: string } }[]; sources: { syncStatus: string; statusWarnings: string[] }[]; _count: { enrollments: number; days: number } };
@@ -52,6 +53,7 @@ export function UniversityLearning({ view, userName, onNavigate }: { view: Exclu
   if (selected) return <CoursePlayer course={selected} close={() => { setSelected(null); void load(); }} refresh={() => openCourse(selected.id)} />;
 
   if (view === "student-center") return <StudentCenter />;
+  if (view === "profile") return <StudentProfile />;
 
   if (view === "dashboard") {
     const next = data.nextCourse;

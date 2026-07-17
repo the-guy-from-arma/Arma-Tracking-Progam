@@ -183,6 +183,17 @@ enum SourceSyncStatus {
   FAILED
 }
 
+enum ApplicationTrackingType {
+  ADMISSION
+  PROGRAM
+}
+
+enum ApplicationTrackingStatus {
+  OPEN
+  IN_REVIEW
+  CLOSED
+}
+
 model User {
   id                  String                  @id @default(cuid())
   email               String                  @unique
@@ -209,6 +220,7 @@ model User {
   certificates        Certificate[]
   programEnrollments  ProgramEnrollment[]
   programApplications ProgramApplication[]
+  applicationTrackers ApplicationTracking[]
   fundingTerms        StudentFundingTerm[]
   fundingStanding     StudentFundingStanding?
   notifications       Notification[]
@@ -342,9 +354,9 @@ model CurriculumSource {
 }
 
 model StudentApplication {
-  id                  String          @id @default(cuid())
-  userId              String          @unique
-  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  String                @id @default(cuid())
+  userId              String                @unique
+  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   preferredName       String?
   country             String
   timeZone            String
@@ -357,9 +369,33 @@ model StudentApplication {
   githubUrl           String?
   fundingStatement    String
   supportNeeds        String?
-  status              AdmissionStatus @default(ADMITTED)
-  submittedAt         DateTime        @default(now())
+  status              AdmissionStatus       @default(ADMITTED)
+  submittedAt         DateTime              @default(now())
   reviewedAt          DateTime?
+  trackingRecords     ApplicationTracking[]
+}
+
+model ApplicationTracking {
+  id                   String                    @id @default(cuid())
+  trackingNumber       String                    @unique
+  userId               String
+  user                 User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type                 ApplicationTrackingType
+  status               ApplicationTrackingStatus @default(OPEN)
+  studentApplicationId String?
+  studentApplication   StudentApplication?       @relation(fields: [studentApplicationId], references: [id], onDelete: SetNull)
+  programApplicationId String?
+  programApplication   ProgramApplication?       @relation(fields: [programApplicationId], references: [id], onDelete: SetNull)
+  outcome              String?
+  statusHistory        Json                      @default("[]")
+  submittedAt          DateTime                  @default(now())
+  closedAt             DateTime?
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+
+  @@index([userId, status, createdAt])
+  @@index([studentApplicationId])
+  @@index([programApplicationId])
 }
 
 model GrantLedger {
@@ -519,19 +555,20 @@ model ProgramCourseRequirement {
 }
 
 model ProgramApplication {
-  id           String                   @id @default(cuid())
-  programId    String
-  program      AcademicProgram          @relation(fields: [programId], references: [id], onDelete: Cascade)
-  userId       String
-  user         User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  statement    String
-  weeklyHours  Int
-  experience   String
-  status       ProgramApplicationStatus @default(SUBMITTED)
-  decisionNote String?
-  submittedAt  DateTime                 @default(now())
-  decidedAt    DateTime?
-  enrollment   ProgramEnrollment?
+  id              String                   @id @default(cuid())
+  programId       String
+  program         AcademicProgram          @relation(fields: [programId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  statement       String
+  weeklyHours     Int
+  experience      String
+  status          ProgramApplicationStatus @default(SUBMITTED)
+  decisionNote    String?
+  submittedAt     DateTime                 @default(now())
+  decidedAt       DateTime?
+  enrollment      ProgramEnrollment?
+  trackingRecords ApplicationTracking[]
 
   @@unique([programId, userId])
   @@index([status, submittedAt])

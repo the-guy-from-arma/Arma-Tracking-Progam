@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { createSession, currentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { email, publicUser, text } from "@/lib/input";
+import { createTrackingNumber, trackingEvent } from "@/lib/application-tracking";
 
 const INITIAL_GRANT_CENTS = 5_000_000;
 const ESTIMATED_PROGRAM_VALUE_CENTS = 4_275_000;
@@ -24,10 +25,11 @@ function optionalUrl(value: unknown) {
   return cleaned && /^https?:\/\//i.test(cleaned) ? cleaned : cleaned ? "INVALID" : "";
 }
 
-function awardSummary(academicIdentity: string, studentNumber: string) {
+function awardSummary(academicIdentity: string, studentNumber: string, applicationTrackingNumber: string) {
   return {
     academicIdentity,
     studentNumber,
+    applicationTrackingNumber,
     estimatedProgramValueCents: ESTIMATED_PROGRAM_VALUE_CENTS,
     grantAwardCents: INITIAL_GRANT_CENTS,
     studentDueCents: 0,
@@ -59,15 +61,17 @@ export async function POST(request: Request) {
 
   const studentNumber = `EFU-${new Date().getUTCFullYear()}-${crypto.randomInt(100000, 999999)}`;
   const academicIdentity = `${aliasFor(name, studentNumber)}@${identityDomain()}`;
+  const applicationTrackingNumber = createTrackingNumber("ADMISSION");
   const applicationData = { preferredName: preferredName || null, country, timeZone, experienceLevel, workbenchExperience, enforceExperience, weeklyHours, learningGoals, portfolioUrl: portfolioUrl || null, githubUrl: githubUrl || null, fundingStatement, supportNeeds: supportNeeds || null, status: "ADMITTED" as const, reviewedAt: new Date() };
 
   const user = await db.$transaction(async (tx) => {
     const admitted = signedIn ? await tx.user.update({ where: { id: signedIn.id }, data: { academicEmail: academicIdentity, studentNumber, isStudent: true, name, specialty: specialty || signedIn.specialty, grantBalanceCents: INITIAL_GRANT_CENTS } }) : await tx.user.create({ data: { email: personalEmail, academicEmail: academicIdentity, studentNumber, isStudent: true, name, passwordHash: await bcrypt.hash(password, 12), specialty: specialty || null, grantBalanceCents: INITIAL_GRANT_CENTS } });
-    await tx.studentApplication.create({ data: { userId: admitted.id, ...applicationData } });
+    const application = await tx.studentApplication.create({ data: { userId: admitted.id, ...applicationData } });
+    await tx.applicationTracking.create({ data: { trackingNumber: applicationTrackingNumber, userId: admitted.id, type: "ADMISSION", status: "CLOSED", studentApplicationId: application.id, outcome: "ADMITTED", submittedAt: application.submittedAt, closedAt: application.reviewedAt, statusHistory: [trackingEvent("SUBMITTED", "University application received"), trackingEvent("ADMITTED", "Student identity and sponsored learning account activated")] } });
     await tx.grantLedger.create({ data: { userId: admitted.id, type: "INITIAL_AWARD", amountCents: INITIAL_GRANT_CENTS, description: "Thunder Buddies Studios Sponsored Learning Grant" } });
     await tx.auditLog.create({ data: { actorId: admitted.id, action: "UNIVERSITY_STUDENT_ADMITTED", entity: "User", entityId: admitted.id, detail: { studentNumber, academicIdentity, grantAwardCents: INITIAL_GRANT_CENTS, estimatedProgramValueCents: ESTIMATED_PROGRAM_VALUE_CENTS } } });
     return admitted;
   });
   if (!signedIn) await createSession(user.id);
-  return NextResponse.json({ user: publicUser(user), award: awardSummary(academicIdentity, studentNumber) }, { status: 201 });
+  return NextResponse.json({ user: publicUser(user), award: awardSummary(academicIdentity, studentNumber, applicationTrackingNumber) }, { status: 201 });
 }
