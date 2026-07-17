@@ -9,7 +9,7 @@ export async function GET() {
   const [programs, applications] = await Promise.all([
     db.academicProgram.findMany({
       where: { active: true },
-      include: { requirements: { include: { course: { select: { id: true, code: true, title: true, academy: true, learningCredits: true, serviceValueCents: true } } }, orderBy: { sequence: "asc" } }, enrollments: { where: { userId: user.id } }, applications: { where: { userId: user.id } } },
+      include: { requirements: { include: { course: { select: { id: true, code: true, title: true, summary: true, academy: true, learningCredits: true, serviceValueCents: true, estimatedDays: true, workloadHours: true } } }, orderBy: { sequence: "asc" } }, enrollments: { where: { userId: user.id } }, applications: { where: { userId: user.id } } },
       orderBy: [{ academy: "asc" }, { level: "asc" }, { code: "asc" }],
     }),
     isAdmin(user.role) ? db.programApplication.findMany({ where: { status: "SUBMITTED" }, include: { user: { select: { name: true, academicEmail: true, studentNumber: true } }, program: { select: { title: true, code: true } } }, orderBy: { submittedAt: "asc" } }) : Promise.resolve([]),

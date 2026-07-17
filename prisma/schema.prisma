@@ -464,24 +464,27 @@ model Certificate {
 }
 
 model AcademicProgram {
-  id                  String                     @id @default(cuid())
-  code                String                     @unique
-  title               String
-  summary             String
-  level               ProgramLevel
-  creditsRequired     Int
-  academy             String                     @default("Interdisciplinary Studies")
-  durationDays        Int                        @default(120)
-  estimatedValueCents Int                        @default(0)
-  credentialTitle     String                     @default("Program Completion Credential")
-  sponsoredBy         String
-  active              Boolean                    @default(true)
-  enrollments         ProgramEnrollment[]
-  applications        ProgramApplication[]
-  requirements        ProgramCourseRequirement[]
-  termPlans           StudentFundingTerm[]
-  createdAt           DateTime                   @default(now())
-  updatedAt           DateTime                   @updatedAt
+  id                    String                     @id @default(cuid())
+  code                  String                     @unique
+  title                 String
+  summary               String
+  level                 ProgramLevel
+  creditsRequired       Int
+  academy               String                     @default("Interdisciplinary Studies")
+  durationDays          Int                        @default(120)
+  estimatedValueCents   Int                        @default(0)
+  credentialTitle       String                     @default("Program Completion Credential")
+  audience              String                     @default("")
+  culminatingExperience String                     @default("")
+  learningOutcomes      Json                       @default("[]")
+  sponsoredBy           String
+  active                Boolean                    @default(true)
+  enrollments           ProgramEnrollment[]
+  applications          ProgramApplication[]
+  requirements          ProgramCourseRequirement[]
+  termPlans             StudentFundingTerm[]
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
 }
 
 model ProgramEnrollment {
