@@ -38,6 +38,6 @@ export function PortalGateway({ user }: { user: { name: string; isStudent: boole
         </Link>
       </motion.div>
     </section>
-    <footer className="orbitFooter"><span>THUNDER BUDDIES STUDIOS</span><i>×</i><span>BLACK RIDGE STUDIOS</span><small>Enfusion University is an independent, non-accredited learning institution.</small></footer>
+    <footer className="orbitFooter"><span>THUNDER BUDDIES STUDIOS</span><i>×</i><span>BLACK RIDGE STUDIOS</span><small>Enfusion University is an independent, non-accredited learning institution.</small><Link className="ownerAccess" href={user?.role === "OWNER" ? "/owner" : "/owner/login"}>OWNER ACCESS</Link></footer>
   </main>;
 }

@@ -44,6 +44,7 @@ export function OwnerUniversitySettings() {
       <article><small>NEEDS DECISION</small><strong>{data.summary.submitted + data.summary.waitlisted}</strong></article>
       <article><small>AVAILABLE GRANT BALANCES</small><strong>{money(data.summary.availableFundingCents)}</strong></article>
     </div>
+    <GeminiStatus />
     <ValueSchedule />
     <ProgramApplications />
     <section className={styles.section}>
@@ -58,6 +59,19 @@ export function OwnerUniversitySettings() {
       <header className={styles.sectionHead}><div><span>03 / ACCOUNTABILITY</span><h2>Funding ledger</h2></div><p>LAST 50 TRANSACTIONS</p></header>
       <div className={styles.ledger}>{data.ledger.map((entry) => <article key={entry.id}><div><b>{entry.user.name}</b><small>{entry.user.studentNumber || "UNASSIGNED"} · {entry.type.replaceAll("_", " ")}</small></div><span>{entry.description}</span><strong data-negative={entry.amountCents < 0}>{entry.amountCents > 0 ? "+" : ""}{money(entry.amountCents)}</strong></article>)}{!data.ledger.length && <div className={styles.empty}>No funding activity has been recorded.</div>}</div>
     </section>
+  </section>;
+}
+
+function GeminiStatus() {
+  type AiStatus = { model: string; enabled: boolean; keyConfigured: boolean; workerConfigured: boolean; connected: boolean | null; connectionMessage: string; confidenceThreshold: number; maxRetries: number; ready: boolean };
+  const [status, setStatus] = useState<AiStatus | null>(null);
+  const [testing, setTesting] = useState(false);
+  const load = useCallback(async (test = false) => { setTesting(test); const response = await fetch(`/api/admin/ai-status${test ? "?test=1" : ""}`, { cache: "no-store" }); const result = await response.json(); if (response.ok) setStatus(result); setTesting(false); }, []);
+  useEffect(() => { const timer = setTimeout(() => void load(), 0); return () => clearTimeout(timer); }, [load]);
+  return <section className={styles.aiStatus}>
+    <div className={styles.aiOrb} data-ready={status?.connected === true || status?.ready}><i/><b>G</b><span>{status?.connected === true ? "CONNECTED" : status?.ready ? "CONFIGURED" : "SETUP REQUIRED"}</span></div>
+    <div><small>GEMINI ASSESSMENT SERVICE</small><h2>{status?.model || "Checking server configuration…"}</h2><p>{status?.connectionMessage || "Reading protected Railway variables. The API key is never returned to this page."}</p><div className={styles.aiChecks}><span data-on={status?.keyConfigured}>API KEY</span><span data-on={status?.enabled}>GRADING ENABLED</span><span data-on={status?.workerConfigured}>WORKER SECRET</span><span data-on={status?.connected === true}>LIVE TEST</span></div></div>
+    <aside><span><small>FINALIZE THRESHOLD</small><b>{Math.round((status?.confidenceThreshold || .85) * 100)}%</b></span><span><small>MAX RETRIES</small><b>{status?.maxRetries || 3}</b></span><button disabled={testing || !status?.keyConfigured} onClick={() => void load(true)}>{testing ? "TESTING SECURE CONNECTION…" : "TEST GEMINI CONNECTION"}</button></aside>
   </section>;
 }
 
