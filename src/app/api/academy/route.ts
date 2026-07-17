@@ -87,12 +87,14 @@ export async function POST(request: Request) {
     const course = await db.course.findFirst({ where: { id: courseId, status: "PUBLISHED" }, include: { prerequisites: true } });
     if (!course) return NextResponse.json({ error: "Course not found" }, { status: 404 });
     const existing = await db.courseEnrollment.findUnique({ where: { courseId_userId: { courseId, userId: user.id } } });
+    if (existing?.status === "WITHDRAWN") return NextResponse.json({ error: "This course was withdrawn for the current term. Visit Student Center for advising before a future-term re-entry." }, { status: 409 });
     if (existing) return NextResponse.json({ enrollment: existing, grantBalanceCents: user.grantBalanceCents, allocatedCents: 0 });
     if (course.prerequisites.length) {
       const completed = await db.courseEnrollment.count({ where: { userId: user.id, status: "COMPLETED", courseId: { in: course.prerequisites.map((item) => item.prerequisiteId) } } });
       if (completed !== course.prerequisites.length) return NextResponse.json({ error: "Complete the listed prerequisite course before enrolling." }, { status: 409 });
     }
-    await ensureCourseFunding(user.id, course.id, course.serviceValueCents);
+    try { await ensureCourseFunding(user.id, course.id, course.serviceValueCents); }
+    catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Course funding could not be confirmed." }, { status: 409 }); }
     const result = await db.$transaction(async (tx) => {
       const current = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { grantBalanceCents: true } });
       const grantBalanceCents = current.grantBalanceCents - course.serviceValueCents;

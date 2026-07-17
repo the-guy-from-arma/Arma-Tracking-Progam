@@ -8,8 +8,9 @@ import { OwnerUniversitySettings } from "@/components/OwnerUniversitySettings";
 import { UniversityLearning } from "@/components/UniversityLearning";
 import { Academy } from "@/components/Academy";
 
-export type UniversityView = "dashboard" | "programs" | "catalog" | "learning" | "funding" | "notifications" | "credentials" | "submissions" | "faculty" | "settings";
+export type UniversityView = "dashboard" | "student-center" | "programs" | "catalog" | "learning" | "funding" | "notifications" | "credentials" | "submissions" | "faculty" | "settings";
 const studentViews: { id: UniversityView; label: string; icon: string }[] = [
+  { id: "student-center", label: "Student Center", icon: "SC" },
   { id: "dashboard", label: "Home", icon: "⌂" },
   { id: "programs", label: "Programs", icon: "◎" },
   { id: "catalog", label: "Courses", icon: "◫" },

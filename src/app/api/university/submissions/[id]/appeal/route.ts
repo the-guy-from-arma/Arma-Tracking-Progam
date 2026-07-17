@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { text } from "@/lib/input";
+import { recalculateFundingStanding } from "@/lib/funding-standing";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await currentUser();
@@ -16,5 +17,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (existing) return NextResponse.json({ error: "One appeal is already recorded for this submission." }, { status: 409 });
   const appeal = await db.submissionAppeal.create({ data: { submissionId: id, studentId: user.id, reason } });
   await db.courseSubmission.update({ where: { id }, data: { status: "APPEALED" } });
+  await recalculateFundingStanding(user.id);
   return NextResponse.json({ appeal }, { status: 201 });
 }

@@ -11,6 +11,7 @@ A Railway-first two-portal PWA operated by Thunder Buddies Studios and Black Rid
 - 144 stackable short, associate, and bachelor-level academic programs
 - Enrollment, external-evidence submission, Gemini assessment, exception review, and appeals
 - Rolling 120-day sponsored-learning terms, automatic renewal, just-in-time awards, and student ledgers
+- Student Center with a 10-question Gemini course advisor, final enrollment confirmation, withdrawals, standing, and funding recovery
 - Verifiable certificates with public credential pages
 - PostgreSQL persistence, audit records, PWA installation, and automatic Railway migrations
 - Institution student numbers and configurable internal academic login identities
@@ -57,6 +58,14 @@ Create three Railway scheduled services:
 - Daily funding renewal and reminder processing: `pnpm run funding:renew`
 
 The Gemini key is used only by the server worker. Sponsored-learning balances are internal, noncashable service credits; student responsibility remains `$0.00`.
+
+### Student funding continuation policy
+
+- A course withdrawal returns 30% of its internal sponsored service allocation to the student funding balance.
+- Each withdrawal reduces the next term award by 5 percentage points, capped at a 25-point withdrawal adjustment.
+- Only finalized Gemini grades count toward funding standing. Exceptions and active appeals are excluded.
+- After two finalized grades, an average below 70% pauses new course funding for academic support; improving the finalized average to 70% or higher removes the grade adjustment.
+- Total renewal support never falls below 60% of the scheduled internal award, and an owner or administrator may record a documented support override.
 
 ## Local Docker
 

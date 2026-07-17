@@ -9,7 +9,7 @@ export async function GET() {
     where: isAdmin(user.role) ? {} : { status: "PUBLISHED" },
     include: {
       prerequisites: { include: { prerequisite: { select: { id: true, code: true, title: true } } } },
-      enrollments: { where: { userId: user.id } },
+      enrollments: { where: { userId: user.id, status: { in: ["ACTIVE", "COMPLETED"] } } },
       days: { select: { id: true } },
       sources: { select: { id: true, syncStatus: true, statusWarnings: true, lastSyncedAt: true } },
       _count: { select: { enrollments: true, days: true } },

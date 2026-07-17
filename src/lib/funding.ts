@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { getOrCreateFundingStanding, recalculateFundingStanding } from "@/lib/funding-standing";
 
 const DAY_MS = 86_400_000;
 
@@ -13,12 +14,21 @@ function reservePercent() {
 }
 
 export async function ensureFundingTerm(userId: string) {
+  const standing = await getOrCreateFundingStanding(userId);
   const existing = await db.studentFundingTerm.findFirst({
     where: { userId, status: "ACTIVE" },
     include: { plannedCourses: { include: { course: true }, orderBy: { sequence: "asc" } }, program: true },
     orderBy: { startsAt: "desc" },
   });
   if (existing) return existing;
+  if (standing.academicHold) {
+    const paused = await db.studentFundingTerm.findFirst({
+      where: { userId, status: "PAUSED" },
+      include: { plannedCourses: { include: { course: true }, orderBy: { sequence: "asc" } }, program: true },
+      orderBy: { startsAt: "desc" },
+    });
+    if (paused) return paused;
+  }
 
   const enrollment = await db.programEnrollment.findFirst({
     where: { userId, status: "ACTIVE" },
@@ -29,7 +39,8 @@ export async function ensureFundingTerm(userId: string) {
   const planned = (enrollment?.program.requirements.map((item) => item.course) || fallbackCourses).slice(0, 6);
   const scheduledValueCents = planned.reduce((sum, course) => sum + course.serviceValueCents, 0);
   const reserveCents = Math.round(scheduledValueCents * (reservePercent() / 100));
-  const awardedCents = scheduledValueCents + reserveCents;
+  const fullAwardCents = scheduledValueCents + reserveCents;
+  const awardedCents = Math.round(fullAwardCents * standing.renewalMultiplierBps / 10000);
   const startsAt = new Date();
   startsAt.setUTCHours(0, 0, 0, 0);
   const endsAt = new Date(startsAt.getTime() + termDays() * DAY_MS);
@@ -54,7 +65,7 @@ export async function ensureFundingTerm(userId: string) {
     if (depositCents > 0) {
       await tx.user.update({ where: { id: userId }, data: { grantBalanceCents: { increment: depositCents } } });
       await tx.grantLedger.create({
-        data: { userId, fundingTermId: term.id, type: "TERM_AWARD", amountCents: depositCents, description: "Thunder Buddies Studios 120-day sponsored learning award", idempotencyKey: key, metadata: { scheduledValueCents, reserveCents, nonCash: true } },
+        data: { userId, fundingTermId: term.id, type: "TERM_AWARD", amountCents: depositCents, description: "Thunder Buddies Studios 120-day sponsored learning award", idempotencyKey: key, metadata: { scheduledValueCents, reserveCents, fullAwardCents, renewalMultiplierBps: standing.renewalMultiplierBps, nonCash: true } },
       });
     }
     await tx.notification.create({
@@ -65,10 +76,13 @@ export async function ensureFundingTerm(userId: string) {
 }
 
 export async function ensureCourseFunding(userId: string, courseId: string, requiredCents: number) {
+  const standing = await recalculateFundingStanding(userId);
+  if (standing.academicHold) throw new Error("New course funding is paused because your finalized grade average is below 70%. Open Student Center to review support and appeal options.");
   const term = await ensureFundingTerm(userId);
   return db.$transaction(async (tx) => {
     const user = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { grantBalanceCents: true } });
     if (user.grantBalanceCents >= requiredCents) return { awardedCents: 0, balanceCents: user.grantBalanceCents, fundingTermId: term.id };
+    if (standing.renewalMultiplierBps < 10000) throw new Error(`Your available sponsored balance does not cover this course at the current ${standing.renewalMultiplierBps / 100}% award rate. Complete current learning or use Student Center advising before choosing another course.`);
     const awardedCents = requiredCents - user.grantBalanceCents;
     const idempotencyKey = `jit:${userId}:${courseId}`;
     const existing = await tx.grantLedger.findUnique({ where: { idempotencyKey } });
@@ -116,22 +130,30 @@ export async function renewEligibleFundingTerms() {
   const now = new Date();
   const activeUsers = await db.studentFundingTerm.findMany({ where: { status: "ACTIVE" }, select: { userId: true }, distinct: ["userId"] });
   for (const item of activeUsers) await createFundingReminders(item.userId);
-  const expiring = await db.studentFundingTerm.findMany({ where: { status: "ACTIVE", endsAt: { lte: now } }, include: { user: true, plannedCourses: true } });
+  const expiring = await db.studentFundingTerm.findMany({ where: { status: { in: ["ACTIVE", "PAUSED"] }, endsAt: { lte: now } }, include: { user: true, plannedCourses: true } });
   let renewed = 0;
   for (const term of expiring) {
     if (term.user.suspended) {
       await db.studentFundingTerm.update({ where: { id: term.id }, data: { status: "PAUSED" } });
       continue;
     }
+    const standing = await recalculateFundingStanding(term.userId);
+    if (standing.academicHold) {
+      await db.studentFundingTerm.update({ where: { id: term.id }, data: { status: "PAUSED" } });
+      await db.notification.upsert({ where: { dedupeKey: `funding-hold:${term.id}` }, update: {}, create: { userId: term.userId, type: "ACADEMIC", title: "Funding renewal needs academic support review", body: "Your finalized grade average is below 70%. No debt was created; open Student Center to review grades, appeals, and the continuation path.", actionUrl: "/university?view=student-center", dedupeKey: `funding-hold:${term.id}` } });
+      continue;
+    }
     const startsAt = new Date(term.endsAt);
     const endsAt = new Date(startsAt.getTime() + termDays() * DAY_MS);
     const key = `renewal:${term.userId}:${startsAt.toISOString().slice(0, 10)}`;
+    const fullAwardCents = term.scheduledValueCents + term.reserveCents;
+    const renewalAwardCents = Math.round(fullAwardCents * standing.renewalMultiplierBps / 10000);
     await db.$transaction(async (tx) => {
-      const next = await tx.studentFundingTerm.create({ data: { userId: term.userId, programId: term.programId, startsAt, endsAt, status: "ACTIVE", scheduledValueCents: term.scheduledValueCents, reserveCents: term.reserveCents, awardedCents: term.awardedCents, renewedFromId: term.id, plannedCourses: { create: term.plannedCourses.map((item) => ({ courseId: item.courseId, sequence: item.sequence })) } } });
+      const next = await tx.studentFundingTerm.create({ data: { userId: term.userId, programId: term.programId, startsAt, endsAt, status: "ACTIVE", scheduledValueCents: term.scheduledValueCents, reserveCents: term.reserveCents, awardedCents: renewalAwardCents, renewedFromId: term.id, plannedCourses: { create: term.plannedCourses.map((item) => ({ courseId: item.courseId, sequence: item.sequence })) } } });
       await tx.studentFundingTerm.update({ where: { id: term.id }, data: { status: "RENEWED" } });
-      await tx.user.update({ where: { id: term.userId }, data: { grantBalanceCents: { increment: term.awardedCents } } });
-      await tx.grantLedger.create({ data: { userId: term.userId, fundingTermId: next.id, type: "RENEWAL_AWARD", amountCents: term.awardedCents, description: "Automatic 120-day sponsored learning renewal", idempotencyKey: key, metadata: { nonCash: true } } });
-      await tx.notification.create({ data: { userId: term.userId, type: "FUNDING", title: "Your sponsored learning funding renewed", body: "A new 120-day term award is now available. Student responsibility remains $0.00.", actionUrl: "/university?view=funding", dedupeKey: `${key}:notice` } });
+      await tx.user.update({ where: { id: term.userId }, data: { grantBalanceCents: { increment: renewalAwardCents } } });
+      await tx.grantLedger.create({ data: { userId: term.userId, fundingTermId: next.id, type: "RENEWAL_AWARD", amountCents: renewalAwardCents, description: "Automatic 120-day sponsored learning renewal", idempotencyKey: key, metadata: { fullAwardCents, renewalMultiplierBps: standing.renewalMultiplierBps, nonCash: true } } });
+      await tx.notification.create({ data: { userId: term.userId, type: "FUNDING", title: "Your sponsored learning funding renewed", body: `A new 120-day award was issued at ${standing.renewalMultiplierBps / 100}% of the scheduled sponsorship. Student responsibility remains $0.00.`, actionUrl: "/university?view=student-center", dedupeKey: `${key}:notice` } });
     });
     renewed++;
   }
