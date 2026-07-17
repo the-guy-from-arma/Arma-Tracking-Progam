@@ -84,11 +84,11 @@ export async function processNextAiGrade() {
 
   const submission = await db.courseSubmission.findUniqueOrThrow({
     where: { id: job.submissionId },
-    include: { course: { include: { sources: true, gradingRubric: true } } },
+    include: { course: { include: { sourceMappings: { include: { source: true } }, gradingRubric: true } } },
   });
   await db.courseSubmission.update({ where: { id: submission.id }, data: { status: "AI_REVIEWING" } });
   const rubric = submission.course.gradingRubric;
-  const sources = submission.course.sources;
+  const sources = submission.course.sourceMappings.map((mapping) => mapping.source).filter((source) => source.syncStatus !== "DISABLED" && Boolean(source.lastSuccessAt || source.revisionId));
   const approvedSources = new Set(sources.map((source) => source.wikiTitle));
   const identitySafeSubmission = { title: submission.title, summary: submission.summary, referenceUrl: submission.referenceUrl, demoUrl: submission.demoUrl };
   const prompt = [

@@ -1,21 +1,121 @@
 "use client";
-
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Academy } from "@/components/Academy";
-import { OwnerUniversitySettings } from "@/components/OwnerUniversitySettings";
+import { AcademicBoot } from "@/components/AcademicBoot";
+import { CurriculumSources } from "@/components/CurriculumSources";
+import { FundingOperations } from "@/components/FundingOperations";
+import { GuideAcademy } from "@/components/GuideAcademy";
+import { AdminOverview } from "@/components/AdminOverview";
 import styles from "./OwnerConsole.module.css";
-
-type OwnerView = "operations" | "exceptions";
-
+type OwnerView =
+  "operations" | "sources" | "funding" | "exceptions" | "academy";
+const controls: {
+  id: OwnerView;
+  number: string;
+  title: string;
+  detail: string;
+}[] = [
+  {
+    id: "operations",
+    number: "01",
+    title: "Admissions",
+    detail: "Applications, programs and AI status",
+  },
+  {
+    id: "sources",
+    number: "02",
+    title: "Curriculum Sources",
+    detail: "Diagnostics, mappings and sync history",
+  },
+  {
+    id: "funding",
+    number: "03",
+    title: "Funding Ledger",
+    detail: "Transactions and withdrawal policy",
+  },
+  {
+    id: "exceptions",
+    number: "04",
+    title: "AI exceptions",
+    detail: "Human review and appeals",
+  },
+  {
+    id: "academy",
+    number: "05",
+    title: "Administrator Academy",
+    detail: "Interactive operating guides",
+  },
+];
 export function OwnerConsole({ ownerName }: { ownerName: string }) {
   const [view, setView] = useState<OwnerView>("operations");
   const router = useRouter();
-  async function logout() { await fetch("/api/auth/logout", { method: "POST" }); router.push("/"); router.refresh(); }
-  return <main className={styles.console}>
-    <header className={styles.top}><Link href="/" className={styles.brand}><b>OA</b><span><strong>OWNER ADMINISTRATION</strong><small>SEPARATE INSTITUTIONAL CONTROL</small></span></Link><div className={styles.owner}><i/><span><small>AUTHORIZED OWNER</small><b>{ownerName}</b></span></div><button onClick={logout}>SIGN OUT</button></header>
-    <aside className={styles.rail}><p>CONTROL AREAS</p><button className={view === "operations" ? styles.active : ""} onClick={() => setView("operations")}><i>01</i><span><b>Operations</b><small>Admissions, funding, curriculum and AI</small></span></button><button className={view === "exceptions" ? styles.active : ""} onClick={() => setView("exceptions")}><i>02</i><span><b>AI exceptions</b><small>Human review and assessment oversight</small></span></button><footer><strong>STUDENT CAMPUS SEPARATION</strong><p>This surface is owner-only and is not part of university student navigation.</p><Link href="/university">VIEW STUDENT CAMPUS ↗</Link></footer></aside>
-    <section className={styles.surface}><div className={styles.context}><span>OWNER / {view.toUpperCase()}</span><b>{view === "operations" ? "Institutional operations" : "Assessment exceptions"}</b></div>{view === "operations" ? <OwnerUniversitySettings /> : <Academy initialTab="review" context="university" />}</section>
-  </main>;
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/");
+    router.refresh();
+  }
+  return (
+    <main className={styles.console}>
+      <AcademicBoot label="UNIVERSITY ADMINISTRATION" />
+      <header className={styles.top}>
+        <Link href="/" className={styles.brand}>
+          <b>OA</b>
+          <span>
+            <strong>OWNER ADMINISTRATION</strong>
+            <small>SEPARATE INSTITUTIONAL CONTROL</small>
+          </span>
+        </Link>
+        <div className={styles.owner}>
+          <i />
+          <span>
+            <small>AUTHORIZED OWNER</small>
+            <b>{ownerName}</b>
+          </span>
+        </div>
+        <button onClick={logout}>SIGN OUT</button>
+      </header>
+      <aside className={styles.rail}>
+        <p>CONTROL AREAS</p>
+        {controls.map((control) => (
+          <button
+            key={control.id}
+            className={view === control.id ? styles.active : ""}
+            onClick={() => setView(control.id)}
+          >
+            <i>{control.number}</i>
+            <span>
+              <b>{control.title}</b>
+              <small>{control.detail}</small>
+            </span>
+          </button>
+        ))}
+        <footer>
+          <strong>STUDENT CAMPUS SEPARATION</strong>
+          <p>
+            This surface is owner-only and is not part of student navigation.
+          </p>
+          <Link href="/university">VIEW STUDENT CAMPUS ↗</Link>
+        </footer>
+      </aside>
+      <section className={styles.surface}>
+        <div className={styles.context}>
+          <span>OWNER / {view.toUpperCase()}</span>
+          <b>Institutional control workspace</b>
+        </div>
+        {view === "operations" ? (
+          <AdminOverview />
+        ) : view === "sources" ? (
+          <CurriculumSources />
+        ) : view === "funding" ? (
+          <FundingOperations />
+        ) : view === "academy" ? (
+          <GuideAcademy audience="ADMIN" />
+        ) : (
+          <Academy initialTab="review" context="university" />
+        )}
+      </section>
+    </main>
+  );
 }

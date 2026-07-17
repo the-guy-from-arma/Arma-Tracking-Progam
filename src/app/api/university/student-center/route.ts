@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { currentUser, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { text } from "@/lib/input";
-import { getOrCreateFundingStanding, recalculateFundingStanding, withdrawFromCourse } from "@/lib/funding-standing";
+import { activeWithdrawalPolicy, getOrCreateFundingStanding, quoteCourseWithdrawal, recalculateFundingStanding, withdrawFromCourse } from "@/lib/funding-standing";
 
 export async function GET() {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   await getOrCreateFundingStanding(user.id);
   const standing = await recalculateFundingStanding(user.id);
-  const [account, enrollments, grades, applications] = await Promise.all([
+  const [account, enrollments, grades, applications, withdrawalPolicy] = await Promise.all([
     db.user.findUniqueOrThrow({ where: { id: user.id }, select: { grantBalanceCents: true } }),
     db.courseEnrollment.findMany({ where: { userId: user.id }, include: { course: { select: { id: true, code: true, title: true, academy: true, serviceValueCents: true, estimatedDays: true } } }, orderBy: { enrolledAt: "desc" } }),
     db.aiGradeDecision.findMany({
@@ -27,19 +27,20 @@ export async function GET() {
       take: 30,
     }),
     db.applicationTracking.findMany({ where: { userId: user.id }, include: { programApplication: { select: { program: { select: { code: true, title: true } } } }, studentApplication: { select: { status: true } } }, orderBy: { createdAt: "desc" } }),
+    activeWithdrawalPolicy(),
   ]);
-  return NextResponse.json({ balanceCents: account.grantBalanceCents, standing, enrollments, grades, applications, policy: { withdrawalReturnPercent: 30, withdrawalPenaltyPercent: 5, minimumRenewalPercent: 60, continuingGrade: 70, gradeReviewMinimum: 2 } });
+  return NextResponse.json({ balanceCents: account.grantBalanceCents, standing, enrollments, grades, applications, policy: { id: withdrawalPolicy.id, name: withdrawalPolicy.name, timeTiers: withdrawalPolicy.timeTiers, progressTiers: withdrawalPolicy.progressTiers, penaltyTiers: withdrawalPolicy.penaltyTiers, minimumRenewalPercent: 60, continuingGrade: 70, gradeReviewMinimum: 2 } });
 }
 
 export async function POST(request: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   const body = await request.json().catch(() => ({}));
-  if (body.action !== "withdraw") return NextResponse.json({ error: "Unknown Student Center action" }, { status: 400 });
+  if (!['withdraw', 'quote_withdrawal'].includes(body.action)) return NextResponse.json({ error: "Unknown Student Center action" }, { status: 400 });
   const enrollmentId = text(body.enrollmentId, 100);
   const reason = text(body.reason, 500);
-  if (!enrollmentId || reason.length < 10) return NextResponse.json({ error: "Choose an enrollment and provide a brief withdrawal reason." }, { status: 400 });
-  try { return NextResponse.json(await withdrawFromCourse(user.id, enrollmentId, reason)); }
+  if (!enrollmentId || (body.action === 'withdraw' && reason.length < 10)) return NextResponse.json({ error: "Choose an enrollment and provide a brief withdrawal reason." }, { status: 400 });
+  try { return NextResponse.json(body.action === 'quote_withdrawal' ? await quoteCourseWithdrawal(user.id, enrollmentId) : await withdrawFromCourse(user.id, enrollmentId, reason)); }
   catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Withdrawal could not be completed." }, { status: 409 }); }
 }
 

@@ -1,0 +1,122 @@
+.academy {
+  color: #172c43;
+  font-family: var(--font-plex-sans, "IBM Plex Sans", sans-serif);
+}
+.academy > header {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 50px;
+  align-items: end;
+  padding: 38px;
+  background: #102f4c;
+  color: #fff;
+}
+.academy header small {
+  color: #73bfd7;
+  font: 650 10px var(--font-plex-mono, monospace);
+  letter-spacing: 1.4px;
+}
+.academy header h1 {
+  max-width: 750px;
+  margin: 8px 0;
+  font: 600 clamp(32px, 4vw, 52px)/1.05 var(--font-plex-serif, serif);
+}
+.academy header p {
+  max-width: 700px;
+  color: #bfd1dc;
+  line-height: 1.6;
+}
+.academy header label {
+  display: grid;
+  gap: 8px;
+  font: 650 9px var(--font-plex-mono, monospace);
+}
+.academy header input {
+  min-height: 46px;
+  border: 1px solid #84a6ba;
+  background: #ffffff12;
+  color: white;
+  padding: 0 13px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+.grid article {
+  border: 1px solid #d4dee4;
+  background: #fff;
+}
+.card {
+  width: 100%;
+  border: 0;
+  background: white;
+  padding: 25px;
+  color: inherit;
+  text-align: left;
+}
+.card small,
+.card > b {
+  font: 650 9px var(--font-plex-mono, monospace);
+  color: #4c7a98;
+}
+.card h2 {
+  margin: 10px 0;
+  font: 600 25px var(--font-plex-serif, serif);
+}
+.card p {
+  min-height: 45px;
+  color: #607486;
+  line-height: 1.55;
+}
+.card > span {
+  display: block;
+  height: 5px;
+  margin: 20px 0 9px;
+  background: #e2eaee;
+}
+.card > span i {
+  display: block;
+  height: 100%;
+  background: #1d88a8;
+}
+.steps {
+  padding: 5px 25px 25px;
+  border-top: 1px solid #dfe7eb;
+}
+.steps label {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 12px;
+  padding: 15px 0;
+  border-bottom: 1px solid #e4eaed;
+}
+.steps b,
+.steps small {
+  display: block;
+}
+.steps small {
+  color: #6a8599;
+  font: 650 8px var(--font-plex-mono, monospace);
+}
+.steps p {
+  margin: 5px 0;
+  color: #647788;
+}
+.steps > a {
+  display: inline-block;
+  margin-top: 16px;
+  color: #176b93;
+  font: 650 9px var(--font-plex-mono, monospace);
+}
+@media (max-width: 800px) {
+  .academy > header,
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .academy > header {
+    gap: 20px;
+    padding: 25px;
+  }
+}

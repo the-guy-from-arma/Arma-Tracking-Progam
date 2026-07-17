@@ -89,10 +89,15 @@ try {
             create: { code, title: subject, summary: narrative.summary, deliverable: narrative.deliverable, studio, level: levels[subjectIndex], status: "PUBLISHED", learningCredits: Math.max(2, Math.ceil(estimatedDays / 4)), serviceValueCents, academy, estimatedDays, workloadHours, wikiManaged: true, outcomes: narrative.outcomes },
           });
 
-      await db.curriculumSource.upsert({
+      const curriculumSource = await db.curriculumSource.upsert({
         where: { wikiTitle: source },
-        update: { url, courseId: course.id },
-        create: { wikiTitle: source, url, sourceExcerpt: `Official technical source supporting the ${subject} course.`, courseId: course.id },
+        update: { url },
+        create: { wikiTitle: source, url, sourceExcerpt: `Official technical source supporting the ${subject} course.` },
+      });
+      await db.courseSourceMapping.upsert({
+        where: { courseId_sourceId: { courseId: course.id, sourceId: curriculumSource.id } },
+        update: {},
+        create: { courseId: course.id, sourceId: curriculumSource.id },
       });
       await db.gradingRubric.upsert({
         where: { courseId: course.id },

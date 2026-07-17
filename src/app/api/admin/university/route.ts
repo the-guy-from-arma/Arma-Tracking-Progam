@@ -15,7 +15,7 @@ export async function GET() {
   const owner = await requireOwner();
   if (!owner) return NextResponse.json({ error: "Owner access required." }, { status: 403 });
 
-  const [applications, ledger, totals, sources] = await Promise.all([
+  const [applications, totals] = await Promise.all([
     db.studentApplication.findMany({
       include: {
         user: {
@@ -35,13 +35,7 @@ export async function GET() {
       },
       orderBy: { submittedAt: "desc" },
     }),
-    db.grantLedger.findMany({
-      include: { user: { select: { name: true, studentNumber: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    }),
     db.user.aggregate({ where: { isStudent: true }, _sum: { grantBalanceCents: true }, _count: { id: true } }),
-    db.curriculumSource.findMany({ where: { OR: [{ courseId: null }, { syncStatus: { in: ["WARNING", "FAILED"] } }] }, select: { id: true, wikiTitle: true, url: true, syncStatus: true, statusWarnings: true, courseId: true }, orderBy: { wikiTitle: "asc" }, take: 100 }),
   ]);
 
   const byStatus = applications.reduce<Record<string, number>>((result, application) => {
@@ -51,8 +45,8 @@ export async function GET() {
 
   return NextResponse.json({
     applications,
-    ledger,
-    curriculumCoverage: { attention: sources, unmapped: sources.filter((source) => !source.courseId).length, warnings: sources.filter((source) => source.syncStatus === "WARNING" || source.syncStatus === "FAILED").length },
+    ledger: [],
+    curriculumCoverage: { attention: [], unmapped: 0, warnings: 0 },
     summary: {
       students: totals._count.id,
       availableFundingCents: totals._sum.grantBalanceCents || 0,

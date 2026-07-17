@@ -11,6 +11,7 @@ enum UserRole {
   TRAINEE
   DEVELOPER
   VETERAN
+  FACULTY
   ADMIN
   OWNER
 }
@@ -181,6 +182,13 @@ enum SourceSyncStatus {
   UPDATED
   WARNING
   FAILED
+  BYPASSED
+  DISABLED
+}
+
+enum GuideAudience {
+  FACULTY
+  ADMIN
 }
 
 enum ApplicationTrackingType {
@@ -234,6 +242,10 @@ model User {
   projectNotes        ProjectNote[]
   assignedObjectives  ProjectObjective[]      @relation("ObjectiveAssignee")
   projectComments     ProjectComment[]
+  sourceSyncAttempts  SourceSyncAttempt[]
+  sourceBypasses      CurriculumSource[]      @relation("SourceBypassOwner")
+  withdrawalPolicies  WithdrawalPolicy[]
+  guideProgress       GuideProgress[]
 
   @@index([role])
 }
@@ -260,7 +272,7 @@ model Course {
   submissions         CourseSubmission[]
   certificates        Certificate[]
   days                CourseDay[]
-  sources             CurriculumSource[]
+  sourceMappings      CourseSourceMapping[]
   prerequisites       CoursePrerequisite[]       @relation("CoursePrerequisites")
   requiredFor         CoursePrerequisite[]       @relation("CourseDependents")
   programRequirements ProgramCourseRequirement[]
@@ -335,22 +347,67 @@ model QuizAttempt {
 }
 
 model CurriculumSource {
-  id                String           @id @default(cuid())
-  wikiTitle         String           @unique
-  url               String
-  revisionId        String?
-  revisionTimestamp DateTime?
-  categories        Json             @default("[]")
-  statusWarnings    Json             @default("[]")
-  sourceExcerpt     String
-  courseId          String?
-  course            Course?          @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  syncStatus        SourceSyncStatus @default(CURRENT)
-  lastSyncedAt      DateTime?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  id                  String                @id @default(cuid())
+  wikiTitle           String                @unique
+  url                 String
+  revisionId          String?
+  revisionTimestamp   DateTime?
+  categories          Json                  @default("[]")
+  statusWarnings      Json                  @default("[]")
+  sourceExcerpt       String
+  syncStatus          SourceSyncStatus      @default(CURRENT)
+  lastSyncedAt        DateTime?
+  lastAttemptAt       DateTime?
+  lastSuccessAt       DateTime?
+  lastHttpStatus      Int?
+  lastErrorCode       String?
+  lastErrorMessage    String?
+  consecutiveFailures Int                   @default(0)
+  lastGoodRevisionId  String?
+  lastGoodExcerpt     String?
+  bypassedAt          DateTime?
+  bypassReason        String?
+  bypassRevisionId    String?
+  bypassedById        String?
+  bypassedBy          User?                 @relation("SourceBypassOwner", fields: [bypassedById], references: [id], onDelete: SetNull)
+  disabledAt          DateTime?
+  mappings            CourseSourceMapping[]
+  attempts            SourceSyncAttempt[]
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
 
-  @@index([courseId, syncStatus])
+  @@index([syncStatus, lastAttemptAt])
+}
+
+model CourseSourceMapping {
+  id        String           @id @default(cuid())
+  courseId  String
+  course    Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  sourceId  String
+  source    CurriculumSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  createdAt DateTime         @default(now())
+
+  @@unique([courseId, sourceId])
+  @@index([sourceId])
+}
+
+model SourceSyncAttempt {
+  id           String           @id @default(cuid())
+  sourceId     String
+  source       CurriculumSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  actorId      String?
+  actor        User?            @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  mode         String           @default("NORMAL")
+  outcome      String
+  httpStatus   Int?
+  errorCode    String?
+  errorMessage String?
+  revisionId   String?
+  detail       Json             @default("{}")
+  startedAt    DateTime         @default(now())
+  completedAt  DateTime         @default(now())
+
+  @@index([sourceId, startedAt])
 }
 
 model StudentApplication {
@@ -416,21 +473,84 @@ model GrantLedger {
 }
 
 model CourseEnrollment {
-  id               String           @id @default(cuid())
-  courseId         String
-  course           Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  userId           String
-  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status           EnrollmentStatus @default(ACTIVE)
-  progress         Int              @default(0)
-  enrolledAt       DateTime         @default(now())
-  completedAt      DateTime?
-  withdrawnAt      DateTime?
-  withdrawalReason String?
-  refundCents      Int              @default(0)
+  id                       String            @id @default(cuid())
+  courseId                 String
+  course                   Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId                   String
+  user                     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status                   EnrollmentStatus  @default(ACTIVE)
+  progress                 Int               @default(0)
+  enrolledAt               DateTime          @default(now())
+  completedAt              DateTime?
+  withdrawnAt              DateTime?
+  withdrawalReason         String?
+  refundCents              Int               @default(0)
+  refundPercent            Int?
+  withdrawalPenaltyBps     Int               @default(0)
+  withdrawalPolicyId       String?
+  withdrawalPolicy         WithdrawalPolicy? @relation(fields: [withdrawalPolicyId], references: [id], onDelete: SetNull)
+  withdrawalPolicySnapshot Json?
 
   @@unique([courseId, userId])
   @@index([userId, status])
+}
+
+model WithdrawalPolicy {
+  id            String             @id @default(cuid())
+  name          String
+  effectiveFrom DateTime           @unique
+  timeTiers     Json
+  progressTiers Json
+  penaltyTiers  Json
+  createdById   String?
+  createdBy     User?              @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  enrollments   CourseEnrollment[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([effectiveFrom])
+}
+
+model Guide {
+  id        String        @id @default(cuid())
+  slug      String        @unique
+  audience  GuideAudience
+  title     String
+  summary   String
+  category  String
+  route     String?
+  sortOrder Int           @default(0)
+  published Boolean       @default(true)
+  steps     GuideStep[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([audience, published, sortOrder])
+}
+
+model GuideStep {
+  id          String          @id @default(cuid())
+  guideId     String
+  guide       Guide           @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  stepNumber  Int
+  title       String
+  instruction String
+  controlId   String?
+  progress    GuideProgress[]
+
+  @@unique([guideId, stepNumber])
+}
+
+model GuideProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guideStepId String
+  guideStep   GuideStep @relation(fields: [guideStepId], references: [id], onDelete: Cascade)
+  completedAt DateTime  @default(now())
+
+  @@unique([userId, guideStepId])
+  @@index([userId, completedAt])
 }
 
 model StudentFundingStanding {

@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
-import { currentUser, isAdmin } from "@/lib/auth";
+import { canTeach, currentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { text } from "@/lib/input";
 
@@ -8,7 +8,7 @@ const decisions = new Set(["APPROVED", "REVISION_REQUIRED", "DECLINED"]);
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const reviewer = await currentUser();
-  if (!reviewer || !isAdmin(reviewer.role)) return NextResponse.json({ error: "Studio review authority required" }, { status: 403 });
+  if (!reviewer || !canTeach(reviewer.role)) return NextResponse.json({ error: "Faculty review authority required" }, { status: 403 });
   const { id } = await params;
   const body = await request.json().catch(() => ({}));
   const decision = String(body.decision || "");

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { currentUser, isAdmin } from "@/lib/auth";
+import { canTeach, currentUser, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { text } from "@/lib/input";
 import { ensureCourseFunding } from "@/lib/funding";
@@ -31,7 +31,7 @@ function approvedEvidenceUrl(value: string) {
 export async function GET() {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-  const admin = isAdmin(user.role);
+  const admin = canTeach(user.role);
   const [courses, submissions, certificates, programs, grantLedger] = await Promise.all([
     db.course.findMany({
       where: admin ? {} : { status: "PUBLISHED" },
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
   const action = String(body.action || "");
 
   if (action === "create_course") {
-    if (!isAdmin(user.role)) return NextResponse.json({ error: "Studio authoring authority required" }, { status: 403 });
+    if (!canTeach(user.role)) return NextResponse.json({ error: "Faculty authoring authority required" }, { status: 403 });
     const code = text(body.code, 20).toUpperCase();
     const title = text(body.title, 100);
     const summary = text(body.summary, 800);

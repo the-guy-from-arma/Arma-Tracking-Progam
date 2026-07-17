@@ -31,3 +31,4 @@ export async function currentUser() {
 }
 
 export function isAdmin(role: string) { return role === "ADMIN" || role === "OWNER"; }
+export function canTeach(role: string) { return role === "FACULTY" || role === "ADMIN" || role === "OWNER"; }

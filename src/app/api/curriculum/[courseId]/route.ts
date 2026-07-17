@@ -6,9 +6,9 @@ import { text } from "@/lib/input";
 export async function GET(_: Request, { params }: { params: Promise<{ courseId: string }> }) {
   const user = await currentUser(); if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   const { courseId } = await params;
-  const course = await db.course.findUnique({ where: { id: courseId }, include: { days: { include: { progress: { where: { userId: user.id } } }, orderBy: { dayNumber: "asc" } }, sources: true, prerequisites: { include: { prerequisite: { select: { id: true, code: true, title: true } } } }, enrollments: { where: { userId: user.id } } } });
+  const course = await db.course.findUnique({ where: { id: courseId }, include: { days: { include: { progress: { where: { userId: user.id } } }, orderBy: { dayNumber: "asc" } }, sourceMappings: { include: { source: true } }, prerequisites: { include: { prerequisite: { select: { id: true, code: true, title: true } } } }, enrollments: { where: { userId: user.id } } } });
   if (!course || (course.status !== "PUBLISHED" && !["ADMIN", "OWNER"].includes(user.role))) return NextResponse.json({ error: "Course not found." }, { status: 404 });
-  return NextResponse.json({ course });
+  return NextResponse.json({ course: { ...course, sources: course.sourceMappings.map((mapping) => mapping.source), sourceMappings: undefined } });
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ courseId: string }> }) {

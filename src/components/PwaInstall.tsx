@@ -1,4 +1,68 @@
 "use client";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-type Prompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
-export function PwaInstall() { const [prompt, setPrompt] = useState<Prompt | null>(null); const [ios, setIos] = useState(false); const [closed, setClosed] = useState(false); useEffect(() => { if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => undefined); const standalone = matchMedia("(display-mode: standalone)").matches || Boolean((navigator as Navigator & { standalone?: boolean }).standalone); const platformTimer = setTimeout(() => setIos(/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone), 0); const capture = (event: Event) => { event.preventDefault(); setPrompt(event as Prompt); }; addEventListener("beforeinstallprompt", capture); return () => { clearTimeout(platformTimer); removeEventListener("beforeinstallprompt", capture); }; }, []); if (closed || (!ios && !prompt)) return null; return <aside className="install"><div><strong>{ios ? "ADD PROJECT VALORIS TO IPHONE" : "INSTALL PROJECT VALORIS"}</strong><span>{ios ? "Safari → Share → Add to Home Screen" : "Keep your development and learning record one tap away."}</span></div>{prompt && <button onClick={async () => { await prompt.prompt(); await prompt.userChoice; setPrompt(null); }}>INSTALL</button>}<button aria-label="Dismiss" onClick={() => setClosed(true)}>×</button></aside>; }
+type Prompt = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: string }>;
+};
+export function PwaInstall() {
+  const pathname = usePathname();
+  const [prompt, setPrompt] = useState<Prompt | null>(null);
+  const [ios, setIos] = useState(false);
+  const [closed, setClosed] = useState(true);
+  useEffect(() => {
+    const initialize = setTimeout(() => {
+      setClosed(localStorage.getItem("valoris:pwa-dismissed") === "1");
+      const standalone =
+        matchMedia("(display-mode: standalone)").matches ||
+        Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+      setIos(/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone);
+    }, 0);
+    if ("serviceWorker" in navigator)
+      navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    const capture = (event: Event) => {
+      event.preventDefault();
+      setPrompt(event as Prompt);
+    };
+    addEventListener("beforeinstallprompt", capture);
+    return () => {
+      clearTimeout(initialize);
+      removeEventListener("beforeinstallprompt", capture);
+    };
+  }, []);
+  if (pathname !== "/" || closed || (!ios && !prompt)) return null;
+  return (
+    <aside className="install">
+      <div>
+        <strong>
+          {ios ? "ADD VALORIS NETWORK TO IPHONE" : "INSTALL VALORIS NETWORK"}
+        </strong>
+        <span>
+          {ios
+            ? "Safari → Share → Add to Home Screen"
+            : "Install from the gateway; it will never cover academic work."}
+        </span>
+      </div>
+      {prompt && (
+        <button
+          onClick={async () => {
+            await prompt.prompt();
+            await prompt.userChoice;
+            setPrompt(null);
+          }}
+        >
+          INSTALL
+        </button>
+      )}
+      <button
+        aria-label="Dismiss installation prompt"
+        onClick={() => {
+          localStorage.setItem("valoris:pwa-dismissed", "1");
+          setClosed(true);
+        }}
+      >
+        ×
+      </button>
+    </aside>
+  );
+}
