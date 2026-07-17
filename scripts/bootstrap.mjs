@@ -7,7 +7,7 @@ const db = new PrismaClient();
 try {
   const email = (process.env.OWNER_EMAIL || "").trim().toLowerCase();
   const password = process.env.OWNER_PASSWORD || "";
-  const name = (process.env.OWNER_NAME || "ForgeOps Owner").trim();
+  const name = (process.env.OWNER_NAME || "Project VALORIS Owner").trim();
 
   if (!email && !password) {
     console.warn("[startup] OWNER_EMAIL and OWNER_PASSWORD are not configured; skipping owner sync.");
@@ -21,7 +21,7 @@ try {
     await db.user.upsert({
       where: { email },
       update: { name, passwordHash, role: "OWNER", suspended: false },
-      create: { email, name, passwordHash, role: "OWNER", specialty: "Command authority" },
+      create: { email, name, passwordHash, role: "OWNER", specialty: "Network administration" },
     });
     console.log(`[startup] Owner authority ready for ${email}`);
   }

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { db } from "./db";
 
-export const SESSION_COOKIE = "forgeops_session";
+export const SESSION_COOKIE = "valoris_session";
 const sessionDays = Math.max(1, Number(process.env.SESSION_DAYS || 30));
 const hash = (token: string) => crypto.createHash("sha256").update(token).digest("hex");
 

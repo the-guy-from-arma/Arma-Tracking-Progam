@@ -19,7 +19,7 @@ services:
       DATABASE_URL: postgresql://forgeops:forgeops@db:5432/forgeops
       OWNER_EMAIL: owner@example.com
       OWNER_PASSWORD: local-owner-password
-      OWNER_NAME: ForgeOps Owner
+      OWNER_NAME: Project VALORIS Owner
     depends_on:
       db:
         condition: service_healthy

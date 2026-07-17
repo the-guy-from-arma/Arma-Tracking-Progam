@@ -6,7 +6,8 @@ import { email, publicUser } from "@/lib/input";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const user = await db.user.findUnique({ where: { email: email(body.email) } });
+  const identifier = email(body.email);
+  const user = await db.user.findFirst({ where: { OR: [{ email: identifier }, { academicEmail: identifier }] } });
   if (!user || user.suspended || !(await bcrypt.compare(String(body.password || ""), user.passwordHash))) return NextResponse.json({ error: "Email or password is incorrect." }, { status: 401 });
   await createSession(user.id);
   return NextResponse.json({ user: publicUser(user) });
