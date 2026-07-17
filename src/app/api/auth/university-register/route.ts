@@ -56,7 +56,7 @@ export async function POST(request: Request) {
 
   const signedIn = await currentUser();
   if (signedIn?.isStudent) return NextResponse.json({ error: "This account is already enrolled at Enfusion University." }, { status: 409 });
-  if (signedIn && signedIn.email !== personalEmail) return NextResponse.json({ error: "Use the recovery email attached to your signed-in VALORIS account." }, { status: 409 });
+  if (signedIn && signedIn.email !== personalEmail) return NextResponse.json({ error: "Use the recovery email attached to your signed-in university account." }, { status: 409 });
   if (!signedIn && await db.user.findFirst({ where: { OR: [{ email: personalEmail }, { academicEmail: personalEmail }] } })) return NextResponse.json({ error: "An account already exists for that email. Sign in before applying to the university." }, { status: 409 });
 
   const studentNumber = `EFU-${new Date().getUTCFullYear()}-${crypto.randomInt(100000, 999999)}`;

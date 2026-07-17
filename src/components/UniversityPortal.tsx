@@ -179,7 +179,6 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
               <small>{item.short}</small>
             </button>
           ))}
-          <Link href="/valoris">PROJECT VALORIS ↗</Link>
           <button className={styles.signOut} onClick={logout}>
             SIGN OUT
           </button>

@@ -12,7 +12,10 @@ export function PwaInstall() {
   const [closed, setClosed] = useState(true);
   useEffect(() => {
     const initialize = setTimeout(() => {
-      setClosed(localStorage.getItem("valoris:pwa-dismissed") === "1");
+      setClosed(
+        localStorage.getItem("efu:pwa-dismissed") === "1" ||
+          localStorage.getItem("valoris:pwa-dismissed") === "1",
+      );
       const standalone =
         matchMedia("(display-mode: standalone)").matches ||
         Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
@@ -35,7 +38,7 @@ export function PwaInstall() {
     <aside className="install">
       <div>
         <strong>
-          {ios ? "ADD VALORIS NETWORK TO IPHONE" : "INSTALL VALORIS NETWORK"}
+          {ios ? "ADD ENFUSION UNIVERSITY TO IPHONE" : "INSTALL ENFUSION UNIVERSITY"}
         </strong>
         <span>
           {ios
@@ -57,7 +60,7 @@ export function PwaInstall() {
       <button
         aria-label="Dismiss installation prompt"
         onClick={() => {
-          localStorage.setItem("valoris:pwa-dismissed", "1");
+          localStorage.setItem("efu:pwa-dismissed", "1");
           setClosed(true);
         }}
       >
