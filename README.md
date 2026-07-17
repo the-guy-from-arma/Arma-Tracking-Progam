@@ -5,18 +5,19 @@ A Railway-first two-portal PWA operated by Thunder Buddies Studios and Black Rid
 ## Included
 
 - Secure accounts with owner, admin, veteran, developer, and trainee roles
-- Project intake and owner/admin approval workflows
-- Studio-authored development courses with assessed mod deliverables
-- Course enrollment, repository submission, feedback, and review queues
+- Animated Glass Orbit gateway, university campus, and VALORIS knowledge network
+- Project intake, workspaces, objectives, notes, decisions, blockers, references, and owner approval
+- 192 courses across 16 academies with 2,640 complete day-by-day Workbench lessons
+- 144 stackable short, associate, and bachelor-level academic programs
+- Enrollment, external-evidence submission, Gemini assessment, exception review, and appeals
+- Rolling 120-day sponsored-learning terms, automatic renewal, just-in-time awards, and student ledgers
 - Verifiable certificates with public credential pages
-- Community learning credits and certificate, diploma, and degree-style pathways
 - PostgreSQL persistence, audit records, PWA installation, and automatic Railway migrations
-- Separate Project VALORIS and Enfusion University entry points behind one secure account
-- Institution student numbers and configurable academic email identities
+- Institution student numbers and configurable internal academic login identities
 
 ## Credential status
 
-Enfusion University credentials record learning and portfolio assessment. They are not accredited academic degrees or college credits unless a recognized institution separately approves the program or accepts a credential for transfer. All public credential pages display this distinction.
+Enfusion University is an independent, non-accredited learning institution. Its credentials record learning and portfolio assessment; they are not accredited academic degrees or guaranteed transferable college credits. Public degree wording remains disabled unless appropriate legal authorization is documented.
 
 ## Railway deployment
 
@@ -26,13 +27,36 @@ Enfusion University credentials record learning and portfolio assessment. They a
 4. Set `OWNER_EMAIL`, `OWNER_NAME`, and a unique `OWNER_PASSWORD` containing at least 12 characters.
 5. Optionally set `UNIVERSITY_IDENTITY_DOMAIN`; it defaults to `enfusionuniversity.edu`.
 6. Set `WIKI_SYNC_SECRET` to a long random value for authenticated curriculum synchronization.
-6. Deploy. Startup applies migrations and creates or synchronizes the owner account.
+7. Add the server-only Gemini and funding variables listed below.
+8. Deploy. Startup applies migrations, seeds the complete curriculum, and creates or synchronizes the owner account.
 
 `OWNER_EMAIL` and `OWNER_PASSWORD` are optional as a pair so a missing Railway variable cannot crash the service. Without them, Project VALORIS starts normally but owner-only controls remain unavailable. Never commit the production password.
 
-Student identities such as `alex.morgan@enfusionuniversity.edu` are internal EFU login identifiers only. They do not create an internet mailbox or represent ownership of the matching `.edu` domain; the student’s verified personal email remains the recovery and contact address. A public `.edu` identity must not be represented as registered or deliverable unless the institution becomes eligible and secures the domain through EDUCAUSE.
+Student identities such as `alex.morgan@enfusionuniversity.edu` are internal EFU login identifiers only. They do not create an internet mailbox or represent ownership of the matching `.edu` domain; the student’s verified personal email remains the recovery and contact address.
 
-The startup workflow applies migrations and idempotently seeds 64 courses across 16 Enfusion academies. For nightly source updates, create a Railway cron service with `pnpm run curriculum:sync`; it uses `APP_URL` (or Railway’s public domain) and `WIKI_SYNC_SECRET` to call the protected synchronization endpoint. Wiki failures preserve the last successful instructional source record.
+### Railway runtime variables
+
+```text
+GEMINI_API_KEY=<Google AI Studio authorization key>
+GEMINI_MODEL=gemini-3.1-pro-preview
+AI_GRADING_ENABLED=true
+AI_GRADING_CONFIDENCE_THRESHOLD=0.85
+AI_GRADING_MAX_RETRIES=3
+AI_GRADING_WORKER_SECRET=<random value of at least 32 characters>
+FUNDING_RENEWAL_SECRET=<different random value of at least 32 characters>
+FUNDING_TERM_DAYS=120
+FUNDING_RESERVE_PERCENT=15
+DEGREE_WORDING_ENABLED=false
+APP_ORIGIN=https://enfusion-edu.up.railway.app
+```
+
+Create three Railway scheduled services:
+
+- Nightly wiki synchronization: `pnpm run curriculum:sync`
+- AI grading worker, scheduled every minute: `pnpm run grading:worker`
+- Daily funding renewal and reminder processing: `pnpm run funding:renew`
+
+The Gemini key is used only by the server worker. Sponsored-learning balances are internal, noncashable service credits; student responsibility remains `$0.00`.
 
 ## Local Docker
 

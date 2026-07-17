@@ -35,7 +35,7 @@ export function Academy({ initialTab = "catalog", context = "valoris" }: { initi
     await load(); setBusy(""); return true;
   }
 
-  const reviewQueue = useMemo(() => data?.submissions.filter((submission) => ["SUBMITTED", "IN_REVIEW"].includes(submission.status)) || [], [data]);
+  const reviewQueue = useMemo(() => data?.submissions.filter((submission) => ["SUBMITTED", "AI_EXCEPTION", "APPEALED", "IN_REVIEW"].includes(submission.status)) || [], [data]);
   if (!data) return <section className="academyLoading"><i/><p>{error || "Opening the VALORIS learning network…"}</p></section>;
 
   const university = context === "university";

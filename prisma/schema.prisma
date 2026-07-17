@@ -54,16 +54,23 @@ enum EnrollmentStatus {
 
 enum SubmissionStatus {
   SUBMITTED
+  PENDING_AI_REVIEW
+  AI_REVIEWING
+  AI_EXCEPTION
   IN_REVIEW
   REVISION_REQUIRED
   APPROVED
   DECLINED
+  APPEALED
 }
 
 enum ProgramLevel {
   CERTIFICATE
   DIPLOMA
   DEGREE_PATH
+  SHORT
+  ASSOCIATE
+  BACHELOR
 }
 
 enum AdmissionStatus {
@@ -76,8 +83,67 @@ enum AdmissionStatus {
 enum GrantLedgerType {
   INITIAL_AWARD
   SUPPLEMENTAL_AWARD
+  TERM_AWARD
+  JUST_IN_TIME_AWARD
+  RENEWAL_AWARD
   COURSE_ALLOCATION
   ADJUSTMENT
+  REVERSAL
+  EXPIRATION
+  CORRECTION
+}
+
+enum ProgramRequirementType {
+  CORE
+  SUPPORTING
+  ELECTIVE
+  CAPSTONE
+}
+
+enum ProgramApplicationStatus {
+  SUBMITTED
+  ADMITTED
+  WAITLISTED
+  DECLINED
+  WITHDRAWN
+}
+
+enum FundingTermStatus {
+  UPCOMING
+  ACTIVE
+  RENEWED
+  COMPLETED
+  PAUSED
+}
+
+enum NotificationType {
+  FUNDING
+  ACADEMIC
+  FEEDBACK
+  DEADLINE
+  SYSTEM
+}
+
+enum AiGradeJobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  EXCEPTION
+  FAILED
+}
+
+enum AiDecisionStatus {
+  AUTO_FINALIZED
+  HUMAN_REVIEW_REQUIRED
+  OVERRIDDEN
+}
+
+enum AppealStatus {
+  SUBMITTED
+  IN_REVIEW
+  UPHELD
+  OVERTURNED
+  CLOSED
 }
 
 enum ObjectiveStatus {
@@ -109,69 +175,77 @@ enum SourceSyncStatus {
 }
 
 model User {
-  id                  String              @id @default(cuid())
-  email               String              @unique
-  academicEmail       String?             @unique
-  studentNumber       String?             @unique
-  isStudent           Boolean             @default(false)
-  grantBalanceCents   Int                 @default(0)
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  academicEmail       String?              @unique
+  studentNumber       String?              @unique
+  isStudent           Boolean              @default(false)
+  grantBalanceCents   Int                  @default(0)
   name                String
   passwordHash        String
-  role                UserRole            @default(TRAINEE)
+  role                UserRole             @default(TRAINEE)
   specialty           String?
-  suspended           Boolean             @default(false)
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  suspended           Boolean              @default(false)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
   sessions            Session[]
-  projects            Project[]           @relation("ProjectOwner")
-  reviews             Project[]           @relation("ProjectReviewer")
+  projects            Project[]            @relation("ProjectOwner")
+  reviews             Project[]            @relation("ProjectReviewer")
   memberships         Membership[]
   auditLogs           AuditLog[]
-  authoredCourses     Course[]            @relation("CourseAuthor")
+  authoredCourses     Course[]             @relation("CourseAuthor")
   courseEnrollments   CourseEnrollment[]
-  courseSubmissions   CourseSubmission[]  @relation("StudentSubmissions")
-  reviewedSubmissions CourseSubmission[]  @relation("SubmissionReviewer")
+  courseSubmissions   CourseSubmission[]   @relation("StudentSubmissions")
+  reviewedSubmissions CourseSubmission[]   @relation("SubmissionReviewer")
   certificates        Certificate[]
   programEnrollments  ProgramEnrollment[]
+  programApplications ProgramApplication[]
+  fundingTerms        StudentFundingTerm[]
+  notifications       Notification[]
+  submissionAppeals   SubmissionAppeal[]   @relation("StudentAppeals")
+  reviewedAppeals     SubmissionAppeal[]   @relation("AppealReviewer")
   studentApplication  StudentApplication?
   grantLedger         GrantLedger[]
   lessonProgress      LessonProgress[]
   quizAttempts        QuizAttempt[]
   projectUpdates      ProjectUpdate[]
   projectNotes        ProjectNote[]
-  assignedObjectives  ProjectObjective[]  @relation("ObjectiveAssignee")
+  assignedObjectives  ProjectObjective[]   @relation("ObjectiveAssignee")
   projectComments     ProjectComment[]
 
   @@index([role])
 }
 
 model Course {
-  id                String               @id @default(cuid())
-  code              String               @unique
-  title             String
-  summary           String
-  deliverable       String
-  studio            String
-  level             CourseLevel
-  status            CourseStatus         @default(DRAFT)
-  learningCredits   Int                  @default(3)
-  serviceValueCents Int                  @default(450000)
-  academy           String               @default("Workbench Foundations")
-  estimatedDays     Int                  @default(10)
-  workloadHours     Int                  @default(20)
-  outcomes          Json                 @default("[]")
-  wikiManaged       Boolean              @default(false)
-  createdById       String?
-  createdBy         User?                @relation("CourseAuthor", fields: [createdById], references: [id], onDelete: SetNull)
-  enrollments       CourseEnrollment[]
-  submissions       CourseSubmission[]
-  certificates      Certificate[]
-  days              CourseDay[]
-  sources           CurriculumSource[]
-  prerequisites     CoursePrerequisite[] @relation("CoursePrerequisites")
-  requiredFor       CoursePrerequisite[] @relation("CourseDependents")
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
+  id                  String                     @id @default(cuid())
+  code                String                     @unique
+  title               String
+  summary             String
+  deliverable         String
+  studio              String
+  level               CourseLevel
+  status              CourseStatus               @default(DRAFT)
+  learningCredits     Int                        @default(3)
+  serviceValueCents   Int                        @default(450000)
+  academy             String                     @default("Workbench Foundations")
+  estimatedDays       Int                        @default(10)
+  workloadHours       Int                        @default(20)
+  outcomes            Json                       @default("[]")
+  wikiManaged         Boolean                    @default(false)
+  createdById         String?
+  createdBy           User?                      @relation("CourseAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  enrollments         CourseEnrollment[]
+  submissions         CourseSubmission[]
+  certificates        Certificate[]
+  days                CourseDay[]
+  sources             CurriculumSource[]
+  prerequisites       CoursePrerequisite[]       @relation("CoursePrerequisites")
+  requiredFor         CoursePrerequisite[]       @relation("CourseDependents")
+  programRequirements ProgramCourseRequirement[]
+  termPlanCourses     TermPlanCourse[]
+  gradingRubric       GradingRubric?
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
 
   @@index([status, level])
   @@index([studio])
@@ -279,14 +353,18 @@ model StudentApplication {
 }
 
 model GrantLedger {
-  id          String          @id @default(cuid())
-  userId      String
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type        GrantLedgerType
-  amountCents Int
-  description String
-  courseId    String?
-  createdAt   DateTime        @default(now())
+  id             String              @id @default(cuid())
+  userId         String
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           GrantLedgerType
+  amountCents    Int
+  description    String
+  courseId       String?
+  fundingTermId  String?
+  fundingTerm    StudentFundingTerm? @relation(fields: [fundingTermId], references: [id], onDelete: SetNull)
+  idempotencyKey String?             @unique
+  metadata       Json                @default("{}")
+  createdAt      DateTime            @default(now())
 
   @@index([userId, createdAt])
 }
@@ -307,23 +385,27 @@ model CourseEnrollment {
 }
 
 model CourseSubmission {
-  id           String           @id @default(cuid())
-  courseId     String
-  course       Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  studentId    String
-  student      User             @relation("StudentSubmissions", fields: [studentId], references: [id], onDelete: Cascade)
-  title        String
-  summary      String
-  referenceUrl String?
-  demoUrl      String?
-  status       SubmissionStatus @default(SUBMITTED)
-  reviewerId   String?
-  reviewer     User?            @relation("SubmissionReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
-  feedback     String?
-  submittedAt  DateTime         @default(now())
-  reviewedAt   DateTime?
-  updatedAt    DateTime         @updatedAt
-  certificate  Certificate?
+  id                String             @id @default(cuid())
+  courseId          String
+  course            Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  studentId         String
+  student           User               @relation("StudentSubmissions", fields: [studentId], references: [id], onDelete: Cascade)
+  title             String
+  summary           String
+  referenceUrl      String?
+  demoUrl           String?
+  status            SubmissionStatus   @default(SUBMITTED)
+  reviewerId        String?
+  reviewer          User?              @relation("SubmissionReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  feedback          String?
+  submittedAt       DateTime           @default(now())
+  reviewedAt        DateTime?
+  updatedAt         DateTime           @updatedAt
+  certificate       Certificate?
+  aiJobs            AiGradeJob[]
+  aiDecisions       AiGradeDecision[]
+  appeals           SubmissionAppeal[]
+  resubmissionCount Int                @default(0)
 
   @@unique([courseId, studentId])
   @@index([status, submittedAt])
@@ -348,32 +430,212 @@ model Certificate {
 }
 
 model AcademicProgram {
-  id              String              @id @default(cuid())
-  code            String              @unique
-  title           String
-  summary         String
-  level           ProgramLevel
-  creditsRequired Int
-  sponsoredBy     String
-  active          Boolean             @default(true)
-  enrollments     ProgramEnrollment[]
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  id                  String                     @id @default(cuid())
+  code                String                     @unique
+  title               String
+  summary             String
+  level               ProgramLevel
+  creditsRequired     Int
+  academy             String                     @default("Interdisciplinary Studies")
+  durationDays        Int                        @default(120)
+  estimatedValueCents Int                        @default(0)
+  credentialTitle     String                     @default("Program Completion Credential")
+  sponsoredBy         String
+  active              Boolean                    @default(true)
+  enrollments         ProgramEnrollment[]
+  applications        ProgramApplication[]
+  requirements        ProgramCourseRequirement[]
+  termPlans           StudentFundingTerm[]
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
 }
 
 model ProgramEnrollment {
-  id            String           @id @default(cuid())
-  programId     String
-  program       AcademicProgram  @relation(fields: [programId], references: [id], onDelete: Cascade)
-  userId        String
-  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status        EnrollmentStatus @default(ACTIVE)
-  creditsEarned Int              @default(0)
-  enrolledAt    DateTime         @default(now())
-  completedAt   DateTime?
+  id                   String              @id @default(cuid())
+  programId            String
+  program              AcademicProgram     @relation(fields: [programId], references: [id], onDelete: Cascade)
+  userId               String
+  user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status               EnrollmentStatus    @default(ACTIVE)
+  creditsEarned        Int                 @default(0)
+  enrolledAt           DateTime            @default(now())
+  completedAt          DateTime?
+  programApplicationId String?             @unique
+  application          ProgramApplication? @relation(fields: [programApplicationId], references: [id], onDelete: SetNull)
 
   @@unique([programId, userId])
   @@index([userId, status])
+}
+
+model ProgramCourseRequirement {
+  id         String                 @id @default(cuid())
+  programId  String
+  program    AcademicProgram        @relation(fields: [programId], references: [id], onDelete: Cascade)
+  courseId   String
+  course     Course                 @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  type       ProgramRequirementType @default(CORE)
+  sequence   Int                    @default(0)
+  termNumber Int                    @default(1)
+
+  @@unique([programId, courseId])
+  @@index([programId, type, sequence])
+}
+
+model ProgramApplication {
+  id           String                   @id @default(cuid())
+  programId    String
+  program      AcademicProgram          @relation(fields: [programId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  statement    String
+  weeklyHours  Int
+  experience   String
+  status       ProgramApplicationStatus @default(SUBMITTED)
+  decisionNote String?
+  submittedAt  DateTime                 @default(now())
+  decidedAt    DateTime?
+  enrollment   ProgramEnrollment?
+
+  @@unique([programId, userId])
+  @@index([status, submittedAt])
+}
+
+model StudentFundingTerm {
+  id                  String               @id @default(cuid())
+  userId              String
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programId           String?
+  program             AcademicProgram?     @relation(fields: [programId], references: [id], onDelete: SetNull)
+  startsAt            DateTime
+  endsAt              DateTime
+  status              FundingTermStatus    @default(ACTIVE)
+  scheduledValueCents Int
+  reserveCents        Int
+  awardedCents        Int
+  renewedFromId       String?
+  renewedFrom         StudentFundingTerm?  @relation("FundingRenewal", fields: [renewedFromId], references: [id], onDelete: SetNull)
+  renewals            StudentFundingTerm[] @relation("FundingRenewal")
+  ledgerEntries       GrantLedger[]
+  plannedCourses      TermPlanCourse[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  @@unique([userId, startsAt])
+  @@index([userId, status, endsAt])
+}
+
+model TermPlanCourse {
+  id            String             @id @default(cuid())
+  fundingTermId String
+  fundingTerm   StudentFundingTerm @relation(fields: [fundingTermId], references: [id], onDelete: Cascade)
+  courseId      String
+  course        Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  sequence      Int                @default(0)
+
+  @@unique([fundingTermId, courseId])
+}
+
+model ValueRateSchedule {
+  id                     String    @id @default(cuid())
+  name                   String
+  hourlyInstructionCents Int
+  labServicesCents       Int
+  aiAssessmentCents      Int
+  studioServicesCents    Int
+  credentialAdminCents   Int
+  effectiveFrom          DateTime
+  effectiveTo            DateTime?
+  active                 Boolean   @default(true)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([active, effectiveFrom])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  actionUrl String?
+  readAt    DateTime?
+  dedupeKey String           @unique
+  createdAt DateTime         @default(now())
+
+  @@index([userId, readAt, createdAt])
+}
+
+model GradingRubric {
+  id            String   @id @default(cuid())
+  courseId      String   @unique
+  course        Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  version       Int      @default(1)
+  criteria      Json
+  passingScore  Int      @default(70)
+  promptVersion String   @default("efu-grader-v1")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model AiGradeJob {
+  id             String           @id @default(cuid())
+  submissionId   String
+  submission     CourseSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  status         AiGradeJobStatus @default(QUEUED)
+  attempt        Int              @default(0)
+  maxAttempts    Int              @default(3)
+  idempotencyKey String           @unique
+  availableAt    DateTime         @default(now())
+  lockedAt       DateTime?
+  lastError      String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  decision       AiGradeDecision?
+
+  @@index([status, availableAt])
+}
+
+model AiGradeDecision {
+  id               String           @id @default(cuid())
+  jobId            String           @unique
+  job              AiGradeJob       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  submissionId     String
+  submission       CourseSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  modelId          String
+  promptVersion    String
+  rubricVersion    Int
+  wikiRevisionIds  Json             @default("[]")
+  structuredResult Json
+  totalScore       Int
+  confidence       Float
+  passed           Boolean
+  status           AiDecisionStatus
+  tokenUsage       Json             @default("{}")
+  validationResult Json             @default("{}")
+  createdAt        DateTime         @default(now())
+
+  @@index([submissionId, createdAt])
+}
+
+model SubmissionAppeal {
+  id           String           @id @default(cuid())
+  submissionId String
+  submission   CourseSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User             @relation("StudentAppeals", fields: [studentId], references: [id], onDelete: Cascade)
+  reason       String
+  status       AppealStatus     @default(SUBMITTED)
+  reviewerId   String?
+  reviewer     User?            @relation("AppealReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  resolution   String?
+  submittedAt  DateTime         @default(now())
+  reviewedAt   DateTime?
+
+  @@index([status, submittedAt])
+  @@index([studentId])
 }
 
 model Session {

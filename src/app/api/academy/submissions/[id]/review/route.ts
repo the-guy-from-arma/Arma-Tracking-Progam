@@ -20,6 +20,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const submission = await tx.courseSubmission.findUnique({ where: { id }, include: { course: true, student: { select: { id: true, name: true } } } });
     if (!submission) return null;
     const updated = await tx.courseSubmission.update({ where: { id }, data: { status: decision as never, feedback: feedback || "Approved by studio review.", reviewerId: reviewer.id, reviewedAt: new Date() } });
+    await tx.aiGradeDecision.updateMany({ where: { submissionId: id }, data: { status: "OVERRIDDEN" } });
+    await tx.submissionAppeal.updateMany({ where: { submissionId: id, status: { in: ["SUBMITTED", "IN_REVIEW"] } }, data: { status: decision === "APPROVED" ? "OVERTURNED" : "UPHELD", reviewerId: reviewer.id, resolution: feedback || "Resolved through studio exception review.", reviewedAt: new Date() } });
     let certificate = null;
     if (decision === "APPROVED") {
       certificate = await tx.certificate.upsert({

@@ -44,6 +44,8 @@ export function OwnerUniversitySettings() {
       <article><small>NEEDS DECISION</small><strong>{data.summary.submitted + data.summary.waitlisted}</strong></article>
       <article><small>AVAILABLE GRANT BALANCES</small><strong>{money(data.summary.availableFundingCents)}</strong></article>
     </div>
+    <ValueSchedule />
+    <ProgramApplications />
     <section className={styles.section}>
       <header className={styles.sectionHead}><div><span>01 / CONTROL CENTER</span><h2>Student applications</h2></div><p>{data.applications.length} TOTAL RECORDS</p></header>
       <div className={styles.applications}>{data.applications.map((application) => <ApplicationCard key={application.id} application={application} refresh={load} />)}{!data.applications.length && <div className={styles.empty}>No student applications have been submitted.</div>}</div>
@@ -57,6 +59,24 @@ export function OwnerUniversitySettings() {
       <div className={styles.ledger}>{data.ledger.map((entry) => <article key={entry.id}><div><b>{entry.user.name}</b><small>{entry.user.studentNumber || "UNASSIGNED"} · {entry.type.replaceAll("_", " ")}</small></div><span>{entry.description}</span><strong data-negative={entry.amountCents < 0}>{entry.amountCents > 0 ? "+" : ""}{money(entry.amountCents)}</strong></article>)}{!data.ledger.length && <div className={styles.empty}>No funding activity has been recorded.</div>}</div>
     </section>
   </section>;
+}
+
+function ValueSchedule() {
+  const [schedule, setSchedule] = useState<{ name: string; hourlyInstructionCents: number; labServicesCents: number; aiAssessmentCents: number; studioServicesCents: number; credentialAdminCents: number } | null>(null);
+  const [message, setMessage] = useState("");
+  useEffect(() => { void fetch("/api/admin/university/value-schedule").then((response) => response.json()).then((result) => setSchedule(result.schedule || null)); }, []);
+  if (!schedule) return null;
+  const dollars = (cents: number) => cents / 100;
+  return <section className={styles.section}><header className={styles.sectionHead}><div><span>VALUE SCHEDULE</span><h2>Sponsored education valuation</h2></div><p>EFFECTIVE-DATED OWNER CONTROL</p></header><form className={styles.rateSchedule} onSubmit={async (event) => { event.preventDefault(); setMessage("PUBLISHING…"); const response = await fetch("/api/admin/university/value-schedule", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))) }); const result = await response.json(); if (!response.ok) setMessage(result.error); else { setSchedule(result.schedule); setMessage("SCHEDULE PUBLISHED · ALL 192 COURSES REVALUED"); } }}><label>SCHEDULE NAME<input name="name" defaultValue={schedule.name}/></label><label>INSTRUCTION / HOUR ($)<input name="hourlyInstruction" type="number" min="0" step="1" defaultValue={dollars(schedule.hourlyInstructionCents)}/></label><label>LAB SERVICES ($)<input name="labServices" type="number" min="0" step="1" defaultValue={dollars(schedule.labServicesCents)}/></label><label>AI ASSESSMENT ($)<input name="aiAssessment" type="number" min="0" step="1" defaultValue={dollars(schedule.aiAssessmentCents)}/></label><label>STUDIO SERVICES ($)<input name="studioServices" type="number" min="0" step="1" defaultValue={dollars(schedule.studioServicesCents)}/></label><label>CREDENTIAL ADMIN ($)<input name="credentialAdmin" type="number" min="0" step="1" defaultValue={dollars(schedule.credentialAdminCents)}/></label><button>PUBLISH NEW SCHEDULE</button>{message && <p>{message}</p>}</form></section>;
+}
+
+function ProgramApplications() {
+  type ProgramApplication = { id: string; statement: string; experience: string; weeklyHours: number; submittedAt: string; user: { name: string; academicEmail: string | null; studentNumber: string | null }; program: { title: string; code: string } };
+  const [applications, setApplications] = useState<ProgramApplication[]>([]);
+  const load = useCallback(async () => { const response = await fetch("/api/university/programs"); const result = await response.json(); if (response.ok) setApplications(result.pendingApplications || []); }, []);
+  useEffect(() => { const timer = setTimeout(() => void load(), 0); return () => clearTimeout(timer); }, [load]);
+  async function decide(applicationId: string, status: string) { await fetch("/api/university/programs", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ applicationId, status }) }); await load(); }
+  return <section className={styles.section}><header className={styles.sectionHead}><div><span>PROGRAM ADMISSIONS</span><h2>Pathway applications</h2></div><p>{applications.length} NEED DECISION</p></header><div className={styles.applications}>{applications.map((application) => <article className={styles.programApplication} key={application.id}><div><small>{application.program.code} · {application.user.studentNumber || "STUDENT"}</small><h3>{application.user.name}</h3><b>{application.program.title}</b><p>{application.statement}</p><span>{application.experience} · {application.weeklyHours} hours/week</span></div><aside><button onClick={() => decide(application.id, "DECLINED")}>DECLINE</button><button onClick={() => decide(application.id, "WAITLISTED")}>WAITLIST</button><button onClick={() => decide(application.id, "ADMITTED")}>ADMIT + ACTIVATE</button></aside></article>)}{!applications.length && <div className={styles.empty}>Every program application has a decision.</div>}</div></section>;
 }
 
 function ApplicationCard({ application, refresh }: { application: Application; refresh: () => Promise<void> }) {

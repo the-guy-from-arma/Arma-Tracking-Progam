@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { currentUser, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { text } from "@/lib/input";
+import { ensureCourseFunding } from "@/lib/funding";
+import { queueSubmissionForAi } from "@/lib/ai-grading";
 
 const courseLevels = new Set(["FOUNDATION", "INTERMEDIATE", "ADVANCED", "CAPSTONE"]);
 const studios = new Set(["Thunder Buddies Studios", "Black Ridge Studios", "Thunder Buddies Studios + Black Ridge Studios"]);
@@ -14,6 +16,16 @@ function positiveCredits(value: unknown) {
 function serviceValueCents(value: unknown) {
   const dollars = Number(value);
   return Number.isFinite(dollars) && dollars >= 500 && dollars <= 50000 ? Math.round(dollars * 100) : 450000;
+}
+
+function approvedEvidenceUrl(value: string) {
+  if (!value) return true;
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    if (["community.bohemia.net", "reforger.armaplatform.com", "steamcommunity.com", "youtube.com", "youtu.be", "vimeo.com"].includes(host)) return true;
+    return host === "github.com" && url.pathname.includes("/issues/");
+  } catch { return false; }
 }
 
 export async function GET() {
@@ -33,6 +45,8 @@ export async function GET() {
         student: { select: { id: true, name: true, email: true } },
         reviewer: { select: { name: true } },
         certificate: true,
+        aiDecisions: { orderBy: { createdAt: "desc" }, take: 1 },
+        appeals: { orderBy: { submittedAt: "desc" }, take: 1 },
       },
       orderBy: { submittedAt: "desc" },
     }),
@@ -78,18 +92,13 @@ export async function POST(request: Request) {
       const completed = await db.courseEnrollment.count({ where: { userId: user.id, status: "COMPLETED", courseId: { in: course.prerequisites.map((item) => item.prerequisiteId) } } });
       if (completed !== course.prerequisites.length) return NextResponse.json({ error: "Complete the listed prerequisite course before enrolling." }, { status: 409 });
     }
+    await ensureCourseFunding(user.id, course.id, course.serviceValueCents);
     const result = await db.$transaction(async (tx) => {
       const current = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { grantBalanceCents: true } });
-      let available = current.grantBalanceCents;
-      if (available < course.serviceValueCents) {
-        const supplemental = Math.max(2_500_000, course.serviceValueCents - available);
-        available += supplemental;
-        await tx.grantLedger.create({ data: { userId: user.id, type: "SUPPLEMENTAL_AWARD", amountCents: supplemental, description: "Automatic Thunder Buddies Studios continuing-study award" } });
-      }
-      const grantBalanceCents = available - course.serviceValueCents;
+      const grantBalanceCents = current.grantBalanceCents - course.serviceValueCents;
       const enrollment = await tx.courseEnrollment.create({ data: { courseId, userId: user.id } });
       await tx.user.update({ where: { id: user.id }, data: { grantBalanceCents } });
-      await tx.grantLedger.create({ data: { userId: user.id, type: "COURSE_ALLOCATION", amountCents: -course.serviceValueCents, description: `${course.code} ${course.title} sponsored service allocation`, courseId } });
+      await tx.grantLedger.create({ data: { userId: user.id, type: "COURSE_ALLOCATION", amountCents: -course.serviceValueCents, description: `${course.code} ${course.title} sponsored service allocation`, courseId, idempotencyKey: `allocation:${user.id}:${course.id}`, metadata: { studentResponsibilityCents: 0, nonCash: true } } });
       await tx.auditLog.create({ data: { actorId: user.id, action: "COURSE_ENROLLED", entity: "Course", entityId: courseId, detail: { serviceValueCents: course.serviceValueCents, studentDueCents: 0, grantBalanceCents } } });
       return { enrollment, grantBalanceCents };
     });
@@ -102,19 +111,21 @@ export async function POST(request: Request) {
     const summary = text(body.summary, 1400);
     const referenceUrl = text(body.referenceUrl, 300);
     const demoUrl = text(body.demoUrl, 300);
-    if (title.length < 3 || summary.length < 30 || (referenceUrl && !/^https?:\/\//i.test(referenceUrl))) return NextResponse.json({ error: "Add a title, detailed project brief, and a valid optional reference URL." }, { status: 400 });
+    if (title.length < 3 || summary.length < 30 || !approvedEvidenceUrl(referenceUrl) || !approvedEvidenceUrl(demoUrl)) return NextResponse.json({ error: "Add a detailed brief and use approved Bohemia, Workshop, Steam, YouTube, Vimeo, or GitHub issue evidence links." }, { status: 400 });
     const enrollment = await db.courseEnrollment.findUnique({ where: { courseId_userId: { courseId, userId: user.id } } });
     if (!enrollment || enrollment.status === "WITHDRAWN") return NextResponse.json({ error: "Enroll in the course before submitting a mod." }, { status: 409 });
     const existing = await db.courseSubmission.findUnique({ where: { courseId_studentId: { courseId, studentId: user.id } } });
-    if (existing && ["SUBMITTED", "IN_REVIEW", "APPROVED"].includes(existing.status)) return NextResponse.json({ error: "This course already has an active or approved submission." }, { status: 409 });
+    if (existing && ["SUBMITTED", "PENDING_AI_REVIEW", "AI_REVIEWING", "AI_EXCEPTION", "IN_REVIEW", "APPROVED", "APPEALED"].includes(existing.status)) return NextResponse.json({ error: "This course already has an active, exception, appealed, or approved submission." }, { status: 409 });
+    const aiEnabled = process.env.AI_GRADING_ENABLED === "true";
     const submission = await db.courseSubmission.upsert({
       where: { courseId_studentId: { courseId, studentId: user.id } },
-      update: { title, summary, referenceUrl: referenceUrl || null, demoUrl: demoUrl || null, status: "SUBMITTED", feedback: null, reviewerId: null, reviewedAt: null, submittedAt: new Date() },
-      create: { courseId, studentId: user.id, title, summary, referenceUrl: referenceUrl || null, demoUrl: demoUrl || null },
+      update: { title, summary, referenceUrl: referenceUrl || null, demoUrl: demoUrl || null, status: aiEnabled ? "PENDING_AI_REVIEW" : "SUBMITTED", feedback: null, reviewerId: null, reviewedAt: null, submittedAt: new Date(), resubmissionCount: { increment: 1 } },
+      create: { courseId, studentId: user.id, title, summary, referenceUrl: referenceUrl || null, demoUrl: demoUrl || null, status: aiEnabled ? "PENDING_AI_REVIEW" : "SUBMITTED" },
     });
+    if (aiEnabled) await queueSubmissionForAi(submission.id, submission.resubmissionCount);
     await db.courseEnrollment.update({ where: { id: enrollment.id }, data: { progress: 100 } });
     await db.auditLog.create({ data: { actorId: user.id, action: "MOD_SUBMITTED", entity: "CourseSubmission", entityId: submission.id, detail: { courseId, title } } });
-    return NextResponse.json({ submission }, { status: 201 });
+    return NextResponse.json({ submission, grading: aiEnabled ? "QUEUED" : "FACULTY" }, { status: aiEnabled ? 202 : 201 });
   }
 
   if (action === "enroll_program") {
