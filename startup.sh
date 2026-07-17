@@ -6,7 +6,7 @@ if [ -z "${DATABASE_URL:-}" ]; then echo "[startup] DATABASE_URL is required."; 
 case "$DATABASE_URL" in postgres://*|postgresql://*) ;; *) echo "[startup] PostgreSQL is required."; exit 1;; esac
 echo "[startup] Applying PostgreSQL migrations."
 pnpm exec prisma migrate deploy
-echo "[startup] Bootstrapping owner authority."
+echo "[startup] Checking owner authority configuration."
 node scripts/bootstrap.mjs
 echo "[startup] Launching ForgeOps on port ${PORT:-3000}."
 exec pnpm exec next start -p "${PORT:-3000}"

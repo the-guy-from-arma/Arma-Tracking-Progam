@@ -7,8 +7,22 @@ const db = new PrismaClient();
 try {
   const email = (process.env.OWNER_EMAIL || "").trim().toLowerCase();
   const password = process.env.OWNER_PASSWORD || "";
-  if (!email || password.length < 12) throw new Error("OWNER_EMAIL and an OWNER_PASSWORD of at least 12 characters are required");
-  const passwordHash = await bcrypt.hash(password, 12);
-  await db.user.upsert({ where: { email }, update: { role: "OWNER" }, create: { email, name: process.env.OWNER_NAME || "ForgeOps Owner", passwordHash, role: "OWNER", specialty: "Command authority" } });
-  console.log(`[startup] Owner authority ready for ${email}`);
+  const name = (process.env.OWNER_NAME || "ForgeOps Owner").trim();
+
+  if (!email && !password) {
+    console.warn("[startup] OWNER_EMAIL and OWNER_PASSWORD are not configured; skipping owner sync.");
+    console.warn("[startup] Add both variables and redeploy before using owner-only controls.");
+  } else {
+    if (!email || !password) throw new Error("OWNER_EMAIL and OWNER_PASSWORD must be configured together");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("OWNER_EMAIL must be a valid email address");
+    if (password.length < 12) throw new Error("OWNER_PASSWORD must contain at least 12 characters");
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    await db.user.upsert({
+      where: { email },
+      update: { name, passwordHash, role: "OWNER", suspended: false },
+      create: { email, name, passwordHash, role: "OWNER", specialty: "Command authority" },
+    });
+    console.log(`[startup] Owner authority ready for ${email}`);
+  }
 } finally { await db.$disconnect(); }
