@@ -1,43 +1,147 @@
 "use client";
-
+import Image from "next/image";
 import Link from "next/link";
 import { motion } from "motion/react";
+import styles from "./PortalGateway.module.css";
 
-const reveal = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } };
-
-export function PortalGateway({ user }: { user: { name: string; isStudent: boolean; role: string } | null }) {
-  const universityReady = Boolean(user?.isStudent || ["OWNER", "ADMIN"].includes(user?.role || ""));
-  return <main className="orbitGateway">
-    <div className="gatewayAurora" aria-hidden="true"><i/><i/><i/></div>
-    <header className="orbitHeader">
-      <div className="orbitLockup"><b>V</b><span><strong>VALORIS NETWORK</strong><small>ONE IDENTITY / TWO WORLDS</small></span></div>
-      {user ? <div className="orbitWelcome"><span>WELCOME BACK</span><b>{user.name}</b></div> : <Link href="/login" className="gatewaySignIn">SIGN IN</Link>}
-    </header>
-    <motion.section className="orbitIntro" {...reveal} transition={{ duration: .6 }}>
-      <p>CHOOSE TODAY&apos;S MISSION</p>
-      <h1>Build the future.<br/><em>Learn how it works.</em></h1>
-      <span>Move between the development network and a complete Enfusion learning campus without breaking your flow.</span>
-    </motion.section>
-    <section className="orbitDestinations" aria-label="Choose a destination">
-      <motion.div {...reveal} transition={{ delay: .12, duration: .65 }} whileHover={{ y: -8 }}>
-        <Link href={user ? "/valoris" : "/login"} className="orbitWorld valorisWorld">
-          <div className="worldAtmosphere" aria-hidden="true"><i/><i/><b>V</b></div>
-          <header><span>01</span><small>DEVELOPMENT NETWORK</small></header>
-          <div className="worldCopy"><p>PROJECT</p><h2>VALORIS</h2><span>Turn ideas into visible momentum through objectives, decisions, milestones, and shared technical intelligence.</span></div>
-          <div className="worldSignals"><span>LIVE WORKSTREAMS</span><span>TEAM OBJECTIVES</span><span>KNOWLEDGE RECORD</span></div>
-          <strong>ENTER VALORIS <i>↗</i></strong>
+const reveal = {
+  initial: { opacity: 0, y: 18 },
+  animate: { opacity: 1, y: 0 },
+};
+export function PortalGateway({
+  user,
+}: {
+  user: { name: string; isStudent: boolean; role: string } | null;
+}) {
+  const universityReady = Boolean(
+    user?.isStudent || ["OWNER", "ADMIN"].includes(user?.role || ""),
+  );
+  const universityHref =
+    user?.role === "FACULTY"
+      ? "/faculty"
+      : universityReady
+        ? "/university"
+        : "/university/login";
+  return (
+    <main className={styles.gateway}>
+      <div className={styles.aurora} aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </div>
+      <header className={styles.header}>
+        <div className={styles.network}>
+          <b>V</b>
+          <span>
+            <strong>VALORIS NETWORK</strong>
+            <small>DEVELOPMENT × ACADEMICS</small>
+          </span>
+        </div>
+        {user ? (
+          <div className={styles.welcome}>
+            <span>WELCOME BACK</span>
+            <b>{user.name}</b>
+          </div>
+        ) : (
+          <Link href="/login">SIGN IN</Link>
+        )}
+      </header>
+      <motion.section
+        className={styles.intro}
+        {...reveal}
+        transition={{ duration: 0.55 }}
+      >
+        <p>SELECT YOUR WORKSPACE</p>
+        <h1>
+          One identity.
+          <br />
+          <em>Two focused environments.</em>
+        </h1>
+        <span>
+          Enter the development network or continue through the complete
+          Enfusion University campus.
+        </span>
+      </motion.section>
+      <section
+        className={styles.destinations}
+        aria-label="Choose a destination"
+      >
+        <motion.div
+          {...reveal}
+          transition={{ delay: 0.1, duration: 0.6 }}
+          whileHover={{ y: -5 }}
+        >
+          <Link
+            href={user ? "/valoris" : "/login"}
+            className={`${styles.portal} ${styles.valoris}`}
+          >
+            <div className={styles.visual} aria-hidden="true">
+              <b>V</b>
+              <i />
+              <i />
+            </div>
+            <header>
+              <span>01</span>
+              <small>DEVELOPMENT NETWORK</small>
+            </header>
+            <div className={styles.copy}>
+              <small>PROJECT</small>
+              <h2>VALORIS</h2>
+              <p>
+                Objectives, decisions, milestones, blockers, and technical
+                knowledge in one professional development record.
+              </p>
+            </div>
+            <footer>
+              <span>WORKSTREAMS · OBJECTIVES · KNOWLEDGE</span>
+              <b>ENTER ↗</b>
+            </footer>
+          </Link>
+        </motion.div>
+        <motion.div
+          {...reveal}
+          transition={{ delay: 0.18, duration: 0.6 }}
+          whileHover={{ y: -5 }}
+        >
+          <Link
+            href={universityHref}
+            className={`${styles.portal} ${styles.university}`}
+          >
+            <div className={styles.universityIdentity}>
+              <Image
+                src="/enfusion-university-lockup.png"
+                alt="Enfusion University"
+                width={1600}
+                height={388}
+                priority
+              />
+            </div>
+            <header>
+              <span>02</span>
+              <small>ACADEMIC CAMPUS</small>
+            </header>
+            <div className={styles.copy}>
+              <small>CREATE · BUILD · INNOVATE</small>
+              <h2>Continue learning</h2>
+              <p>
+                Source-grounded Workbench coursework, sponsored learning,
+                intelligent assessment, and durable academic records.
+              </p>
+            </div>
+            <footer>
+              <span>192 COURSES · 144 PROGRAMS · 16 ACADEMIES</span>
+              <b>ENTER ↗</b>
+            </footer>
+          </Link>
+        </motion.div>
+      </section>
+      <footer className={styles.footer}>
+        <span>THUNDER BUDDIES STUDIOS × BLACK RIDGE STUDIOS</span>
+        <small>Independent, non-accredited online learning institution.</small>
+        <Link href={user?.role === "OWNER" ? "/owner" : "/owner/login"}>
+          OWNER ACCESS
         </Link>
-      </motion.div>
-      <motion.div {...reveal} transition={{ delay: .22, duration: .65 }} whileHover={{ y: -8 }}>
-        <Link href={universityReady ? "/university" : "/university/login"} className="orbitWorld universityWorld">
-          <div className="worldAtmosphere" aria-hidden="true"><i/><i/><b>EU</b></div>
-          <header><span>02</span><small>ONLINE CAMPUS</small></header>
-          <div className="worldCopy"><p>ENFUSION</p><h2>UNIVERSITY</h2><span>Follow complete day-by-day Workbench pathways with source-grounded lessons, sponsored learning, and intelligent assessment.</span></div>
-          <div className="worldSignals"><span>192 COURSES</span><span>144 PROGRAMS</span><span>16 ACADEMIES</span></div>
-          <strong>ENTER UNIVERSITY <i>↗</i></strong>
-        </Link>
-      </motion.div>
-    </section>
-    <footer className="orbitFooter"><span>THUNDER BUDDIES STUDIOS</span><i>×</i><span>BLACK RIDGE STUDIOS</span><small>Enfusion University is an independent, non-accredited learning institution.</small><Link className="ownerAccess" href={user?.role === "OWNER" ? "/owner" : "/owner/login"}>OWNER ACCESS</Link></footer>
-  </main>;
+      </footer>
+    </main>
+  );
 }

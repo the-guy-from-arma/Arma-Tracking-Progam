@@ -657,6 +657,7 @@
     text-align: left;
   }
 }
+
 @media (prefers-reduced-motion: reduce) {
   .bot i,
   .loading i {
@@ -1012,3 +1013,19 @@
     grid-template-columns: 1fr;
   }
 }
+:global([data-university-theme="dark"]) .center { color:#e3ebf0; }
+:global([data-university-theme="dark"]) .standingGrid article,
+:global([data-university-theme="dark"]) .applicationTracker,
+:global([data-university-theme="dark"]) .records > section,
+:global([data-university-theme="dark"]) .records > aside,
+:global([data-university-theme="dark"]) .history { border-color:#294457; background:#102231; color:#e3ebf0; box-shadow:0 14px 40px #0003; }
+:global([data-university-theme="dark"]) .standingGrid span,
+:global([data-university-theme="dark"]) .applicationTracker p,
+:global([data-university-theme="dark"]) .records span,
+:global([data-university-theme="dark"]) .records li span { color:#98aebb; }
+:global([data-university-theme="dark"]) .applicationTracker article,
+:global([data-university-theme="dark"]) .enrollment,
+:global([data-university-theme="dark"]) .history > div { border-color:#294457; }
+:global([data-university-theme="dark"]) .advisor { border-color:#31566c; background:linear-gradient(145deg,#0c263a,#123752); }
+:global([data-university-theme="dark"]) .modal { border-color:#31566c; background:#0e2130; color:#e5edf2; }
+:global([data-university-theme="dark"]) .modal textarea { border-color:#365269; background:#091722; color:#e5edf2; }

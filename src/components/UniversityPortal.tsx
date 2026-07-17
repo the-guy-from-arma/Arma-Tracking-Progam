@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UniversityLearning } from "@/components/UniversityLearning";
 import { AcademicBoot } from "@/components/AcademicBoot";
@@ -51,6 +51,14 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
       : "dashboard";
   });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  useEffect(() => {
+    const initialize = setTimeout(() => {
+      const saved = localStorage.getItem("efu:theme");
+      if (saved === "light" || saved === "dark") setTheme(saved);
+    }, 0);
+    return () => clearTimeout(initialize);
+  }, []);
   const router = useRouter();
   const initials = user.name
     .split(" ")
@@ -67,26 +75,32 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
     router.push("/");
     router.refresh();
   }
+  function toggleTheme() {
+    setTheme((current) => {
+      const next = current === "dark" ? "light" : "dark";
+      localStorage.setItem("efu:theme", next);
+      return next;
+    });
+  }
 
   return (
-    <main className={styles.campus}>
+    <main className={styles.campus} data-university-theme={theme}>
       <AcademicBoot />
       <header className={styles.utilityHeader}>
         <div className={styles.utilityInner}>
           <Link href="/" className={styles.brand}>
-            <span className={styles.brandMark}>
-              <Image
-                src="/enfusion-university-logo.png"
-                alt=""
-                width={1536}
-                height={1024}
-                priority
-              />
-            </span>
-            <span>
-              <strong>Enfusion University</strong>
-              <small>Thunder Buddies Studios × Black Ridge Studios</small>
-            </span>
+            <Image
+              className={styles.universityLogo}
+              src={
+                theme === "dark"
+                  ? "/enfusion-university-lockup.png"
+                  : "/enfusion-university-lockup-light.png"
+              }
+              alt="Enfusion University — Create, Build, Innovate"
+              width={1600}
+              height={388}
+              priority
+            />
           </Link>
           <button
             className={styles.courseSelector}
@@ -99,6 +113,14 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
             <i>⌄</i>
           </button>
           <nav className={styles.utilities} aria-label="Student utilities">
+            <button
+              className={styles.themeToggle}
+              onClick={toggleTheme}
+              aria-label={`Use ${theme === "dark" ? "light" : "dark"} university theme`}
+            >
+              <i>{theme === "dark" ? "☀" : "◐"}</i>
+              <span>{theme === "dark" ? "Light" : "Dark"}</span>
+            </button>
             <button
               onClick={() => choose("student-center")}
               aria-label="Student center"
@@ -194,10 +216,14 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
       <footer className={styles.footer}>
         <div className={styles.footerLogo}>
           <Image
-            src="/enfusion-university-logo.png"
+            src={
+              theme === "dark"
+                ? "/enfusion-university-lockup.png"
+                : "/enfusion-university-lockup-light.png"
+            }
             alt="Enfusion University — Create, Build, Innovate"
-            width={1536}
-            height={1024}
+            width={1600}
+            height={388}
           />
         </div>
         <nav>

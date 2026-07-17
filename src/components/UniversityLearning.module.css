@@ -2955,3 +2955,46 @@
     width: 100%;
   }
 }
+
+/* Dark campus palette; light remains available through the persisted header toggle. */
+:global([data-university-theme="dark"]) .learning { color:#dce7ee; }
+:global([data-university-theme="dark"]) .pageHead { border-color:#284154; }
+:global([data-university-theme="dark"]) .pageHead p,
+:global([data-university-theme="dark"]) .pageHead > div > span { color:#8fa5b5; }
+:global([data-university-theme="dark"]) .filters,
+:global([data-university-theme="dark"]) .lmsPanel,
+:global([data-university-theme="dark"]) .courseCard,
+:global([data-university-theme="dark"]) .programCard,
+:global([data-university-theme="dark"]) .learningCard,
+:global([data-university-theme="dark"]) .assessmentCard,
+:global([data-university-theme="dark"]) .credentialCard,
+:global([data-university-theme="dark"]) .fundingCard,
+:global([data-university-theme="dark"]) .continuePanel,
+:global([data-university-theme="dark"]) .pulseCard,
+:global([data-university-theme="dark"]) .fundingGrid > section { border-color:#294356; background:linear-gradient(145deg,#102333,#0c1b28); color:#e5edf2; box-shadow:0 16px 42px #0003; }
+:global([data-university-theme="dark"]) .filters input,
+:global([data-university-theme="dark"]) .filters select { border-color:#345064; background:#091824; color:#dbe7ee; }
+:global([data-university-theme="dark"]) .courseCard > p,
+:global([data-university-theme="dark"]) .programCard > p,
+:global([data-university-theme="dark"]) .learningCard p,
+:global([data-university-theme="dark"]) .assessmentCard > p,
+:global([data-university-theme="dark"]) .credentialCard p { color:#96aaba; }
+:global([data-university-theme="dark"]) .programStats span,
+:global([data-university-theme="dark"]) .courseFacts span { background:#152b3c; color:#9db0bf; }
+:global([data-university-theme="dark"]) .lmsPanel > .sectionHead,
+:global([data-university-theme="dark"]) .announcementList > button,
+:global([data-university-theme="dark"]) .eventList article { border-color:#294052; }
+:global([data-university-theme="dark"]) .courseDetail { background:#0b1925; color:#e5edf2; }
+:global([data-university-theme="dark"]) .detailFacts,
+:global([data-university-theme="dark"]) .detailBody > aside > section,
+:global([data-university-theme="dark"]) .courseDetail > footer { background:#102434; border-color:#294657; }
+:global([data-university-theme="dark"]) .detailBody p,
+:global([data-university-theme="dark"]) .detailBody li,
+:global([data-university-theme="dark"]) .detailBody aside a span { color:#9db0bf; }
+:global([data-university-theme="dark"]) .syllabus li,
+:global([data-university-theme="dark"]) .detailBody ul li,
+:global([data-university-theme="dark"]) .prerequisite { border-color:#294657; }
+:global([data-university-theme="dark"]) .player { background:#07131e; }
+:global([data-university-theme="dark"]) .lesson { background:#0d1d2a; color:#e4ecf1; }
+:global([data-university-theme="dark"]) .lesson p,
+:global([data-university-theme="dark"]) .lesson li { color:#a4b5c1; }

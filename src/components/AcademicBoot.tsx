@@ -16,17 +16,20 @@ export function AcademicBoot({
       () => setVisible(false),
       matchMedia("(prefers-reduced-motion: reduce)").matches ? 250 : 1750,
     );
-    return () => { clearTimeout(reveal); clearTimeout(hide); };
+    return () => {
+      clearTimeout(reveal);
+      clearTimeout(hide);
+    };
   }, []);
   if (!visible) return null;
   return (
     <div className={styles.boot} role="status" aria-live="polite">
       <div className={styles.logo}>
         <Image
-          src="/enfusion-university-logo.png"
+          src="/enfusion-university-lockup.png"
           alt="Enfusion University"
-          width={1536}
-          height={1024}
+          width={1600}
+          height={388}
           priority
         />
       </div>

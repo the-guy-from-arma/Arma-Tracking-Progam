@@ -494,3 +494,88 @@
     display: none;
   }
 }
+
+/* Responsive university identity and persisted theme system */
+.campus.campus {
+  --campus-bg: #07131e;
+  --campus-surface: #0b1926;
+  --campus-panel: #102233;
+  --campus-text: #e8eef3;
+  --campus-muted: #92a5b5;
+  --campus-border: #274257;
+  background: var(--campus-bg);
+  color: var(--campus-text);
+  color-scheme: dark;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+.campus[data-university-theme="light"] {
+  --campus-bg: #f2f1ec;
+  --campus-surface: #f7f8f8;
+  --campus-panel: #ffffff;
+  --campus-text: #13293c;
+  --campus-muted: #607488;
+  --campus-border: #d1dde3;
+  color-scheme: light;
+}
+.universityLogo {
+  display: block;
+  width: clamp(190px, 17vw, 245px);
+  height: auto;
+  object-fit: contain;
+}
+.campus .utilityHeader {
+  background: color-mix(in srgb, var(--campus-panel) 94%, transparent);
+  border-color: var(--campus-border);
+  backdrop-filter: blur(18px);
+}
+.campus .courseSelector {
+  border-color: var(--campus-border);
+  background: var(--campus-surface);
+  color: var(--campus-text);
+}
+.campus .utilities > button,
+.campus .profileButton {
+  color: var(--campus-muted);
+}
+.campus .profileButton {
+  border-color: var(--campus-border) !important;
+}
+.themeToggle i {
+  color: #d5b875;
+}
+.campus .contextBar {
+  background: var(--campus-bg);
+  color: var(--campus-muted);
+}
+.campus .contextBar b {
+  color: var(--campus-text);
+}
+.campus .surface {
+  background: radial-gradient(circle at 85% 0, #16405855, transparent 32%), var(--campus-surface);
+}
+.campus[data-university-theme="light"] .surface {
+  background: linear-gradient(#f8f9f8, #eef2f3);
+}
+.campus .footer {
+  border-color: var(--campus-border);
+  background: #05090c;
+}
+.campus[data-university-theme="light"] .footer {
+  background: #f8f8f5;
+  color: #516678;
+}
+.footerLogo {
+  width: 255px;
+  height: auto;
+  overflow: visible;
+}
+.footerLogo img {
+  display: block;
+}
+@media (max-width: 850px) {
+  .universityLogo { width: 190px; }
+  .themeToggle { display: block !important; }
+}
+@media (max-width: 520px) {
+  .universityLogo { width: 155px; }
+}
