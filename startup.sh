@@ -8,5 +8,7 @@ echo "[startup] Applying PostgreSQL migrations."
 pnpm exec prisma migrate deploy
 echo "[startup] Checking owner authority configuration."
 node scripts/bootstrap.mjs
+echo "[startup] Seeding the Enfusion University curriculum."
+node scripts/seed-curriculum.mjs
 echo "[startup] Launching Project VALORIS on port ${PORT:-3000}."
 exec pnpm exec next start -p "${PORT:-3000}"

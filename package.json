@@ -12,7 +12,9 @@
     "lint": "eslint .",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy"
+    "db:deploy": "prisma migrate deploy",
+    "curriculum:seed": "node scripts/seed-curriculum.mjs",
+    "curriculum:sync": "node scripts/sync-wiki.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.19.1",

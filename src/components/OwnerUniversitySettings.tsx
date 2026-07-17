@@ -19,12 +19,13 @@ type Application = {
   user: { id: string; name: string; email: string; academicEmail: string | null; studentNumber: string | null; specialty: string | null; grantBalanceCents: number; suspended: boolean; _count: { courseEnrollments: number; certificates: number } };
 };
 type Ledger = { id: string; type: string; amountCents: number; description: string; createdAt: string; user: { name: string; studentNumber: string | null } };
-type Data = { applications: Application[]; ledger: Ledger[]; summary: { students: number; availableFundingCents: number; submitted: number; admitted: number; waitlisted: number; declined: number } };
+type Data = { applications: Application[]; ledger: Ledger[]; curriculumCoverage: { attention: { id: string; wikiTitle: string; url: string; syncStatus: string; statusWarnings: string[]; courseId: string | null }[]; unmapped: number; warnings: number }; summary: { students: number; availableFundingCents: number; submitted: number; admitted: number; waitlisted: number; declined: number } };
 const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
 
 export function OwnerUniversitySettings() {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState("");
+  const [syncMessage, setSyncMessage] = useState("");
   const load = useCallback(async () => {
     const response = await fetch("/api/admin/university");
     const result = await response.json();
@@ -32,10 +33,11 @@ export function OwnerUniversitySettings() {
     setData(result);
   }, []);
   useEffect(() => { const timer = setTimeout(() => void load(), 0); return () => clearTimeout(timer); }, [load]);
+  async function syncWiki() { setSyncMessage("SYNCING OFFICIAL SOURCES…"); const response = await fetch("/api/admin/curriculum/sync", { method: "POST" }); const result = await response.json(); setSyncMessage(response.ok ? `${result.updated} SOURCES UPDATED · ${result.failed} NEED REVIEW` : result.error); }
   if (!data) return <div className={styles.loading}>{error || "LOADING UNIVERSITY ADMINISTRATION…"}</div>;
 
   return <section className={styles.settings}>
-    <header className={styles.hero}><div><p className={styles.eyebrow}>OWNER SETTINGS / UNIVERSITY OPERATIONS</p><h1>Admissions and sponsored learning</h1></div><p>Review student records, move applications forward, adjust sponsored-learning balances, and preserve a complete financial audit trail.</p></header>
+    <header className={styles.hero}><div><p className={styles.eyebrow}>OWNER SETTINGS / UNIVERSITY OPERATIONS</p><h1>Admissions and sponsored learning</h1></div><div className={styles.syncPanel}><p>Review student records, move applications forward, adjust sponsored-learning balances, and preserve a complete financial audit trail.</p><button onClick={syncWiki}>{syncMessage || "SYNC BOHEMIA WIKI SOURCES"}</button></div></header>
     <div className={styles.summary}>
       <article><small>ACTIVE STUDENTS</small><strong>{data.summary.students}</strong></article>
       <article><small>ADMITTED APPLICATIONS</small><strong>{data.summary.admitted}</strong></article>
@@ -47,7 +49,11 @@ export function OwnerUniversitySettings() {
       <div className={styles.applications}>{data.applications.map((application) => <ApplicationCard key={application.id} application={application} refresh={load} />)}{!data.applications.length && <div className={styles.empty}>No student applications have been submitted.</div>}</div>
     </section>
     <section className={styles.section}>
-      <header className={styles.sectionHead}><div><span>02 / ACCOUNTABILITY</span><h2>Funding ledger</h2></div><p>LAST 50 TRANSACTIONS</p></header>
+      <header className={styles.sectionHead}><div><span>02 / CURRICULUM COVERAGE</span><h2>Wiki mapping backlog</h2></div><p>{data.curriculumCoverage.unmapped} UNMAPPED · {data.curriculumCoverage.warnings} WARNINGS</p></header>
+      <div className={styles.ledger}>{data.curriculumCoverage.attention.map((source) => <article key={source.id}><div><b>{source.wikiTitle}</b><small>{source.courseId ? "MAPPED SOURCE" : "FACULTY MAPPING REQUIRED"}</small></div><span>{source.statusWarnings.join(" · ") || "Discovered during official category inventory"}</span><strong data-negative={source.syncStatus === "FAILED"}>{source.syncStatus}</strong></article>)}{!data.curriculumCoverage.attention.length && <div className={styles.empty}>Every discovered wiki source is mapped and current.</div>}</div>
+    </section>
+    <section className={styles.section}>
+      <header className={styles.sectionHead}><div><span>03 / ACCOUNTABILITY</span><h2>Funding ledger</h2></div><p>LAST 50 TRANSACTIONS</p></header>
       <div className={styles.ledger}>{data.ledger.map((entry) => <article key={entry.id}><div><b>{entry.user.name}</b><small>{entry.user.studentNumber || "UNASSIGNED"} · {entry.type.replaceAll("_", " ")}</small></div><span>{entry.description}</span><strong data-negative={entry.amountCents < 0}>{entry.amountCents > 0 ? "+" : ""}{money(entry.amountCents)}</strong></article>)}{!data.ledger.length && <div className={styles.empty}>No funding activity has been recorded.</div>}</div>
     </section>
   </section>;

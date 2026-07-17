@@ -80,58 +80,181 @@ enum GrantLedgerType {
   ADJUSTMENT
 }
 
+enum ObjectiveStatus {
+  PLANNED
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+}
+
+enum ObjectivePriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+enum ProjectUpdateType {
+  PROGRESS
+  MILESTONE
+  DECISION
+  BLOCKER
+}
+
+enum SourceSyncStatus {
+  CURRENT
+  UPDATED
+  WARNING
+  FAILED
+}
+
 model User {
-  id           String       @id @default(cuid())
-  email        String       @unique
-  academicEmail String?     @unique
-  studentNumber String?     @unique
-  isStudent     Boolean     @default(false)
-  grantBalanceCents Int     @default(0)
-  name         String
-  passwordHash String
-  role         UserRole     @default(TRAINEE)
-  specialty    String?
-  suspended    Boolean      @default(false)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  sessions     Session[]
-  projects     Project[]    @relation("ProjectOwner")
-  reviews      Project[]    @relation("ProjectReviewer")
-  memberships  Membership[]
-  auditLogs    AuditLog[]
-  authoredCourses       Course[]             @relation("CourseAuthor")
-  courseEnrollments     CourseEnrollment[]
-  courseSubmissions     CourseSubmission[]   @relation("StudentSubmissions")
-  reviewedSubmissions   CourseSubmission[]   @relation("SubmissionReviewer")
-  certificates          Certificate[]
-  programEnrollments    ProgramEnrollment[]
-  studentApplication    StudentApplication?
-  grantLedger           GrantLedger[]
+  id                  String              @id @default(cuid())
+  email               String              @unique
+  academicEmail       String?             @unique
+  studentNumber       String?             @unique
+  isStudent           Boolean             @default(false)
+  grantBalanceCents   Int                 @default(0)
+  name                String
+  passwordHash        String
+  role                UserRole            @default(TRAINEE)
+  specialty           String?
+  suspended           Boolean             @default(false)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  sessions            Session[]
+  projects            Project[]           @relation("ProjectOwner")
+  reviews             Project[]           @relation("ProjectReviewer")
+  memberships         Membership[]
+  auditLogs           AuditLog[]
+  authoredCourses     Course[]            @relation("CourseAuthor")
+  courseEnrollments   CourseEnrollment[]
+  courseSubmissions   CourseSubmission[]  @relation("StudentSubmissions")
+  reviewedSubmissions CourseSubmission[]  @relation("SubmissionReviewer")
+  certificates        Certificate[]
+  programEnrollments  ProgramEnrollment[]
+  studentApplication  StudentApplication?
+  grantLedger         GrantLedger[]
+  lessonProgress      LessonProgress[]
+  quizAttempts        QuizAttempt[]
+  projectUpdates      ProjectUpdate[]
+  projectNotes        ProjectNote[]
+  assignedObjectives  ProjectObjective[]  @relation("ObjectiveAssignee")
+  projectComments     ProjectComment[]
 
   @@index([role])
 }
 
 model Course {
-  id              String             @id @default(cuid())
-  code            String             @unique
-  title           String
-  summary         String
-  deliverable     String
-  studio          String
-  level           CourseLevel
-  status          CourseStatus       @default(DRAFT)
-  learningCredits Int                @default(3)
-  serviceValueCents Int              @default(450000)
-  createdById     String?
-  createdBy       User?              @relation("CourseAuthor", fields: [createdById], references: [id], onDelete: SetNull)
-  enrollments     CourseEnrollment[]
-  submissions     CourseSubmission[]
-  certificates    Certificate[]
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  id                String               @id @default(cuid())
+  code              String               @unique
+  title             String
+  summary           String
+  deliverable       String
+  studio            String
+  level             CourseLevel
+  status            CourseStatus         @default(DRAFT)
+  learningCredits   Int                  @default(3)
+  serviceValueCents Int                  @default(450000)
+  academy           String               @default("Workbench Foundations")
+  estimatedDays     Int                  @default(10)
+  workloadHours     Int                  @default(20)
+  outcomes          Json                 @default("[]")
+  wikiManaged       Boolean              @default(false)
+  createdById       String?
+  createdBy         User?                @relation("CourseAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  enrollments       CourseEnrollment[]
+  submissions       CourseSubmission[]
+  certificates      Certificate[]
+  days              CourseDay[]
+  sources           CurriculumSource[]
+  prerequisites     CoursePrerequisite[] @relation("CoursePrerequisites")
+  requiredFor       CoursePrerequisite[] @relation("CourseDependents")
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
 
   @@index([status, level])
   @@index([studio])
+}
+
+model CoursePrerequisite {
+  id             String @id @default(cuid())
+  courseId       String
+  prerequisiteId String
+  course         Course @relation("CoursePrerequisites", fields: [courseId], references: [id], onDelete: Cascade)
+  prerequisite   Course @relation("CourseDependents", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, prerequisiteId])
+}
+
+model CourseDay {
+  id                  String           @id @default(cuid())
+  courseId            String
+  course              Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  dayNumber           Int
+  title               String
+  objectives          Json             @default("[]")
+  instructionalText   String
+  sourceSection       String
+  workbenchSteps      Json             @default("[]")
+  practicalLab        String
+  completionChecklist Json             @default("[]")
+  knowledgeQuestion   String
+  knowledgeAnswer     String
+  reflectionPrompt    String
+  progress            LessonProgress[]
+  attempts            QuizAttempt[]
+
+  @@unique([courseId, dayNumber])
+  @@index([courseId, dayNumber])
+}
+
+model LessonProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseDayId String
+  courseDay   CourseDay @relation(fields: [courseDayId], references: [id], onDelete: Cascade)
+  completed   Boolean   @default(false)
+  reflection  String?
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, courseDayId])
+  @@index([userId, completed])
+}
+
+model QuizAttempt {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseDayId String
+  courseDay   CourseDay @relation(fields: [courseDayId], references: [id], onDelete: Cascade)
+  answer      String
+  correct     Boolean
+  score       Int
+  attemptedAt DateTime  @default(now())
+
+  @@index([userId, courseDayId])
+}
+
+model CurriculumSource {
+  id                String           @id @default(cuid())
+  wikiTitle         String           @unique
+  url               String
+  revisionId        String?
+  revisionTimestamp DateTime?
+  categories        Json             @default("[]")
+  statusWarnings    Json             @default("[]")
+  sourceExcerpt     String
+  courseId          String?
+  course            Course?          @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  syncStatus        SourceSyncStatus @default(CURRENT)
+  lastSyncedAt      DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([courseId, syncStatus])
 }
 
 model StudentApplication {
@@ -184,23 +307,23 @@ model CourseEnrollment {
 }
 
 model CourseSubmission {
-  id            String           @id @default(cuid())
-  courseId      String
-  course        Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  studentId     String
-  student       User             @relation("StudentSubmissions", fields: [studentId], references: [id], onDelete: Cascade)
-  title         String
-  summary       String
-  repositoryUrl String
-  demoUrl       String?
-  status        SubmissionStatus @default(SUBMITTED)
-  reviewerId    String?
-  reviewer      User?            @relation("SubmissionReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
-  feedback      String?
-  submittedAt   DateTime         @default(now())
-  reviewedAt    DateTime?
-  updatedAt     DateTime         @updatedAt
-  certificate   Certificate?
+  id           String           @id @default(cuid())
+  courseId     String
+  course       Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User             @relation("StudentSubmissions", fields: [studentId], references: [id], onDelete: Cascade)
+  title        String
+  summary      String
+  referenceUrl String?
+  demoUrl      String?
+  status       SubmissionStatus @default(SUBMITTED)
+  reviewerId   String?
+  reviewer     User?            @relation("SubmissionReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  feedback     String?
+  submittedAt  DateTime         @default(now())
+  reviewedAt   DateTime?
+  updatedAt    DateTime         @updatedAt
+  certificate  Certificate?
 
   @@unique([courseId, studentId])
   @@index([status, submittedAt])
@@ -239,15 +362,15 @@ model AcademicProgram {
 }
 
 model ProgramEnrollment {
-  id          String           @id @default(cuid())
-  programId   String
-  program     AcademicProgram  @relation(fields: [programId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status      EnrollmentStatus @default(ACTIVE)
-  creditsEarned Int            @default(0)
-  enrolledAt  DateTime         @default(now())
-  completedAt DateTime?
+  id            String           @id @default(cuid())
+  programId     String
+  program       AcademicProgram  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status        EnrollmentStatus @default(ACTIVE)
+  creditsEarned Int              @default(0)
+  enrolledAt    DateTime         @default(now())
+  completedAt   DateTime?
 
   @@unique([programId, userId])
   @@index([userId, status])
@@ -266,26 +389,104 @@ model Session {
 }
 
 model Project {
-  id           String        @id @default(cuid())
-  code         String        @unique
+  id           String             @id @default(cuid())
+  code         String             @unique
   name         String
   description  String
   type         ProjectType
-  status       ProjectStatus @default(PENDING)
-  progress     Int           @default(0)
-  repository   String?
+  status       ProjectStatus      @default(PENDING)
+  progress     Int                @default(0)
   ownerId      String
-  owner        User          @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  owner        User               @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   reviewedById String?
-  reviewedBy   User?         @relation("ProjectReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedBy   User?              @relation("ProjectReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   reviewNote   String?
   reviewedAt   DateTime?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
   members      Membership[]
+  updates      ProjectUpdate[]
+  notes        ProjectNote[]
+  objectives   ProjectObjective[]
+  references   ProjectReference[]
 
   @@index([status])
   @@index([ownerId])
+}
+
+model ProjectUpdate {
+  id        String            @id @default(cuid())
+  projectId String
+  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User              @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  type      ProjectUpdateType @default(PROGRESS)
+  title     String
+  body      String
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  comments  ProjectComment[]
+
+  @@index([projectId, createdAt])
+}
+
+model ProjectNote {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  title     String
+  body      String
+  tags      Json     @default("[]")
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, pinned, updatedAt])
+}
+
+model ProjectObjective {
+  id         String            @id @default(cuid())
+  projectId  String
+  project    Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title      String
+  details    String
+  status     ObjectiveStatus   @default(PLANNED)
+  priority   ObjectivePriority @default(NORMAL)
+  assigneeId String?
+  assignee   User?             @relation("ObjectiveAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  dueDate    DateTime?
+  sortOrder  Int               @default(0)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@index([projectId, status, sortOrder])
+}
+
+model ProjectReference {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  label     String
+  url       String
+  type      String   @default("REFERENCE")
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
+}
+
+model ProjectComment {
+  id        String        @id @default(cuid())
+  updateId  String
+  update    ProjectUpdate @relation(fields: [updateId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  body      String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([updateId, createdAt])
 }
 
 model Membership {

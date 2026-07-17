@@ -70,10 +70,14 @@ export async function POST(request: Request) {
   if (action === "enroll_course") {
     if (!user.isStudent && !isAdmin(user.role)) return NextResponse.json({ error: "Activate an Enfusion University student identity before enrolling." }, { status: 403 });
     const courseId = text(body.courseId, 100);
-    const course = await db.course.findFirst({ where: { id: courseId, status: "PUBLISHED" } });
+    const course = await db.course.findFirst({ where: { id: courseId, status: "PUBLISHED" }, include: { prerequisites: true } });
     if (!course) return NextResponse.json({ error: "Course not found" }, { status: 404 });
     const existing = await db.courseEnrollment.findUnique({ where: { courseId_userId: { courseId, userId: user.id } } });
     if (existing) return NextResponse.json({ enrollment: existing, grantBalanceCents: user.grantBalanceCents, allocatedCents: 0 });
+    if (course.prerequisites.length) {
+      const completed = await db.courseEnrollment.count({ where: { userId: user.id, status: "COMPLETED", courseId: { in: course.prerequisites.map((item) => item.prerequisiteId) } } });
+      if (completed !== course.prerequisites.length) return NextResponse.json({ error: "Complete the listed prerequisite course before enrolling." }, { status: 409 });
+    }
     const result = await db.$transaction(async (tx) => {
       const current = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { grantBalanceCents: true } });
       let available = current.grantBalanceCents;
@@ -96,17 +100,17 @@ export async function POST(request: Request) {
     const courseId = text(body.courseId, 100);
     const title = text(body.title, 120);
     const summary = text(body.summary, 1400);
-    const repositoryUrl = text(body.repositoryUrl, 300);
+    const referenceUrl = text(body.referenceUrl, 300);
     const demoUrl = text(body.demoUrl, 300);
-    if (title.length < 3 || summary.length < 30 || !/^https?:\/\//i.test(repositoryUrl)) return NextResponse.json({ error: "Add a title, detailed project brief, and complete repository URL." }, { status: 400 });
+    if (title.length < 3 || summary.length < 30 || (referenceUrl && !/^https?:\/\//i.test(referenceUrl))) return NextResponse.json({ error: "Add a title, detailed project brief, and a valid optional reference URL." }, { status: 400 });
     const enrollment = await db.courseEnrollment.findUnique({ where: { courseId_userId: { courseId, userId: user.id } } });
     if (!enrollment || enrollment.status === "WITHDRAWN") return NextResponse.json({ error: "Enroll in the course before submitting a mod." }, { status: 409 });
     const existing = await db.courseSubmission.findUnique({ where: { courseId_studentId: { courseId, studentId: user.id } } });
     if (existing && ["SUBMITTED", "IN_REVIEW", "APPROVED"].includes(existing.status)) return NextResponse.json({ error: "This course already has an active or approved submission." }, { status: 409 });
     const submission = await db.courseSubmission.upsert({
       where: { courseId_studentId: { courseId, studentId: user.id } },
-      update: { title, summary, repositoryUrl, demoUrl: demoUrl || null, status: "SUBMITTED", feedback: null, reviewerId: null, reviewedAt: null, submittedAt: new Date() },
-      create: { courseId, studentId: user.id, title, summary, repositoryUrl, demoUrl: demoUrl || null },
+      update: { title, summary, referenceUrl: referenceUrl || null, demoUrl: demoUrl || null, status: "SUBMITTED", feedback: null, reviewerId: null, reviewedAt: null, submittedAt: new Date() },
+      create: { courseId, studentId: user.id, title, summary, referenceUrl: referenceUrl || null, demoUrl: demoUrl || null },
     });
     await db.courseEnrollment.update({ where: { id: enrollment.id }, data: { progress: 100 } });
     await db.auditLog.create({ data: { actorId: user.id, action: "MOD_SUBMITTED", entity: "CourseSubmission", entityId: submission.id, detail: { courseId, title } } });
