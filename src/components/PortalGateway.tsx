@@ -9,8 +9,17 @@ import styles from "./PortalGateway.module.css";
 
 export function PortalGateway({
   user,
+  operations,
 }: {
   user: { name: string; isStudent: boolean; role: string } | null;
+  operations: {
+    admissionsMode: string;
+    enrollmentMode: string;
+    learningMode: string;
+    publicTitle: string;
+    publicMessage: string;
+    reopensAt: string | null;
+  };
 }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
@@ -66,6 +75,21 @@ export function PortalGateway({
           )}
         </div>
       </header>
+
+      {(operations.admissionsMode !== "OPEN" ||
+        operations.enrollmentMode !== "OPEN" ||
+        operations.learningMode !== "ACTIVE") && (
+        <Link className={styles.statusBanner} href="/campus-status">
+          <strong>{operations.publicTitle}</strong>
+          <span>{operations.publicMessage}</span>
+          {operations.reopensAt && (
+            <time dateTime={operations.reopensAt}>
+              Reopens {new Date(operations.reopensAt).toLocaleString()}
+            </time>
+          )}
+          <b aria-hidden="true">View status →</b>
+        </Link>
+      )}
 
       <section className={styles.hero} aria-labelledby="university-gateway-title">
         <motion.div

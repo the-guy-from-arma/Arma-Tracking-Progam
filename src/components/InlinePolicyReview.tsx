@@ -13,6 +13,7 @@ export function InlinePolicyReview({
   onAcknowledged,
   inputName,
   required = false,
+  showAcknowledgement = true,
 }: {
   policy: PublicPolicy;
   index: number;
@@ -22,6 +23,7 @@ export function InlinePolicyReview({
   onAcknowledged: (value: boolean) => void;
   inputName?: string;
   required?: boolean;
+  showAcknowledgement?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   function toggle() {
@@ -116,7 +118,7 @@ export function InlinePolicyReview({
           </dl>
         </div>
       )}
-      <label className={styles.acknowledge}>
+      {showAcknowledgement && <label className={styles.acknowledge}>
         <input
           name={inputName}
           type="checkbox"
@@ -130,7 +132,7 @@ export function InlinePolicyReview({
             ? `I acknowledge ${policy.title}, version ${policy.version.number}.`
             : "Expand and read this policy before acknowledging it."}
         </span>
-      </label>
+      </label>}
     </article>
   );
 }

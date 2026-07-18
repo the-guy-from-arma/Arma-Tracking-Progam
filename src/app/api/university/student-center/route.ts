@@ -3,6 +3,7 @@ import { currentUser, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { text } from "@/lib/input";
 import { activeWithdrawalPolicy, getOrCreateFundingStanding, quoteCourseWithdrawal, recalculateFundingStanding, withdrawFromCourse } from "@/lib/funding-standing";
+import { campusRestrictionResponse } from "@/lib/campus-operations";
 
 export async function GET() {
   const user = await currentUser();
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   const body = await request.json().catch(() => ({}));
   if (!['withdraw', 'quote_withdrawal'].includes(body.action)) return NextResponse.json({ error: "Unknown Student Center action" }, { status: 400 });
+  { const gate = await campusRestrictionResponse("WITHDRAWAL"); if (gate) return gate; }
   const enrollmentId = text(body.enrollmentId, 100);
   const reason = text(body.reason, 500);
   if (!enrollmentId || (body.action === 'withdraw' && reason.length < 10)) return NextResponse.json({ error: "Choose an enrollment and provide a brief withdrawal reason." }, { status: 400 });

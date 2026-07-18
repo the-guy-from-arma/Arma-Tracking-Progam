@@ -1,50 +1,714 @@
 "use client";
 
-import { Camera, Download, GraduationCap, IdCard, Mail, MapPin, Pencil, Phone, ShieldCheck, UserRound } from "lucide-react";
+import {
+  Camera,
+  Download,
+  GraduationCap,
+  IdCard,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
 import Image from "next/image";
-import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ChangeEvent,
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import styles from "./StudentProfile.module.css";
+import { AcademicLoader } from "./AcademicLoader";
 
-type Detail = { addressLine1: string | null; addressLine2: string | null; city: string | null; region: string | null; postalCode: string | null; country: string | null; phone: string | null; emergencyName: string | null; emergencyRelationship: string | null; emergencyPhone: string | null; veteranStatus: string; residencyStatus: string; preferredPronouns: string | null; minorAcademy: string | null; profilePhotoUpdatedAt: string | null };
-type Data = { user: { name: string; email: string; academicEmail: string | null; studentNumber: string | null; specialty: string | null; createdAt: string; grantBalanceCents: number; profileDetails: Detail | null; studentApplication: { preferredName: string | null; country: string; timeZone: string; experienceLevel: string; weeklyHours: number } | null; courseEnrollments: { id: string; status: string; progress: number; enrolledAt: string; completedAt: string | null; course: { code: string; title: string; learningCredits: number } }[]; programEnrollments: { id: string; status: string; creditsEarned: number; program: { code: string; title: string; level: string; academy: string; creditsRequired: number } }[]; certificates: { id: string; title: string; credentialCode: string; issuedAt: string; learningCredits: number }[]; studentActivities: { id: string; type: string; title: string; detail: string; occurredAt: string }[] }; standing: { status: string; gradeAverage: number; finalizedGradeCount: number }; academic: { activeProgram: { status: string; program: { code: string; title: string; level: string; academy: string; creditsRequired: number } } | null; earnedCredits: number; requiredCredits: number; progressPercent: number; activeCourses: number; completedCourses: number; engagementAttendance: number; anticipatedCompletion: string | null; advisor: { name: string; title: string; initials: string } | null }; funding: { studentResponsibilityCents: number; sponsoredValueReceivedCents: number; paymentStatus: string }; academies: string[] };
-const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
-const emptyDetail: Detail = { addressLine1: null, addressLine2: null, city: null, region: null, postalCode: null, country: null, phone: null, emergencyName: null, emergencyRelationship: null, emergencyPhone: null, veteranStatus: "NOT_DISCLOSED", residencyStatus: "NOT_DISCLOSED", preferredPronouns: null, minorAcademy: null, profilePhotoUpdatedAt: null };
+type Detail = {
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  region: string | null;
+  postalCode: string | null;
+  country: string | null;
+  phone: string | null;
+  emergencyName: string | null;
+  emergencyRelationship: string | null;
+  emergencyPhone: string | null;
+  veteranStatus: string;
+  residencyStatus: string;
+  preferredPronouns: string | null;
+  minorAcademy: string | null;
+  profilePhotoUpdatedAt: string | null;
+};
+type Data = {
+  user: {
+    name: string;
+    email: string;
+    academicEmail: string | null;
+    studentNumber: string | null;
+    specialty: string | null;
+    createdAt: string;
+    grantBalanceCents: number;
+    profileDetails: Detail | null;
+    studentApplication: {
+      preferredName: string | null;
+      country: string;
+      timeZone: string;
+      experienceLevel: string;
+      weeklyHours: number;
+    } | null;
+    courseEnrollments: {
+      id: string;
+      status: string;
+      progress: number;
+      enrolledAt: string;
+      completedAt: string | null;
+      course: { code: string; title: string; learningCredits: number };
+    }[];
+    programEnrollments: {
+      id: string;
+      status: string;
+      creditsEarned: number;
+      program: {
+        code: string;
+        title: string;
+        level: string;
+        academy: string;
+        creditsRequired: number;
+      };
+    }[];
+    certificates: {
+      id: string;
+      title: string;
+      credentialCode: string;
+      issuedAt: string;
+      learningCredits: number;
+    }[];
+    studentActivities: {
+      id: string;
+      type: string;
+      title: string;
+      detail: string;
+      occurredAt: string;
+    }[];
+  };
+  standing: {
+    status: string;
+    gradeAverage: number;
+    finalizedGradeCount: number;
+  };
+  academic: {
+    activeProgram: {
+      status: string;
+      program: {
+        code: string;
+        title: string;
+        level: string;
+        academy: string;
+        creditsRequired: number;
+      };
+    } | null;
+    earnedCredits: number;
+    requiredCredits: number;
+    progressPercent: number;
+    activeCourses: number;
+    completedCourses: number;
+    engagementAttendance: number;
+    anticipatedCompletion: string | null;
+    advisor: { name: string; title: string; initials: string } | null;
+  };
+  funding: {
+    studentResponsibilityCents: number;
+    sponsoredValueReceivedCents: number;
+    paymentStatus: string;
+  };
+  academies: string[];
+};
+const money = (cents: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(cents / 100);
+const emptyDetail: Detail = {
+  addressLine1: null,
+  addressLine2: null,
+  city: null,
+  region: null,
+  postalCode: null,
+  country: null,
+  phone: null,
+  emergencyName: null,
+  emergencyRelationship: null,
+  emergencyPhone: null,
+  veteranStatus: "NOT_DISCLOSED",
+  residencyStatus: "NOT_DISCLOSED",
+  preferredPronouns: null,
+  minorAcademy: null,
+  profilePhotoUpdatedAt: null,
+};
 
 export function StudentProfile() {
-  const [data, setData] = useState<Data | null>(null); const [error, setError] = useState(""); const [editing, setEditing] = useState(false); const [saving, setSaving] = useState(false); const [form, setForm] = useState<Detail>(emptyDetail); const [photoKey, setPhotoKey] = useState(0);
-  const load = useCallback(async () => { const response = await fetch("/api/university/profile", { cache: "no-store", signal: AbortSignal.timeout(15000) }); const result = await response.json(); if (!response.ok) throw new Error(result.error); setData(result); setForm({ ...emptyDetail, ...(result.user.profileDetails || {}) }); }, []);
-  useEffect(() => { const timer = setTimeout(() => void load().catch((reason) => setError(reason instanceof Error ? reason.message : "Student record unavailable")), 0); return () => clearTimeout(timer); }, [load]);
-  const initials = useMemo(() => data?.user.name.split(" ").map((part) => part[0]).slice(0, 2).join("") || "EU", [data]);
-  async function save(event: FormEvent) { event.preventDefault(); setSaving(true); setError(""); try { const response = await fetch("/api/university/profile", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(form), signal: AbortSignal.timeout(15000) }); const result = await response.json(); if (!response.ok) throw new Error(result.error); await load(); setEditing(false); } catch (reason) { setError(reason instanceof Error ? reason.message : "Profile could not be saved"); } finally { setSaving(false); } }
-  async function photo(event: ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (!file) return; const body = new FormData(); body.set("photo", file); setError(""); try { const response = await fetch("/api/university/profile/photo", { method: "POST", body, signal: AbortSignal.timeout(25000) }); const result = await response.json(); if (!response.ok) throw new Error(result.error); setPhotoKey(Date.now()); await load(); } catch (reason) { setError(reason instanceof Error ? reason.message : "Photo could not be updated"); } event.target.value = ""; }
-  if (!data) return <div className={styles.loading}>{error || "Assembling your academic record…"}</div>;
-  const { user, academic, standing, funding } = data; const program = academic.activeProgram?.program;
-  const stats = [{ label: "Current courses", value: academic.activeCourses }, { label: "Completed credits", value: academic.earnedCredits }, { label: "Academic average", value: standing.finalizedGradeCount ? `${standing.gradeAverage.toFixed(1)}%` : "—" }, { label: "Credentials earned", value: user.certificates.length }, { label: "Engagement attendance", value: `${academic.engagementAttendance}%` }, { label: "Academic advisor", value: academic.advisor?.name || "Assignment pending" }];
-  return <main className={styles.profile}>
-    <header className={styles.identity}>
-      <div className={styles.photo}>{user.profileDetails?.profilePhotoUpdatedAt ? <Image unoptimized fill sizes="112px" src={`/api/university/profile/photo?v=${photoKey || new Date(user.profileDetails.profilePhotoUpdatedAt).getTime()}`} alt={`${user.name} profile`} /> : <span>{initials}</span>}<label title="Update profile photo"><Camera size={17}/><input type="file" accept="image/jpeg,image/png,image/webp" onChange={photo}/></label></div>
-      <div className={styles.identityCopy}><p>STUDENT ACADEMIC RECORD</p><h1>{user.name}</h1><div className={styles.identityMeta}><span><IdCard size={15}/>{user.studentNumber || "ID pending"}</span><span><GraduationCap size={15}/>{program?.title || "Exploratory studies"}</span><span><ShieldCheck size={15}/>{academic.activeProgram?.status || "Active student"}</span></div></div>
-      <div className={styles.progress} style={{ "--progress": `${academic.progressPercent * 3.6}deg` } as React.CSSProperties}><div><b>{academic.progressPercent}%</b><span>PROGRAM<br/>PROGRESS</span></div></div>
-    </header>
-    {error && <p className={styles.notice} role="alert">{error}</p>}
-    <section className={styles.stats} aria-label="Academic quick statistics">{stats.map((item) => <article key={item.label}><small>{item.label}</small><b>{item.value}</b></article>)}</section>
-    <div className={styles.layout}>
-      <div className={styles.primary}>
-        <section className={styles.section}><header><div><p>ACADEMIC INFORMATION</p><h2>Your pathway and progress</h2></div></header><div className={styles.academicGrid}><article><small>ACTIVE PROGRAM</small><h3>{program?.title || "No program selected"}</h3><p>{program ? `${program.code} · ${program.academy} · ${program.level}` : "Explore Programs to begin a structured pathway."}</p></article><dl><div><dt>Major / academy</dt><dd>{program?.academy || "Undeclared"}</dd></div><div><dt>Supporting academy</dt><dd>{form.minorAcademy || "Not declared"}</dd></div><div><dt>Academic level</dt><dd>{program?.level || "Exploratory"}</dd></div><div><dt>Academic standing</dt><dd>{standing.status.replaceAll("_", " ")}</dd></div><div><dt>Anticipated completion</dt><dd>{academic.anticipatedCompletion ? new Date(academic.anticipatedCompletion).toLocaleDateString(undefined, { month: "long", year: "numeric" }) : "Not yet projected"}</dd></div></dl></div><div className={styles.creditBar}><span><b>{academic.earnedCredits}</b> credits recorded</span><span>{academic.requiredCredits || "—"} required</span><i><b style={{ width: `${academic.progressPercent}%` }}/></i></div></section>
-        <section className={styles.section}><header><div><p>COURSE RECORD</p><h2>Enrollment and completed credit</h2></div></header><div className={styles.courseTable}><div><span>COURSE</span><span>STATUS</span><span>PROGRESS</span><span>CREDITS</span></div>{user.courseEnrollments.slice(0, 12).map((item) => <article key={item.id}><span><b>{item.course.code}</b>{item.course.title}</span><span>{item.status}</span><span><i><b style={{ width: `${item.progress}%` }}/></i>{item.progress}%</span><strong>{item.status === "COMPLETED" ? item.course.learningCredits : "—"}</strong></article>)}{!user.courseEnrollments.length && <p className={styles.empty}>No course enrollments are recorded yet.</p>}</div></section>
-        <section className={styles.section}><header><div><p>RECENT RECORD</p><h2>Academic activity</h2></div></header><ol className={styles.timeline}>{user.studentActivities.map((item) => <li key={item.id}><i/><div><small>{item.type.replaceAll("_", " ")}</small><b>{item.title}</b><p>{item.detail}</p></div><time>{new Date(item.occurredAt).toLocaleDateString()}</time></li>)}{!user.studentActivities.length && <li><i/><div><b>Your activity timeline begins here</b><p>Enrollments, finalized grades, advising, credentials, applications, and funding changes will appear as they are recorded.</p></div></li>}</ol></section>
+  const [data, setData] = useState<Data | null>(null);
+  const [error, setError] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<Detail>(emptyDetail);
+  const [photoKey, setPhotoKey] = useState(0);
+  const load = useCallback(async () => {
+    const response = await fetch("/api/university/profile", {
+      cache: "no-store",
+      signal: AbortSignal.timeout(15000),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error);
+    setData(result);
+    setForm({ ...emptyDetail, ...(result.user.profileDetails || {}) });
+  }, []);
+  useEffect(() => {
+    const timer = setTimeout(
+      () =>
+        void load().catch((reason) =>
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : "Student record unavailable",
+          ),
+        ),
+      0,
+    );
+    return () => clearTimeout(timer);
+  }, [load]);
+  const initials = useMemo(
+    () =>
+      data?.user.name
+        .split(" ")
+        .map((part) => part[0])
+        .slice(0, 2)
+        .join("") || "EU",
+    [data],
+  );
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/university/profile", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(form),
+        signal: AbortSignal.timeout(15000),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      await load();
+      setEditing(false);
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Profile could not be saved",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function photo(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const body = new FormData();
+    body.set("photo", file);
+    setError("");
+    try {
+      const response = await fetch("/api/university/profile/photo", {
+        method: "POST",
+        body,
+        signal: AbortSignal.timeout(25000),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      setPhotoKey(Date.now());
+      await load();
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Photo could not be updated",
+      );
+    }
+    event.target.value = "";
+  }
+  if (!data)
+    return (
+      <AcademicLoader
+        label={error || "Assembling your academic record"}
+        error={Boolean(error)}
+      />
+    );
+  const { user, academic, standing, funding } = data;
+  const program = academic.activeProgram?.program;
+  const stats = [
+    { label: "Current courses", value: academic.activeCourses },
+    { label: "Completed credits", value: academic.earnedCredits },
+    {
+      label: "Academic average",
+      value: standing.finalizedGradeCount
+        ? `${standing.gradeAverage.toFixed(1)}%`
+        : "—",
+    },
+    { label: "Credentials earned", value: user.certificates.length },
+    {
+      label: "Engagement attendance",
+      value: `${academic.engagementAttendance}%`,
+    },
+    {
+      label: "Academic advisor",
+      value: academic.advisor?.name || "Assignment pending",
+    },
+  ];
+  return (
+    <main className={styles.profile}>
+      <header className={styles.identity}>
+        <div className={styles.photo}>
+          {user.profileDetails?.profilePhotoUpdatedAt ? (
+            <Image
+              unoptimized
+              fill
+              sizes="112px"
+              src={`/api/university/profile/photo?v=${photoKey || new Date(user.profileDetails.profilePhotoUpdatedAt).getTime()}`}
+              alt={`${user.name} profile`}
+            />
+          ) : (
+            <span>{initials}</span>
+          )}
+          <label title="Update profile photo">
+            <Camera size={17} />
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={photo}
+            />
+          </label>
+        </div>
+        <div className={styles.identityCopy}>
+          <p>STUDENT ACADEMIC RECORD</p>
+          <h1>{user.name}</h1>
+          <div className={styles.identityMeta}>
+            <span>
+              <IdCard size={15} />
+              {user.studentNumber || "ID pending"}
+            </span>
+            <span>
+              <GraduationCap size={15} />
+              {program?.title || "Exploratory studies"}
+            </span>
+            <span>
+              <ShieldCheck size={15} />
+              {academic.activeProgram?.status || "Active student"}
+            </span>
+          </div>
+        </div>
+        <div
+          className={styles.progress}
+          style={
+            {
+              "--progress": `${academic.progressPercent * 3.6}deg`,
+            } as React.CSSProperties
+          }
+        >
+          <div>
+            <b>{academic.progressPercent}%</b>
+            <span>
+              PROGRAM
+              <br />
+              PROGRESS
+            </span>
+          </div>
+        </div>
+      </header>
+      {error && (
+        <p className={styles.notice} role="alert">
+          {error}
+        </p>
+      )}
+      <section className={styles.stats} aria-label="Academic quick statistics">
+        {stats.map((item) => (
+          <article key={item.label}>
+            <small>{item.label}</small>
+            <b>{item.value}</b>
+          </article>
+        ))}
+      </section>
+      <div className={styles.layout}>
+        <div className={styles.primary}>
+          <section className={styles.section}>
+            <header>
+              <div>
+                <p>ACADEMIC INFORMATION</p>
+                <h2>Your pathway and progress</h2>
+              </div>
+            </header>
+            <div className={styles.academicGrid}>
+              <article>
+                <small>ACTIVE PROGRAM</small>
+                <h3>{program?.title || "No program selected"}</h3>
+                <p>
+                  {program
+                    ? `${program.code} · ${program.academy} · ${program.level}`
+                    : "Explore Programs to begin a structured pathway."}
+                </p>
+              </article>
+              <dl>
+                <div>
+                  <dt>Major / academy</dt>
+                  <dd>{program?.academy || "Undeclared"}</dd>
+                </div>
+                <div>
+                  <dt>Supporting academy</dt>
+                  <dd>{form.minorAcademy || "Not declared"}</dd>
+                </div>
+                <div>
+                  <dt>Academic level</dt>
+                  <dd>{program?.level || "Exploratory"}</dd>
+                </div>
+                <div>
+                  <dt>Academic standing</dt>
+                  <dd>{standing.status.replaceAll("_", " ")}</dd>
+                </div>
+                <div>
+                  <dt>Anticipated completion</dt>
+                  <dd>
+                    {academic.anticipatedCompletion
+                      ? new Date(
+                          academic.anticipatedCompletion,
+                        ).toLocaleDateString(undefined, {
+                          month: "long",
+                          year: "numeric",
+                        })
+                      : "Not yet projected"}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+            <div className={styles.creditBar}>
+              <span>
+                <b>{academic.earnedCredits}</b> credits recorded
+              </span>
+              <span>{academic.requiredCredits || "—"} required</span>
+              <i>
+                <b style={{ width: `${academic.progressPercent}%` }} />
+              </i>
+            </div>
+          </section>
+          <section className={styles.section}>
+            <header>
+              <div>
+                <p>COURSE RECORD</p>
+                <h2>Enrollment and completed credit</h2>
+              </div>
+            </header>
+            <div className={styles.courseTable}>
+              <div>
+                <span>COURSE</span>
+                <span>STATUS</span>
+                <span>PROGRESS</span>
+                <span>CREDITS</span>
+              </div>
+              {user.courseEnrollments.slice(0, 12).map((item) => (
+                <article key={item.id}>
+                  <span>
+                    <b>{item.course.code}</b>
+                    {item.course.title}
+                  </span>
+                  <span>{item.status}</span>
+                  <span>
+                    <i>
+                      <b style={{ width: `${item.progress}%` }} />
+                    </i>
+                    {item.progress}%
+                  </span>
+                  <strong>
+                    {item.status === "COMPLETED"
+                      ? item.course.learningCredits
+                      : "—"}
+                  </strong>
+                </article>
+              ))}
+              {!user.courseEnrollments.length && (
+                <p className={styles.empty}>
+                  No course enrollments are recorded yet.
+                </p>
+              )}
+            </div>
+          </section>
+          <section className={styles.section}>
+            <header>
+              <div>
+                <p>RECENT RECORD</p>
+                <h2>Academic activity</h2>
+              </div>
+            </header>
+            <ol className={styles.timeline}>
+              {user.studentActivities.map((item) => (
+                <li key={item.id}>
+                  <i />
+                  <div>
+                    <small>{item.type.replaceAll("_", " ")}</small>
+                    <b>{item.title}</b>
+                    <p>{item.detail}</p>
+                  </div>
+                  <time>{new Date(item.occurredAt).toLocaleDateString()}</time>
+                </li>
+              ))}
+              {!user.studentActivities.length && (
+                <li>
+                  <i />
+                  <div>
+                    <b>Your activity timeline begins here</b>
+                    <p>
+                      Enrollments, finalized grades, advising, credentials,
+                      applications, and funding changes will appear as they are
+                      recorded.
+                    </p>
+                  </div>
+                </li>
+              )}
+            </ol>
+          </section>
+        </div>
+        <aside className={styles.secondary}>
+          <section className={styles.section}>
+            <header>
+              <div>
+                <p>STUDENT INFORMATION</p>
+                <h2>Private profile</h2>
+              </div>
+              <button onClick={() => setEditing(!editing)}>
+                <Pencil size={15} />
+                {editing ? "Cancel" : "Edit"}
+              </button>
+            </header>
+            {editing ? (
+              <ProfileForm
+                form={form}
+                setForm={setForm}
+                academies={data.academies}
+                saving={saving}
+                onSubmit={save}
+              />
+            ) : (
+              <dl className={styles.details}>
+                <div>
+                  <dt>
+                    <Mail size={14} />
+                    Campus ID
+                  </dt>
+                  <dd>{user.academicEmail}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <Phone size={14} />
+                    Phone
+                  </dt>
+                  <dd>{form.phone || "Not provided"}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <MapPin size={14} />
+                    Address
+                  </dt>
+                  <dd>
+                    {[
+                      form.addressLine1,
+                      form.city,
+                      form.region,
+                      form.postalCode,
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || "Not provided"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>
+                    <UserRound size={14} />
+                    Emergency contact
+                  </dt>
+                  <dd>
+                    {form.emergencyName
+                      ? `${form.emergencyName} · ${form.emergencyPhone || "phone pending"}`
+                      : "Not provided"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Residency</dt>
+                  <dd>{form.residencyStatus.replaceAll("_", " ")}</dd>
+                </div>
+                <div>
+                  <dt>Veteran status</dt>
+                  <dd>{form.veteranStatus.replaceAll("_", " ")}</dd>
+                </div>
+              </dl>
+            )}
+          </section>
+          <section className={`${styles.section} ${styles.funding}`}>
+            <p>SPONSORED-LEARNING SNAPSHOT</p>
+            <h2>No payment required</h2>
+            <dl>
+              <div>
+                <dt>Student responsibility</dt>
+                <dd>$0.00</dd>
+              </div>
+              <div>
+                <dt>Available internal value</dt>
+                <dd>{money(user.grantBalanceCents)}</dd>
+              </div>
+              <div>
+                <dt>Payment status</dt>
+                <dd>{funding.paymentStatus.replaceAll("_", " ")}</dd>
+              </div>
+            </dl>
+            <a href="/university?view=funding">Open Funding Center →</a>
+          </section>
+          <section className={styles.section}>
+            <p>OFFICIAL DOCUMENTS</p>
+            <h2>Your academic documents</h2>
+            <div className={styles.documents}>
+              {[
+                ["transcript", "Institutional transcript"],
+                ["enrollment-verification", "Enrollment verification"],
+                ["program-audit", "Program audit"],
+                [
+                  "sponsored-learning-statement",
+                  "Sponsored-learning statement",
+                ],
+              ].map(([type, title]) => (
+                <a href={`/api/university/documents/${type}`} key={type}>
+                  <Download size={18} />
+                  <span>
+                    <b>{title}</b>
+                    <small>Audited PDF · generated on demand</small>
+                  </span>
+                </a>
+              ))}
+            </div>
+          </section>
+          <section className={styles.section}>
+            <p>ACADEMIC SUPPORT</p>
+            <h2>{academic.advisor?.name || "Advisor assignment pending"}</h2>
+            <span className={styles.advisor}>
+              {academic.advisor?.title || "University Academic Advising"}
+            </span>
+            <a className={styles.messageLink} href="/university?view=messages">
+              Message your advisor →
+            </a>
+          </section>
+        </aside>
       </div>
-      <aside className={styles.secondary}>
-        <section className={styles.section}><header><div><p>STUDENT INFORMATION</p><h2>Private profile</h2></div><button onClick={() => setEditing(!editing)}><Pencil size={15}/>{editing ? "Cancel" : "Edit"}</button></header>{editing ? <ProfileForm form={form} setForm={setForm} academies={data.academies} saving={saving} onSubmit={save}/> : <dl className={styles.details}><div><dt><Mail size={14}/>Campus ID</dt><dd>{user.academicEmail}</dd></div><div><dt><Phone size={14}/>Phone</dt><dd>{form.phone || "Not provided"}</dd></div><div><dt><MapPin size={14}/>Address</dt><dd>{[form.addressLine1, form.city, form.region, form.postalCode].filter(Boolean).join(", ") || "Not provided"}</dd></div><div><dt><UserRound size={14}/>Emergency contact</dt><dd>{form.emergencyName ? `${form.emergencyName} · ${form.emergencyPhone || "phone pending"}` : "Not provided"}</dd></div><div><dt>Residency</dt><dd>{form.residencyStatus.replaceAll("_", " ")}</dd></div><div><dt>Veteran status</dt><dd>{form.veteranStatus.replaceAll("_", " ")}</dd></div></dl>}</section>
-        <section className={`${styles.section} ${styles.funding}`}><p>SPONSORED-LEARNING SNAPSHOT</p><h2>No payment required</h2><dl><div><dt>Student responsibility</dt><dd>$0.00</dd></div><div><dt>Available internal value</dt><dd>{money(user.grantBalanceCents)}</dd></div><div><dt>Payment status</dt><dd>{funding.paymentStatus.replaceAll("_", " ")}</dd></div></dl><a href="/university?view=funding">Open Funding Center →</a></section>
-        <section className={styles.section}><p>OFFICIAL DOCUMENTS</p><h2>Your academic documents</h2><div className={styles.documents}>{[["transcript", "Institutional transcript"], ["enrollment-verification", "Enrollment verification"], ["program-audit", "Program audit"], ["sponsored-learning-statement", "Sponsored-learning statement"]].map(([type, title]) => <a href={`/api/university/documents/${type}`} key={type}><Download size={18}/><span><b>{title}</b><small>Audited PDF · generated on demand</small></span></a>)}</div></section>
-        <section className={styles.section}><p>ACADEMIC SUPPORT</p><h2>{academic.advisor?.name || "Advisor assignment pending"}</h2><span className={styles.advisor}>{academic.advisor?.title || "University Academic Advising"}</span><a className={styles.messageLink} href="/university?view=messages">Message your advisor →</a></section>
-      </aside>
-    </div>
-  </main>;
+    </main>
+  );
 }
 
-function ProfileForm({ form, setForm, academies, saving, onSubmit }: { form: Detail; setForm: (next: Detail) => void; academies: string[]; saving: boolean; onSubmit: (event: FormEvent) => void }) {
-  const field = (name: keyof Detail) => ({ value: String(form[name] || ""), onChange: (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [name]: event.target.value || null }) });
-  return <form className={styles.form} onSubmit={onSubmit}><label>Address<input {...field("addressLine1")}/></label><label>Address line 2<input {...field("addressLine2")}/></label><div><label>City<input {...field("city")}/></label><label>State / region<input {...field("region")}/></label></div><div><label>Postal code<input {...field("postalCode")}/></label><label>Country<input {...field("country")}/></label></div><label>Phone<input type="tel" {...field("phone")}/></label><label>Preferred pronouns (optional)<input {...field("preferredPronouns")}/></label><label>Supporting academy<select {...field("minorAcademy")}><option value="">Not declared</option>{academies.map((item) => <option key={item}>{item}</option>)}</select></label><div><label>Residency<select {...field("residencyStatus")}><option value="NOT_DISCLOSED">Not disclosed</option><option value="DOMESTIC">Domestic</option><option value="INTERNATIONAL">International</option><option value="OTHER">Other</option></select></label><label>Veteran status<select {...field("veteranStatus")}><option value="NOT_DISCLOSED">Not disclosed</option><option value="NOT_A_VETERAN">Not a veteran</option><option value="VETERAN">Veteran</option><option value="ACTIVE_DUTY">Active duty</option><option value="RESERVE_OR_GUARD">Reserve or Guard</option><option value="MILITARY_FAMILY">Military family</option></select></label></div><h3>Emergency contact</h3><label>Name<input {...field("emergencyName")}/></label><div><label>Relationship<input {...field("emergencyRelationship")}/></label><label>Phone<input type="tel" {...field("emergencyPhone")}/></label></div><button disabled={saving}>{saving ? "Saving…" : "Save private profile"}</button></form>;
+function ProfileForm({
+  form,
+  setForm,
+  academies,
+  saving,
+  onSubmit,
+}: {
+  form: Detail;
+  setForm: (next: Detail) => void;
+  academies: string[];
+  saving: boolean;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  const field = (name: keyof Detail) => ({
+    value: String(form[name] || ""),
+    onChange: (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm({ ...form, [name]: event.target.value || null }),
+  });
+  return (
+    <form className={styles.form} onSubmit={onSubmit}>
+      <label>
+        Address
+        <input {...field("addressLine1")} />
+      </label>
+      <label>
+        Address line 2<input {...field("addressLine2")} />
+      </label>
+      <div>
+        <label>
+          City
+          <input {...field("city")} />
+        </label>
+        <label>
+          State / region
+          <input {...field("region")} />
+        </label>
+      </div>
+      <div>
+        <label>
+          Postal code
+          <input {...field("postalCode")} />
+        </label>
+        <label>
+          Country
+          <input {...field("country")} />
+        </label>
+      </div>
+      <label>
+        Phone
+        <input type="tel" {...field("phone")} />
+      </label>
+      <label>
+        Preferred pronouns (optional)
+        <input {...field("preferredPronouns")} />
+      </label>
+      <label>
+        Supporting academy
+        <select {...field("minorAcademy")}>
+          <option value="">Not declared</option>
+          {academies.map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </label>
+      <div>
+        <label>
+          Residency
+          <select {...field("residencyStatus")}>
+            <option value="NOT_DISCLOSED">Not disclosed</option>
+            <option value="DOMESTIC">Domestic</option>
+            <option value="INTERNATIONAL">International</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </label>
+        <label>
+          Veteran status
+          <select {...field("veteranStatus")}>
+            <option value="NOT_DISCLOSED">Not disclosed</option>
+            <option value="NOT_A_VETERAN">Not a veteran</option>
+            <option value="VETERAN">Veteran</option>
+            <option value="ACTIVE_DUTY">Active duty</option>
+            <option value="RESERVE_OR_GUARD">Reserve or Guard</option>
+            <option value="MILITARY_FAMILY">Military family</option>
+          </select>
+        </label>
+      </div>
+      <h3>Emergency contact</h3>
+      <label>
+        Name
+        <input {...field("emergencyName")} />
+      </label>
+      <div>
+        <label>
+          Relationship
+          <input {...field("emergencyRelationship")} />
+        </label>
+        <label>
+          Phone
+          <input type="tel" {...field("emergencyPhone")} />
+        </label>
+      </div>
+      <button disabled={saving}>
+        {saving ? "Saving…" : "Save private profile"}
+      </button>
+    </form>
+  );
 }

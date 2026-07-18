@@ -23,6 +23,7 @@
     "faculty:seed": "node scripts/seed-faculty.mjs",
     "faculty:worker": "node scripts/run-faculty-worker.mjs",
     "faculty:outreach": "node scripts/run-faculty-outreach.mjs",
+    "admissions:worker": "node scripts/run-admissions-worker.mjs",
     "policies:seed": "node scripts/seed-policies.mjs",
     "funding:reconcile": "node scripts/reconcile-funding-awards.mjs",
     "funding:reconcile:apply": "node scripts/reconcile-funding-awards.mjs --apply"

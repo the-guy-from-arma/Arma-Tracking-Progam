@@ -1,0 +1,204 @@
+.panel {
+  margin: 34px 0;
+  padding: clamp(24px, 3vw, 42px);
+  border: 1px solid #325269;
+  background: linear-gradient(145deg, #0a1d2b, #102d40);
+  color: #eaf4fa;
+}
+.panel > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 30px;
+  align-items: end;
+  margin-bottom: 28px;
+}
+.panel > header span,
+.scheduler span,
+.queue header span {
+  font: 700 10px var(--font-plex-mono, monospace);
+  letter-spacing: 0.15em;
+  color: #58cce5;
+}
+.panel h2 {
+  margin: 8px 0 0;
+  font: 400 clamp(30px, 3vw, 46px)/1.05 var(--font-plex-serif, serif);
+}
+.panel > header p {
+  max-width: 430px;
+  color: #a9bdca;
+}
+.statusGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: #365266;
+}
+.statusGrid article {
+  padding: 22px;
+  background: #0c2232;
+}
+.statusGrid small {
+  display: block;
+  font: 700 9px var(--font-plex-mono, monospace);
+  letter-spacing: 0.12em;
+  color: #87a6b8;
+}
+.statusGrid strong {
+  display: block;
+  margin: 12px 0 7px;
+  color: #79e1c2;
+}
+.statusGrid span {
+  font-size: 12px;
+  color: #9fb3c0;
+}
+.operationsBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 24px;
+  margin-top: 24px;
+}
+.scheduler,
+.queue {
+  border: 1px solid #2d4a5f;
+  background: #081926;
+  padding: 24px;
+}
+.scheduler {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.scheduler > div:first-child,
+.scheduler .wide,
+.scheduler .actions {
+  grid-column: 1/-1;
+}
+.scheduler h3 {
+  margin: 7px 0 10px;
+  font: 400 28px var(--font-plex-serif, serif);
+}
+.scheduler label {
+  display: grid;
+  gap: 7px;
+  font: 700 9px var(--font-plex-mono, monospace);
+  letter-spacing: 0.08em;
+  color: #9fb8c9;
+}
+.scheduler input,
+.scheduler select,
+.scheduler textarea {
+  width: 100%;
+  border: 1px solid #3b5c70;
+  background: #0d2535;
+  color: #edf7fc;
+  padding: 12px;
+  font: 14px var(--font-plex-sans, sans-serif);
+}
+.scheduler textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.actions button,
+.queue button {
+  border: 1px solid #4f8196;
+  background: #123c52;
+  color: #e9fbff;
+  padding: 11px 14px;
+  font: 700 9px var(--font-plex-mono, monospace);
+  letter-spacing: 0.08em;
+}
+.queue header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+.queue article {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 16px 0;
+  border-top: 1px solid #294457;
+}
+.queue article small,
+.queue article strong,
+.queue article span {
+  display: block;
+}
+.queue article small {
+  color: #65cce0;
+  font: 9px var(--font-plex-mono, monospace);
+}
+.queue article strong {
+  margin: 5px 0;
+}
+.queue article span,
+.queue article p,
+.queue footer {
+  color: #91aabb;
+  font-size: 11px;
+}
+.queue article nav {
+  display: flex;
+  align-items: start;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.queue button {
+  padding: 8px;
+}
+.queue footer {
+  padding-top: 18px;
+  border-top: 1px solid #294457;
+}
+.periods {
+  grid-column: 1/-1;
+  border-top: 1px solid #294457;
+  padding-top: 12px;
+}
+.periods div {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #213b4e;
+}
+.periods span,
+.periods b { display: block; }
+.periods span { color: #91aabb; font-size: 11px; }
+.periods b { color: #eaf4fa; font-size: 12px; }
+.periods em { font: 700 9px var(--font-plex-mono, monospace); color: #65cce0; }
+.periods button { border: 1px solid #4f8196; background: transparent; color: #e9fbff; padding: 7px; font: 700 8px var(--font-plex-mono, monospace); }
+@media (max-width: 1050px) {
+  .statusGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .operationsBody {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 650px) {
+  .panel > header {
+    align-items: start;
+    flex-direction: column;
+  }
+  .statusGrid,
+  .scheduler {
+    grid-template-columns: 1fr;
+  }
+  .scheduler label,
+  .scheduler > div:first-child,
+  .scheduler .wide,
+  .scheduler .actions {
+    grid-column: 1;
+  }
+  .queue article {
+    flex-direction: column;
+  }
+}

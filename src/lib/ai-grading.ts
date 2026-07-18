@@ -3,6 +3,7 @@ import { recalculateFundingStanding } from "@/lib/funding-standing";
 import { db } from "@/lib/db";
 import { refreshProgramProgress } from "@/lib/academic-progress";
 import { policyCompliance } from "@/lib/policies";
+import { campusRestriction } from "@/lib/campus-operations";
 
 type GradeResult = {
   rubricScores: { criterion: string; score: number; feedback: string }[];
@@ -93,6 +94,11 @@ export async function processNextAiGrade() {
     await db.aiGradeJob.update({ where: { id: job.id }, data: { status: "WAITING_FOR_CONSENT", lockedAt: null, lastError: "Current policy acceptance required" } });
     await db.courseSubmission.update({ where: { id: submission.id }, data: { status: "PENDING_AI_REVIEW" } });
     return { processed: false, reason: "waiting_for_consent" };
+  }
+  const campusHold = await campusRestriction("GRADING_FINALIZE");
+  if (campusHold) {
+    await db.aiGradeJob.update({ where: { id: job.id }, data: { status: "QUEUED", lockedAt: null, availableAt: campusHold.reopensAt || new Date(Date.now() + 60 * 60_000), lastError: "Academic grading is paused by the campus operating calendar." } });
+    return { processed: false, reason: "campus_paused" };
   }
   await db.courseSubmission.update({ where: { id: submission.id }, data: { status: "AI_REVIEWING" } });
   const rubric = submission.course.gradingRubric;

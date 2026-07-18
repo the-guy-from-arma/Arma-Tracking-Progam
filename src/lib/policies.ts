@@ -158,6 +158,10 @@ export async function recordPolicyAcceptance(input: {
     where: { conversation: { studentId: input.userId }, status: "WAITING_FOR_CONSENT" },
     data: { status: "QUEUED", availableAt: new Date(), lastError: null },
   });
+  await client.admissionReviewJob.updateMany({
+    where: { application: { userId: input.userId }, status: "WAITING_FOR_CONSENT" },
+    data: { status: "QUEUED", stage: "APPLICATION_RECEIVED", availableAt: new Date(), lastError: null, lockedAt: null, heartbeatAt: null },
+  });
   return event;
 }
 

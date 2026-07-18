@@ -76,9 +76,61 @@ enum ProgramLevel {
 
 enum AdmissionStatus {
   SUBMITTED
+  UNDER_AUTOMATED_REVIEW
+  CLARIFICATION_REQUIRED
+  AUTOMATION_EXCEPTION
   ADMITTED
   WAITLISTED
   DECLINED
+}
+
+enum AdmissionReviewStatus {
+  QUEUED
+  PROCESSING
+  WAITING_FOR_CONSENT
+  COMPLETED
+  CLARIFICATION_REQUIRED
+  EXCEPTION
+}
+
+enum AdmissionDecisionOutcome {
+  AUTO_ADMITTED
+  CLARIFICATION_REQUIRED
+  AUTOMATION_EXCEPTION
+}
+
+enum AdmissionsMode {
+  OPEN
+  PAUSED
+}
+
+enum EnrollmentMode {
+  OPEN
+  PAUSED
+}
+
+enum CampusLearningMode {
+  ACTIVE
+  ACADEMIC_BREAK
+  MAINTENANCE
+  EMERGENCY_CLOSURE
+}
+
+enum CampusSeason {
+  GENERAL
+  SPRING_RECESS
+  SUMMER_SESSION
+  WINTER_RECESS
+  SEMESTER_TRANSITION
+  MAINTENANCE
+  EMERGENCY
+}
+
+enum OperationalPeriodStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
 }
 
 enum GrantLedgerType {
@@ -356,29 +408,29 @@ enum ApplicationTrackingStatus {
 }
 
 model User {
-  id                        String                  @id @default(cuid())
-  email                     String                  @unique
-  academicEmail             String?                 @unique
-  studentNumber             String?                 @unique
-  isStudent                 Boolean                 @default(false)
-  grantBalanceCents         Int                     @default(0)
+  id                        String                         @id @default(cuid())
+  email                     String                         @unique
+  academicEmail             String?                        @unique
+  studentNumber             String?                        @unique
+  isStudent                 Boolean                        @default(false)
+  grantBalanceCents         Int                            @default(0)
   name                      String
   passwordHash              String
-  role                      UserRole                @default(TRAINEE)
+  role                      UserRole                       @default(TRAINEE)
   specialty                 String?
-  suspended                 Boolean                 @default(false)
+  suspended                 Boolean                        @default(false)
   accountClosedAt           DateTime?
-  createdAt                 DateTime                @default(now())
-  updatedAt                 DateTime                @updatedAt
+  createdAt                 DateTime                       @default(now())
+  updatedAt                 DateTime                       @updatedAt
   sessions                  Session[]
-  projects                  Project[]               @relation("ProjectOwner")
-  reviews                   Project[]               @relation("ProjectReviewer")
+  projects                  Project[]                      @relation("ProjectOwner")
+  reviews                   Project[]                      @relation("ProjectReviewer")
   memberships               Membership[]
   auditLogs                 AuditLog[]
-  authoredCourses           Course[]                @relation("CourseAuthor")
+  authoredCourses           Course[]                       @relation("CourseAuthor")
   courseEnrollments         CourseEnrollment[]
-  courseSubmissions         CourseSubmission[]      @relation("StudentSubmissions")
-  reviewedSubmissions       CourseSubmission[]      @relation("SubmissionReviewer")
+  courseSubmissions         CourseSubmission[]             @relation("StudentSubmissions")
+  reviewedSubmissions       CourseSubmission[]             @relation("SubmissionReviewer")
   certificates              Certificate[]
   programEnrollments        ProgramEnrollment[]
   programApplications       ProgramApplication[]
@@ -386,39 +438,42 @@ model User {
   fundingTerms              StudentFundingTerm[]
   fundingStanding           StudentFundingStanding?
   notifications             Notification[]
-  submissionAppeals         SubmissionAppeal[]      @relation("StudentAppeals")
-  reviewedAppeals           SubmissionAppeal[]      @relation("AppealReviewer")
+  submissionAppeals         SubmissionAppeal[]             @relation("StudentAppeals")
+  reviewedAppeals           SubmissionAppeal[]             @relation("AppealReviewer")
   studentApplication        StudentApplication?
   grantLedger               GrantLedger[]
   lessonProgress            LessonProgress[]
   quizAttempts              QuizAttempt[]
   projectUpdates            ProjectUpdate[]
   projectNotes              ProjectNote[]
-  assignedObjectives        ProjectObjective[]      @relation("ObjectiveAssignee")
+  assignedObjectives        ProjectObjective[]             @relation("ObjectiveAssignee")
   projectComments           ProjectComment[]
   sourceSyncAttempts        SourceSyncAttempt[]
-  sourceBypasses            CurriculumSource[]      @relation("SourceBypassOwner")
+  sourceBypasses            CurriculumSource[]             @relation("SourceBypassOwner")
   withdrawalPolicies        WithdrawalPolicy[]
   guideProgress             GuideProgress[]
-  facultyAccount            FacultyProfile?         @relation("FacultyAccount")
-  facultyAssignments        FacultyAssignment[]     @relation("StudentFacultyAssignments")
-  facultyMessages           FacultyMessage[]        @relation("FacultyMessageSender")
-  facultyConversations      FacultyConversation[]   @relation("StudentFacultyConversations")
+  facultyAccount            FacultyProfile?                @relation("FacultyAccount")
+  facultyAssignments        FacultyAssignment[]            @relation("StudentFacultyAssignments")
+  facultyMessages           FacultyMessage[]               @relation("FacultyMessageSender")
+  facultyConversations      FacultyConversation[]          @relation("StudentFacultyConversations")
   supportProfile            StudentSupportProfile?
-  facultyOutreach           FacultyOutreachEvent[]  @relation("StudentFacultyOutreach")
+  facultyOutreach           FacultyOutreachEvent[]         @relation("StudentFacultyOutreach")
   policySignatureEvents     PolicySignatureEvent[]
   policyAcceptances         PolicyAcceptance[]
   policyInquiries           PolicyInquiry[]
-  policyInquiryMessages     PolicyInquiryMessage[]  @relation("PolicyInquiryAuthor")
+  policyInquiryMessages     PolicyInquiryMessage[]         @relation("PolicyInquiryAuthor")
   profileDetails            StudentProfileDetail?
-  studentActivities         StudentActivityEvent[]  @relation("StudentActivities")
-  recordedActivities        StudentActivityEvent[]  @relation("ActivityActor")
-  fundingAwards             FundingAward[]          @relation("StudentFundingAwards")
-  issuedFundingAwards       FundingAward[]          @relation("FundingAwardIssuer")
-  fundingAwardRevisions     FundingAwardRevision[]  @relation("FundingRevisionActor")
-  fundingPermissions        FundingPermission[]     @relation("FundingPermissionUser")
-  grantedFundingPermissions FundingPermission[]     @relation("FundingPermissionGrantor")
-  fundingTransactions       GrantLedger[]           @relation("FundingTransactionActor")
+  studentActivities         StudentActivityEvent[]         @relation("StudentActivities")
+  recordedActivities        StudentActivityEvent[]         @relation("ActivityActor")
+  fundingAwards             FundingAward[]                 @relation("StudentFundingAwards")
+  issuedFundingAwards       FundingAward[]                 @relation("FundingAwardIssuer")
+  fundingAwardRevisions     FundingAwardRevision[]         @relation("FundingRevisionActor")
+  fundingPermissions        FundingPermission[]            @relation("FundingPermissionUser")
+  grantedFundingPermissions FundingPermission[]            @relation("FundingPermissionGrantor")
+  fundingTransactions       GrantLedger[]                  @relation("FundingTransactionActor")
+  admissionClarifications   AdmissionClarification[]       @relation("AdmissionClarificationApplicant")
+  admissionReviewOverrides  AdmissionReviewDecision[]      @relation("AdmissionDecisionOwner")
+  operationalPeriods        InstitutionOperationalPeriod[] @relation("OperationalPeriodOwner")
 
   @@index([role])
 }
@@ -437,6 +492,7 @@ model Course {
   academy              String                     @default("Workbench Foundations")
   estimatedDays        Int                        @default(10)
   workloadHours        Int                        @default(20)
+  catalogVisible       Boolean                    @default(true)
   outcomes             Json                       @default("[]")
   wikiManaged          Boolean                    @default(false)
   createdById          String?
@@ -587,9 +643,9 @@ model SourceSyncAttempt {
 }
 
 model StudentApplication {
-  id                  String                @id @default(cuid())
-  userId              String                @unique
-  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  String                   @id @default(cuid())
+  userId              String                   @unique
+  user                User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   preferredName       String?
   country             String
   timeZone            String
@@ -602,10 +658,73 @@ model StudentApplication {
   githubUrl           String?
   fundingStatement    String
   supportNeeds        String?
-  status              AdmissionStatus       @default(ADMITTED)
-  submittedAt         DateTime              @default(now())
+  status              AdmissionStatus          @default(ADMITTED)
+  submittedAt         DateTime                 @default(now())
   reviewedAt          DateTime?
   trackingRecords     ApplicationTracking[]
+  reviewJobs          AdmissionReviewJob[]
+  clarifications      AdmissionClarification[]
+}
+
+model AdmissionReviewJob {
+  id                 String                   @id @default(cuid())
+  applicationId      String
+  application        StudentApplication       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  status             AdmissionReviewStatus    @default(QUEUED)
+  attempt            Int                      @default(0)
+  maxAttempts        Int                      @default(3)
+  clarificationRound Int                      @default(0)
+  stage              String                   @default("APPLICATION_RECEIVED")
+  idempotencyKey     String                   @unique
+  availableAt        DateTime                 @default(now())
+  lockedAt           DateTime?
+  heartbeatAt        DateTime?
+  lastError          String?
+  decision           AdmissionReviewDecision?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  @@index([status, availableAt])
+  @@index([applicationId, createdAt])
+}
+
+model AdmissionReviewDecision {
+  id                String                   @id @default(cuid())
+  jobId             String                   @unique
+  job               AdmissionReviewJob       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  outcome           AdmissionDecisionOutcome
+  score             Int
+  confidence        Float
+  modelId           String
+  promptVersion     String
+  strengths         Json                     @default("[]")
+  concerns          Json                     @default("[]")
+  integrityFlags    Json                     @default("[]")
+  questions         Json                     @default("[]")
+  structuredResult  Json
+  validationResult  Json                     @default("{}")
+  ownerOverrideById String?
+  ownerOverrideBy   User?                    @relation("AdmissionDecisionOwner", fields: [ownerOverrideById], references: [id], onDelete: SetNull)
+  ownerOverrideNote String?
+  createdAt         DateTime                 @default(now())
+
+  @@index([outcome, createdAt])
+}
+
+model AdmissionClarification {
+  id            String             @id @default(cuid())
+  applicationId String
+  application   StudentApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicantId   String
+  applicant     User               @relation("AdmissionClarificationApplicant", fields: [applicantId], references: [id], onDelete: Cascade)
+  round         Int
+  questions     Json
+  response      Json?
+  submittedAt   DateTime?
+  createdAt     DateTime           @default(now())
+
+  @@unique([applicationId, round])
+  @@index([applicantId, createdAt])
 }
 
 model StudentProfileDetail {
@@ -773,6 +892,8 @@ model CourseEnrollment {
   status                   EnrollmentStatus  @default(ACTIVE)
   progress                 Int               @default(0)
   enrolledAt               DateTime          @default(now())
+  expectedEndAt            DateTime?
+  pausedDays               Int               @default(0)
   completedAt              DateTime?
   withdrawnAt              DateTime?
   withdrawalReason         String?
@@ -1529,4 +1650,56 @@ model InstitutionPolicySetting {
   legalReviewConfirmedAt     DateTime?
   trademarkReviewConfirmedAt DateTime?
   updatedAt                  DateTime   @updatedAt
+}
+
+model InstitutionOperationalSetting {
+  id             String             @id @default("institution-operations")
+  admissionsMode AdmissionsMode     @default(OPEN)
+  enrollmentMode EnrollmentMode     @default(OPEN)
+  learningMode   CampusLearningMode @default(ACTIVE)
+  timezone       String             @default("America/New_York")
+  publicTitle    String             @default("Campus is open")
+  publicMessage  String             @default("Admissions, enrollment, and learning services are available.")
+  reopensAt      DateTime?
+  season         CampusSeason       @default(GENERAL)
+  activePeriodId String?
+  updatedAt      DateTime           @updatedAt
+}
+
+model InstitutionOperationalPeriod {
+  id                         String                          @id @default(cuid())
+  title                      String
+  publicMessage              String
+  ownerNote                  String?
+  admissionsMode             AdmissionsMode
+  enrollmentMode             EnrollmentMode
+  learningMode               CampusLearningMode
+  season                     CampusSeason                    @default(GENERAL)
+  status                     OperationalPeriodStatus         @default(SCHEDULED)
+  startsAt                   DateTime
+  endsAt                     DateTime
+  activatedAt                DateTime?
+  completedAt                DateTime?
+  deadlineExtensionAppliedAt DateTime?
+  createdById                String?
+  createdBy                  User?                           @relation("OperationalPeriodOwner", fields: [createdById], references: [id], onDelete: SetNull)
+  adjustments                OperationalDeadlineAdjustment[]
+  createdAt                  DateTime                        @default(now())
+  updatedAt                  DateTime                        @updatedAt
+
+  @@index([status, startsAt, endsAt])
+}
+
+model OperationalDeadlineAdjustment {
+  id         String                       @id @default(cuid())
+  periodId   String
+  period     InstitutionOperationalPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  entityType String
+  entityId   String
+  previousAt DateTime
+  adjustedAt DateTime
+  createdAt  DateTime                     @default(now())
+
+  @@unique([periodId, entityType, entityId])
+  @@index([entityType, entityId])
 }

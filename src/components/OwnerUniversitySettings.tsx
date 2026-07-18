@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import styles from "./OwnerUniversitySettings.module.css";
+import { CampusOperationsPanel } from "./CampusOperationsPanel";
 
 type Application = {
   id: string;
@@ -141,6 +142,7 @@ export function OwnerUniversitySettings() {
           <strong>{money(data.summary.availableFundingCents)}</strong>
         </article>
       </div>
+      <CampusOperationsPanel />
       <GeminiStatus />
       <ValueSchedule />
       <ProgramApplications />

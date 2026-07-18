@@ -50,6 +50,16 @@ type PolicyAlert = {
   missingPolicyVersions: { slug: string; title: string; version: number }[];
 };
 
+type OperationalAlert = {
+  admissionsMode: "OPEN" | "PAUSED";
+  enrollmentMode: "OPEN" | "PAUSED";
+  learningMode: "ACTIVE" | "ACADEMIC_BREAK" | "MAINTENANCE" | "EMERGENCY_CLOSURE";
+  publicTitle: string;
+  publicMessage: string;
+  reopensAt: string | null;
+  season: string;
+};
+
 export function UniversityPortal({ user }: { user: PortalUser }) {
   const [view, setView] = useState<UniversityView>(() => {
     if (typeof window === "undefined") return "dashboard";
@@ -64,12 +74,22 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [policyAlert, setPolicyAlert] = useState<PolicyAlert | null>(null);
   const [policyNoticeOpen, setPolicyNoticeOpen] = useState(false);
+  const [operations, setOperations] = useState<OperationalAlert | null>(null);
   useEffect(() => {
     const initialize = setTimeout(() => {
       const saved = localStorage.getItem("efu:theme");
       if (saved === "light" || saved === "dark") setTheme(saved);
     }, 0);
     return () => clearTimeout(initialize);
+  }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void fetch("/api/campus/status", { cache: "no-store" })
+        .then((response) => response.json())
+        .then((result) => setOperations(result))
+        .catch(() => undefined);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -218,6 +238,12 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
           </button>
         </div>
       </nav>
+      {operations && (operations.learningMode !== "ACTIVE" || operations.admissionsMode !== "OPEN" || operations.enrollmentMode !== "OPEN") && (
+        <div className={styles.operationsBanner} data-season={operations.season} role="status">
+          <span><b>{operations.publicTitle}</b> {operations.publicMessage}</span>
+          {operations.reopensAt && <time dateTime={operations.reopensAt}>REOPENS {new Date(operations.reopensAt).toLocaleString()}</time>}
+        </div>
+      )}
       {view === "dashboard" &&
         policyAlert?.bundleStatus === "ACTION_REQUIRED" && (
           <div className={styles.policyBanner} role="status">
@@ -239,7 +265,7 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
           <b>{studentViews.find((item) => item.id === view)?.label}</b>
         </div>
         <span className={styles.online}>
-          <i /> CAMPUS ONLINE
+          <i data-mode={operations?.learningMode || "ACTIVE"} /> {operations?.learningMode === "ACTIVE" ? "CAMPUS ONLINE" : (operations?.learningMode || "CAMPUS ONLINE").replaceAll("_", " ")}
         </span>
       </div>
       <section className={styles.surface}>

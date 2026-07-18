@@ -5,6 +5,7 @@ import { text } from "@/lib/input";
 import { createTrackingNumber, trackingEvent } from "@/lib/application-tracking";
 import { buildProgramAudits, getCompletedCourseIds, getProgramAudit } from "@/lib/academic-progress";
 import { policyGateResponse } from "@/lib/policies";
+import { campusRestrictionResponse } from "@/lib/campus-operations";
 
 export async function GET() {
   const user = await currentUser();
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   if (user.isStudent) { const gate = await policyGateResponse(user.id); if (gate) return gate; }
+  { const gate = await campusRestrictionResponse("ENROLLMENT"); if (gate) return gate; }
   const body = await request.json().catch(() => ({}));
   const programId = text(body.programId, 100);
   const statement = text(body.statement, 2000);
@@ -59,6 +61,7 @@ export async function PATCH(request: Request) {
   if (!currentApplication) return NextResponse.json({ error: "Application not found" }, { status: 404 });
   const audit = status === "ADMITTED" ? await getProgramAudit(currentApplication.userId, currentApplication.programId) : null;
   if (status === "ADMITTED" && !audit?.eligible) return NextResponse.json({ error: audit?.blocker || "The prerequisite academic pathway is incomplete.", audit }, { status: 409 });
+  if (status === "ADMITTED") { const gate = await campusRestrictionResponse("ENROLLMENT"); if (gate) return gate; }
   const application = await db.programApplication.update({ where: { id: applicationId }, data: { status: status as never, decisionNote: text(body.decisionNote, 1000) || null, decidedAt: new Date() } });
   if (status === "ADMITTED") await db.programEnrollment.upsert({ where: { programId_userId: { programId: application.programId, userId: application.userId } }, update: { status: "ACTIVE", programApplicationId: application.id, creditsEarned: audit?.creditsApplied || 0 }, create: { programId: application.programId, userId: application.userId, programApplicationId: application.id, creditsEarned: audit?.creditsApplied || 0 } });
   const tracker = await db.applicationTracking.findFirst({ where: { programApplicationId: application.id, status: { in: ["OPEN", "IN_REVIEW"] } }, orderBy: { createdAt: "desc" } });

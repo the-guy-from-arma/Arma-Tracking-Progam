@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import styles from "./StudentCenter.module.css";
+import { AcademicLoader } from "./AcademicLoader";
 
 type Enrollment = {
   id: string;
@@ -202,10 +203,21 @@ const money = (cents: number) =>
   }).format(cents / 100);
 
 export function StudentCenter() {
-  const [section, setSection] = useState<"overview" | "academic" | "applications" | "enrollment" | "advising">(() => {
+  const [section, setSection] = useState<
+    "overview" | "academic" | "applications" | "enrollment" | "advising"
+  >(() => {
     if (typeof window === "undefined") return "overview";
     const value = new URLSearchParams(window.location.search).get("center");
-    return ["overview", "academic", "applications", "enrollment", "advising"].includes(value || "") ? value as "overview" | "academic" | "applications" | "enrollment" | "advising" : "overview";
+    return [
+      "overview",
+      "academic",
+      "applications",
+      "enrollment",
+      "advising",
+    ].includes(value || "")
+      ? (value as
+          "overview" | "academic" | "applications" | "enrollment" | "advising")
+      : "overview";
   });
   const [data, setData] = useState<CenterData | null>(null);
   const [withdrawing, setWithdrawing] = useState<Enrollment | null>(null);
@@ -327,10 +339,10 @@ export function StudentCenter() {
   }
   if (!data)
     return (
-      <div className={styles.loading}>
-        <i />
-        <span>{message || "OPENING STUDENT CENTER"}</span>
-      </div>
+      <AcademicLoader
+        label={message || "Opening Student Center"}
+        error={Boolean(message)}
+      />
     );
   const renewalPercent = data.standing.renewalMultiplierBps / 100;
   return (
@@ -357,9 +369,32 @@ export function StudentCenter() {
           ["applications", "Applications", "Tracking and decisions"],
           ["enrollment", "Enrollment", "Courses and withdrawals"],
           ["advising", "Advising", "Plan your next course"],
-        ].map(([id, label, detail]) => <button className={section === id ? styles.centerNavActive : ""} key={id} onClick={() => { const next = id as typeof section; setSection(next); window.history.replaceState(null, "", `/university?view=student-center&center=${next}`); }}><b>{label}</b><span>{detail}</span></button>)}
-        <a href="/university?view=messages"><b>Faculty messages</b><span>Your support network</span></a>
-        <a href="/university?view=policies"><b>Policies & agreements</b><span>Signatures, receipts, and requests</span></a>
+        ].map(([id, label, detail]) => (
+          <button
+            className={section === id ? styles.centerNavActive : ""}
+            key={id}
+            onClick={() => {
+              const next = id as typeof section;
+              setSection(next);
+              window.history.replaceState(
+                null,
+                "",
+                `/university?view=student-center&center=${next}`,
+              );
+            }}
+          >
+            <b>{label}</b>
+            <span>{detail}</span>
+          </button>
+        ))}
+        <a href="/university?view=messages">
+          <b>Faculty messages</b>
+          <span>Your support network</span>
+        </a>
+        <a href="/university?view=policies">
+          <b>Policies & agreements</b>
+          <span>Signatures, receipts, and requests</span>
+        </a>
       </nav>
       {message && (
         <div className={styles.message}>
@@ -474,7 +509,7 @@ export function StudentCenter() {
         <header>
           <div>
             <small>BEFORE YOU ENROLL</small>
-          <h2>Meet Dr. Elara Voss, your university advisor</h2>
+            <h2>Meet Dr. Elara Voss, your university advisor</h2>
             <p>
               Answer ten questions. Dr. Voss will compare your goals, readiness,
               time, and prerequisites to the live 192-course catalog.
@@ -556,9 +591,7 @@ export function StudentCenter() {
         {!!recommendations.length && (
           <div className={styles.results}>
             <div className={styles.advisorNote}>
-              <b>
-                PERSONALIZED FACULTY COURSE MATCH
-              </b>
+              <b>PERSONALIZED FACULTY COURSE MATCH</b>
               <p>{advisorSummary}</p>
               <button
                 onClick={() => {
@@ -671,8 +704,8 @@ export function StudentCenter() {
             <li>
               <b>Below 70%</b>
               <span>
-                New awards pause for academic support. Active assessment exceptions and
-                appeals are excluded.
+                New awards pause for academic support. Active assessment
+                exceptions and appeals are excluded.
               </span>
             </li>
             <li>
@@ -788,7 +821,15 @@ export function StudentCenter() {
                     {withdrawalQuote.explanation} The quote is recalculated when
                     you confirm.
                   </p>
-                  <p><strong>Internal statistics only.</strong> This return changes a noncash learning-service balance. It is not a cash refund, tuition refund, debt, or payment. Student responsibility remains $0.00. <Link href="/policies/sponsored-value-no-debt">Read the full disclosure.</Link></p>
+                  <p>
+                    <strong>Internal statistics only.</strong> This return
+                    changes a noncash learning-service balance. It is not a cash
+                    refund, tuition refund, debt, or payment. Student
+                    responsibility remains $0.00.{" "}
+                    <Link href="/policies/sponsored-value-no-debt">
+                      Read the full disclosure.
+                    </Link>
+                  </p>
                 </>
               ) : (
                 <p>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { InlinePolicyReview } from "./InlinePolicyReview";
 import type { PublicPolicy } from "./PolicyCenter";
@@ -19,6 +19,20 @@ type Award = {
   breakdown: { label: string; amountCents: number }[];
   disclosure: string;
 };
+type SubmissionStatus = {
+  outcome: "error" | "success";
+  title: string;
+  message: string;
+  detail: string;
+  step: number;
+};
+type SavedApplicationDraft = {
+  fields: Record<string, string>;
+  step: number;
+  furthest: number;
+  savedAt: string;
+};
+const APPLICATION_DRAFT_KEY = "efu:admissions-draft:v2";
 const money = (cents: number) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -42,26 +56,89 @@ export function UniversityRegistrationForm({
   existingName?: string;
 }) {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [award, setAward] = useState<Award | null>(null);
+  const [confirmedAward, setConfirmedAward] = useState<Award | null>(null);
   const [step, setStep] = useState(0);
   const [furthest, setFurthest] = useState(0);
   const [policies, setPolicies] = useState<PublicPolicy[]>([]);
   const [reviewedPolicies, setReviewedPolicies] = useState<string[]>([]);
-  const [acknowledgedPolicies, setAcknowledgedPolicies] = useState<string[]>(
-    [],
-  );
   const [pendingApplication, setPendingApplication] = useState<Record<
     string,
     unknown
   > | null>(null);
+  const [submissionStatus, setSubmissionStatus] =
+    useState<SubmissionStatus | null>(null);
 
   useEffect(() => {
     void fetch("/api/policies")
       .then((response) => response.json())
       .then((payload) => setPolicies(payload.policies || []));
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        const saved = JSON.parse(
+          sessionStorage.getItem(APPLICATION_DRAFT_KEY) || "null",
+        ) as SavedApplicationDraft | null;
+        const form = formRef.current;
+        if (!saved || !form) return;
+        for (const [name, value] of Object.entries(saved.fields)) {
+          const control = form.elements.namedItem(name);
+          if (
+            control instanceof HTMLInputElement ||
+            control instanceof HTMLTextAreaElement ||
+            control instanceof HTMLSelectElement
+          )
+            control.value = value;
+        }
+        setStep(Math.max(0, Math.min(5, saved.step || 0)));
+        setFurthest(Math.max(0, Math.min(5, saved.furthest || 0)));
+      } catch {
+        sessionStorage.removeItem(APPLICATION_DRAFT_KEY);
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  function saveDraft(
+    form: HTMLFormElement,
+    nextStep = step,
+    nextFurthest = furthest,
+  ) {
+    const fields: Record<string, string> = {};
+    form
+      .querySelectorAll<
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      >("input[name], textarea[name], select[name]")
+      .forEach((control) => {
+        if (
+          control instanceof HTMLInputElement &&
+          ["password", "checkbox", "radio", "file", "hidden"].includes(
+            control.type,
+          )
+        )
+          return;
+        if (["signerName"].includes(control.name)) return;
+        fields[control.name] = control.value;
+      });
+    sessionStorage.setItem(
+      APPLICATION_DRAFT_KEY,
+      JSON.stringify({
+        fields,
+        step: nextStep,
+        furthest: nextFurthest,
+        savedAt: new Date().toISOString(),
+      } satisfies SavedApplicationDraft),
+    );
+  }
+
+  function preserveDraftPosition(nextStep: number, nextFurthest: number) {
+    if (formRef.current) saveDraft(formRef.current, nextStep, nextFurthest);
+  }
 
   function move(next: number, source?: HTMLElement) {
     if (next > step && source) {
@@ -76,7 +153,9 @@ export function UniversityRegistrationForm({
       }
     }
     setStep(next);
-    setFurthest((value) => Math.max(value, next));
+    const nextFurthest = Math.max(furthest, next);
+    setFurthest(nextFurthest);
+    preserveDraftPosition(next, nextFurthest);
     setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -97,6 +176,13 @@ export function UniversityRegistrationForm({
       setError(
         `Your application has not been submitted. Complete the ${section} section, then return to final review.`,
       );
+      setSubmissionStatus({
+        outcome: "error",
+        title: "Application not sent",
+        message: `The ${section} section still needs attention.`,
+        detail: `${invalid.name || "A required field"} is missing or does not meet the application requirement. All completed entries remain saved in this browser tab.`,
+        step: invalidStep,
+      });
       window.setTimeout(() => {
         invalid.reportValidity();
         invalid.focus();
@@ -104,11 +190,12 @@ export function UniversityRegistrationForm({
       return;
     }
     const entries = Object.fromEntries(new FormData(form));
+    saveDraft(form, 5, 5);
     setPendingApplication({
       ...entries,
-      acceptPolicies: Boolean(entries.acceptPolicies),
+      acceptPolicies: true,
+      bundleAccepted: Boolean(entries.bundleAccepted),
       policyVersionIds: policies.map((policy) => policy.version.id),
-      policyAcknowledgements: policies.map((policy) => policy.version.id),
       ageAttested: Boolean(entries.ageAttested),
       electronicConsent: Boolean(entries.electronicConsent),
     });
@@ -118,29 +205,104 @@ export function UniversityRegistrationForm({
     setBusy(true);
     setError("");
     try {
-      const response = await fetch("/api/auth/university-register", {
+      const response = await fetch("/api/admissions/apply", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(pendingApplication),
+        signal: AbortSignal.timeout(30_000),
       });
       const result = await response.json();
       if (!response.ok) {
+        const failureMessage =
+          result.error || "Application could not be completed.";
+        const failureStep =
+          result.code === "POLICY_VERSION_CHANGED" ||
+          /polic|sign|acknowledge/i.test(failureMessage)
+            ? 5
+            : /sponsor|funding/i.test(failureMessage)
+              ? 3
+              : /goal/i.test(failureMessage)
+                ? 2
+                : /experience|location|time zone|availability|portfolio|github/i.test(
+                      failureMessage,
+                    )
+                  ? 1
+                  : 0;
+        if (result.code === "POLICY_VERSION_CHANGED") {
+          setReviewedPolicies([]);
+          void fetch("/api/policies", { cache: "no-store" })
+            .then((policyResponse) => policyResponse.json())
+            .then((payload) => setPolicies(payload.policies || []));
+        }
         setPendingApplication(null);
-        setStep(5);
-        setError(
-          result.error ||
-            "Application could not be completed. Nothing was submitted.",
-        );
+        setStep(failureStep);
+        setFurthest(5);
+        setError(`${failureMessage} Nothing was submitted.`);
+        setSubmissionStatus({
+          outcome: "error",
+          title: "Application not sent",
+          message: failureMessage,
+          detail:
+            "No student account or application record was created. Your completed entries remain saved in this browser tab so you can correct the issue without starting over.",
+          step: failureStep,
+        });
         return;
       }
-      setAward(result.award);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch {
+      sessionStorage.removeItem(APPLICATION_DRAFT_KEY);
       setPendingApplication(null);
+      setSubmissionStatus({
+        outcome: "success",
+        title: "Application received",
+        message:
+          "Your signed application is now moving through automated admissions review.",
+        detail: `Tracking number ${result.application.trackingNumber}. Follow the live review and answer any focused clarification request there.`,
+        step: 5,
+      });
+    } catch (reason) {
+      const timedOut =
+        reason instanceof Error &&
+        (reason.name === "TimeoutError" || reason.name === "AbortError");
+      setPendingApplication(null);
+      if (timedOut) {
+        try {
+          const verification = await fetch("/api/auth/me", {
+            cache: "no-store",
+            signal: AbortSignal.timeout(5_000),
+          });
+          const verified = await verification.json();
+          if (verification.ok && verified.user?.isStudent) {
+            sessionStorage.removeItem(APPLICATION_DRAFT_KEY);
+            setSubmissionStatus({
+              outcome: "success",
+              title: "Application received",
+              message:
+                "Your student record was created successfully before the connection timed out.",
+              detail:
+                "Campus access is active. Continue to Student Campus to view your application tracking number, academic identity, and sponsored-learning record.",
+              step: 5,
+            });
+            return;
+          }
+        } catch {
+          // The verification request is best-effort; the recoverable draft remains available.
+        }
+      }
       setStep(5);
+      setFurthest(5);
+      const failureMessage = timedOut
+        ? "The admissions service did not confirm the request within 30 seconds."
+        : "The admissions service could not be reached.";
       setError(
-        "The application service could not be reached. Nothing was submitted; please try again.",
+        `${failureMessage} Your application has not been marked complete.`,
       );
+      setSubmissionStatus({
+        outcome: "error",
+        title: "Submission could not be confirmed",
+        message: failureMessage,
+        detail:
+          "Your completed entries remain saved. Return to review and try again; if an account was created despite a connection interruption, Student Sign In will recognize your recovery email.",
+        step: 5,
+      });
     } finally {
       setBusy(false);
     }
@@ -226,7 +388,13 @@ export function UniversityRegistrationForm({
             </div>
           </section>
         </aside>
-        <form className="admissionsForm" onSubmit={submit} noValidate>
+        <form
+          ref={formRef}
+          className="admissionsForm"
+          onSubmit={submit}
+          onInput={(event) => saveDraft(event.currentTarget)}
+          noValidate
+        >
           <header className="admissionsIntro">
             <div>
               <p>ENFUSION UNIVERSITY / ADMISSIONS</p>
@@ -581,15 +749,6 @@ export function UniversityRegistrationForm({
                     <b>100% online</b>
                   </div>
                 </div>
-                <label className="checkField">
-                  <input name="acceptPolicies" type="checkbox" required />
-                  <span>
-                    <b>Accuracy and academic integrity</b>I certify that this
-                    application is accurate and complete. I understand that
-                    admission requires the electronic signature in the next
-                    section.
-                  </span>
-                </label>
                 <div className="finalSubmit">
                   <button type="button" onClick={() => move(3)}>
                     ← BACK
@@ -620,8 +779,8 @@ export function UniversityRegistrationForm({
                     <small>REQUIRED ELECTRONIC RECORD</small>
                     <b>Policies and electronic signature</b>
                     <p>
-                      Open, review, and acknowledge the exact published version
-                      of every required document.
+                      Review the complete published bundle here, then use three
+                      clear attestations and one typed signature.
                     </p>
                   </div>
                 </legend>
@@ -642,18 +801,14 @@ export function UniversityRegistrationForm({
                       const reviewed = reviewedPolicies.includes(
                         policy.version.id,
                       );
-                      const acknowledged = acknowledgedPolicies.includes(
-                        policy.version.id,
-                      );
                       return (
                         <InlinePolicyReview
                           key={policy.id}
                           policy={policy}
                           index={index}
                           reviewed={reviewed}
-                          acknowledged={acknowledged}
-                          inputName={`policy_${policy.version.id}`}
-                          required
+                          acknowledged={false}
+                          showAcknowledgement={false}
                           onReview={() =>
                             setReviewedPolicies((current) =>
                               current.includes(policy.version.id)
@@ -661,17 +816,7 @@ export function UniversityRegistrationForm({
                                 : [...current, policy.version.id],
                             )
                           }
-                          onAcknowledged={(value) =>
-                            setAcknowledgedPolicies((current) =>
-                              value
-                                ? current.includes(policy.version.id)
-                                  ? current
-                                  : [...current, policy.version.id]
-                                : current.filter(
-                                    (id) => id !== policy.version.id,
-                                  ),
-                            )
-                          }
+                          onAcknowledged={() => {}}
                         />
                       );
                     })}
@@ -680,8 +825,17 @@ export function UniversityRegistrationForm({
                 <label className="checkField">
                   <input name="ageAttested" type="checkbox" required />
                   <span>
-                    <b>Adult eligibility</b>I attest that I am at least 18 years
-                    old and legally able to enter this agreement.
+                    <b>Adult eligibility and application accuracy</b>I attest
+                    that I am at least 18, that this application is accurate,
+                    and that admissions may request focused clarification.
+                  </span>
+                </label>
+                <label className="checkField">
+                  <input name="bundleAccepted" type="checkbox" required />
+                  <span>
+                    <b>Accept the complete policy bundle</b>I accept every
+                    policy title, version, effective date, and checksum listed
+                    above as one electronic policy bundle.
                   </span>
                 </label>
                 <label className="largeField">
@@ -729,20 +883,16 @@ export function UniversityRegistrationForm({
                   <div>
                     <small>FINAL CONFIRMATION REQUIRED</small>
                     <p>
-                      The server verifies that every signed version is still
-                      current before creating your account.
+                       The server verifies that every signed version is still
+                       current before placing the application into review.
                     </p>
                   </div>
                   <button
                     className="submitApplication"
-                    disabled={
-                      busy ||
-                      policies.length !== 8 ||
-                      acknowledgedPolicies.length !== policies.length
-                    }
+                    disabled={busy || policies.length !== 8}
                   >
                     {busy
-                      ? "CREATING YOUR STUDENT RECORD…"
+                      ? "SUBMITTING FOR ADMISSIONS REVIEW…"
                       : "REVIEW SIGNED SUBMISSION →"}
                   </button>
                 </div>
@@ -820,6 +970,81 @@ export function UniversityRegistrationForm({
           </motion.div>
         )}
       </AnimatePresence>
+      <AnimatePresence>
+        {submissionStatus && (
+          <motion.div
+            className="applicationResultBack"
+            data-outcome={submissionStatus.outcome}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.section
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="application-result-title"
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10 }}
+            >
+              <span>
+                {submissionStatus.outcome === "success"
+                  ? "SUBMISSION CONFIRMED"
+                  : "SUBMISSION STOPPED"}
+              </span>
+              <h2 id="application-result-title">{submissionStatus.title}</h2>
+              <p>{submissionStatus.message}</p>
+              <div>
+                <b>
+                  {submissionStatus.outcome === "success"
+                    ? "Your application and signed policy record are confirmed."
+                    : "Nothing needs to be retyped."}
+                </b>
+                <span>{submissionStatus.detail}</span>
+              </div>
+              <footer>
+                {submissionStatus.outcome === "success" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirmedAward) {
+                        setSubmissionStatus(null);
+                        setAward(confirmedAward);
+                        setConfirmedAward(null);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      } else {
+                        router.push("/admissions/status");
+                        router.refresh();
+                      }
+                    }}
+                  >
+                    {confirmedAward
+                      ? "VIEW ADMISSIONS DECISION →"
+                      : "ENTER STUDENT CAMPUS →"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const targetStep = submissionStatus.step;
+                      setSubmissionStatus(null);
+                      setStep(targetStep);
+                      setFurthest((current) => Math.max(current, targetStep));
+                      preserveDraftPosition(
+                        targetStep,
+                        Math.max(furthest, targetStep),
+                      );
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
+                    RETURN TO THE SAVED APPLICATION →
+                  </button>
+                )}
+              </footer>
+            </motion.section>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }
@@ -843,7 +1068,7 @@ function StepActions({
         </button>
       )}
       <div>
-        <small>YOUR PROGRESS SAVES WHILE THIS PAGE REMAINS OPEN</small>
+        <small>YOUR PROGRESS IS SAVED IN THIS BROWSER TAB</small>
         <button type="button" onClick={next}>
           CONTINUE →
         </button>

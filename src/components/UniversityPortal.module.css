@@ -699,3 +699,30 @@
 @media (prefers-reduced-motion: reduce) {
   .policyNoticeBack { backdrop-filter: none; }
 }
+
+.operationsBanner {
+  position: relative;
+  z-index: 43;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  min-height: 42px;
+  padding: 9px 24px;
+  border-bottom: 1px solid #6fc9d7;
+  background: linear-gradient(90deg, #0a3447, #13576a, #0a3447);
+  color: #f1fbff;
+  font-size: 12px;
+}
+.operationsBanner b { margin-right: 8px; }
+.operationsBanner time { font: 700 10px var(--font-plex-mono, monospace); letter-spacing: .08em; color: #b9f4ff; }
+.operationsBanner[data-season="SPRING_RECESS"] { background: linear-gradient(90deg, #123a3c, #21635d, #123a3c); }
+.operationsBanner[data-season="WINTER_RECESS"] { background: linear-gradient(90deg, #102d4c, #285a7c, #102d4c); }
+.online i[data-mode="ACADEMIC_BREAK"] { background: #e0b85c; box-shadow: 0 0 0 4px #e0b85c22; }
+.online i[data-mode="MAINTENANCE"], .online i[data-mode="EMERGENCY_CLOSURE"] { background: #e46a78; box-shadow: 0 0 0 4px #e46a7822; }
+@media (max-width: 700px) {
+  .operationsBanner { align-items: flex-start; justify-content: space-between; padding-inline: 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .operationsBanner { background-image: none; }
+}

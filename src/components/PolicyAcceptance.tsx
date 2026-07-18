@@ -9,9 +9,9 @@ import styles from "./PolicyAcceptance.module.css";
 export function PolicyAcceptance() {
   const [policies, setPolicies] = useState<PublicPolicy[]>([]);
   const [reviewed, setReviewed] = useState<string[]>([]);
-  const [checked, setChecked] = useState<string[]>([]);
   const [name, setName] = useState("");
   const [age, setAge] = useState(false);
+  const [bundleAccepted, setBundleAccepted] = useState(false);
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -36,7 +36,8 @@ export function PolicyAcceptance() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        policyVersionIds: checked,
+        policyVersionIds: policies.map((policy) => policy.version.id),
+        bundleAccepted,
         signerName: name,
         ageAttested: age,
         electronicConsent: consent,
@@ -47,7 +48,6 @@ export function PolicyAcceptance() {
     if (!response.ok) {
       setError(result.error || "The policy bundle could not be signed.");
       if (result.code === "POLICY_VERSION_CHANGED") {
-        setChecked([]);
         setReviewed([]);
       }
       return;
@@ -90,11 +90,11 @@ export function PolicyAcceptance() {
           <p>
             Every policy expands inside this page. Campus sign-in remains
             available, but academic activity is paused until every current
-            mandatory document is reviewed and accepted.
+            mandatory bundle is accepted.
           </p>
           <ul>
-            <li>Expand and read every required policy</li>
-            <li>Acknowledge each exact version in place</li>
+            <li>Review the complete policy bundle in place</li>
+            <li>Accept all listed versions with one clear attestation</li>
             <li>Attest that you are at least 18</li>
             <li>Type your account name and consent to electronic records</li>
           </ul>
@@ -103,19 +103,20 @@ export function PolicyAcceptance() {
           <h2>Required policy bundle</h2>
           <p className={styles.instructions}>
             Select <b>Read policy</b> to expand the complete document below its
-            title. The acknowledgment unlocks after the document is opened.
+            title. Opening each document is encouraged and remembered, but
+            eight repetitive checkboxes are no longer required.
           </p>
           <div className={styles.policyList}>
             {policies.map((policy, index) => {
               const opened = reviewed.includes(policy.version.id);
-              const accepted = checked.includes(policy.version.id);
               return (
                 <InlinePolicyReview
                   key={policy.id}
                   policy={policy}
                   index={index}
                   reviewed={opened}
-                  acknowledged={accepted}
+                  acknowledged={false}
+                  showAcknowledgement={false}
                   onReview={() =>
                     setReviewed((current) =>
                       current.includes(policy.version.id)
@@ -123,15 +124,7 @@ export function PolicyAcceptance() {
                         : [...current, policy.version.id],
                     )
                   }
-                  onAcknowledged={(value) =>
-                    setChecked((current) =>
-                      value
-                        ? current.includes(policy.version.id)
-                          ? current
-                          : [...current, policy.version.id]
-                        : current.filter((id) => id !== policy.version.id),
-                    )
-                  }
+                  onAcknowledged={() => {}}
                 />
               );
             })}
@@ -144,6 +137,15 @@ export function PolicyAcceptance() {
                 onChange={(event) => setAge(event.target.checked)}
               />
               I attest that I am at least 18 years old.
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={bundleAccepted}
+                onChange={(event) => setBundleAccepted(event.target.checked)}
+              />
+              I accept every policy title, version, effective date, and
+              checksum listed in this complete bundle.
             </label>
             <label>
               Typed electronic signature
@@ -168,8 +170,8 @@ export function PolicyAcceptance() {
             disabled={
               busy ||
               policies.length !== 8 ||
-              checked.length !== policies.length ||
               !age ||
+              !bundleAccepted ||
               !consent ||
               name.trim().length < 2
             }

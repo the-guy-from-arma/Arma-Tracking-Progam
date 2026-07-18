@@ -11,6 +11,7 @@ import { facultyForAcademy } from "@/lib/ai-faculty";
 import { FacultyMessages } from "./FacultyMessages";
 import { StudentPolicies } from "./StudentPolicies";
 import { Award, Banknote, BookOpenCheck, ClipboardList } from "lucide-react";
+import { AcademicLoader } from "./AcademicLoader";
 
 type Enrollment = { id: string; status: string; progress: number };
 type Course = {
@@ -43,7 +44,13 @@ type Curriculum = {
   nextCourse: Course | null;
   grantBalanceCents: number;
   coverage: { mapped: number; total: number };
-  serviceCounts: { openApplications: number; activeEnrollments: number; pendingSubmissions: number; unreadFeedback: number; credentials: number };
+  serviceCounts: {
+    openApplications: number;
+    activeEnrollments: number;
+    pendingSubmissions: number;
+    unreadFeedback: number;
+    credentials: number;
+  };
 };
 type CourseDay = {
   id: string;
@@ -156,8 +163,26 @@ type FundingData = {
   varianceCents: number;
   studentResponsibilityCents: number;
   awards: {
-    id: string; referenceNumber: string; sourceName: string; type: string; status: string; originalAmountCents: number; remainingAmountCents: number; awardedAt: string; expiresAt: string | null; publicDescription: string; restrictions: string; issuingDepartment: string;
-    transactions: { id: string; description: string; amountCents: number; createdAt: string; type: string; publicReason: string | null }[];
+    id: string;
+    referenceNumber: string;
+    sourceName: string;
+    type: string;
+    status: string;
+    originalAmountCents: number;
+    remainingAmountCents: number;
+    awardedAt: string;
+    expiresAt: string | null;
+    publicDescription: string;
+    restrictions: string;
+    issuingDepartment: string;
+    transactions: {
+      id: string;
+      description: string;
+      amountCents: number;
+      createdAt: string;
+      type: string;
+      publicReason: string | null;
+    }[];
   }[];
   ledger: {
     id: string;
@@ -184,16 +209,17 @@ type FundingData = {
     }[];
   }[];
 };
+type NotificationItem = {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  actionUrl: string | null;
+  readAt: string | null;
+  createdAt: string;
+};
 type NotificationData = {
-  notifications: {
-    id: string;
-    type: string;
-    title: string;
-    body: string;
-    actionUrl: string | null;
-    readAt: string | null;
-    createdAt: string;
-  }[];
+  notifications: NotificationItem[];
   unread: number;
 };
 const money = (cents: number) =>
@@ -224,6 +250,8 @@ export function UniversityLearning({
   const [selected, setSelected] = useState<CourseDetail | null>(null);
   const [previewCourse, setPreviewCourse] = useState<CourseDetail | null>(null);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+  const [activeAnnouncement, setActiveAnnouncement] =
+    useState<NotificationItem | null>(null);
   const [search, setSearch] = useState("");
   const [academy, setAcademy] = useState("ALL");
   const [level, setLevel] = useState("ALL");
@@ -268,6 +296,27 @@ export function UniversityLearning({
     if (response.ok) setPreviewCourse(result.course);
     else setError(result.error);
   }
+  async function openAnnouncement(item: NotificationItem) {
+    setActiveAnnouncement(item);
+    if (item.readAt) return;
+    const readAt = new Date().toISOString();
+    setNotifications((current) =>
+      current
+        ? {
+            ...current,
+            unread: Math.max(0, current.unread - 1),
+            notifications: current.notifications.map((notice) =>
+              notice.id === item.id ? { ...notice, readAt } : notice,
+            ),
+          }
+        : current,
+    );
+    await fetch("/api/university/notifications", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: item.id }),
+    }).catch(() => undefined);
+  }
   const filtered = useMemo(
     () =>
       data?.courses.filter(
@@ -294,14 +343,10 @@ export function UniversityLearning({
   );
   if (!data)
     return (
-      <div className={styles.loading}>
-        <div className={styles.loadingOrbit}>
-          <i />
-          <i />
-          <b>EU</b>
-        </div>
-        <span>{error || "OPENING YOUR CAMPUS"}</span>
-      </div>
+      <AcademicLoader
+        label={error || "Opening your campus"}
+        error={Boolean(error)}
+      />
     );
   if (selected)
     return (
@@ -427,37 +472,51 @@ export function UniversityLearning({
             </section>
             <section className={styles.quickServices}>
               <button onClick={() => onNavigate("student-center")}>
-                <i><ClipboardList size={18} /></i>
+                <i>
+                  <ClipboardList size={18} />
+                </i>
                 <span>
                   <b>Student Center</b>
-                  <small>{data.serviceCounts.openApplications} applications · {data.serviceCounts.activeEnrollments} active courses</small>
+                  <small>
+                    {data.serviceCounts.openApplications} applications ·{" "}
+                    {data.serviceCounts.activeEnrollments} active courses
+                  </small>
                 </span>
               </button>
               <button onClick={() => onNavigate("funding")}>
-                <i><Banknote size={18} /></i>
+                <i>
+                  <Banknote size={18} />
+                </i>
                 <span>
                   <b>Funding Center</b>
                   <small>
                     {money(funding?.balanceCents ?? data.grantBalanceCents)}{" "}
-                    available · {money(funding?.expiringSoonCents || 0)} expiring
+                    available · {money(funding?.expiringSoonCents || 0)}{" "}
+                    expiring
                   </small>
                 </span>
               </button>
               <button onClick={() => onNavigate("submissions")}>
-                <i><BookOpenCheck size={18} /></i>
+                <i>
+                  <BookOpenCheck size={18} />
+                </i>
                 <span>
                   <b>Assignments & Grades</b>
                   <small>
-                    {data.serviceCounts.pendingSubmissions} pending · {data.serviceCounts.unreadFeedback} feedback records
+                    {data.serviceCounts.pendingSubmissions} pending ·{" "}
+                    {data.serviceCounts.unreadFeedback} feedback records
                   </small>
                 </span>
               </button>
               <button onClick={() => onNavigate("credentials")}>
-                <i><Award size={18} /></i>
+                <i>
+                  <Award size={18} />
+                </i>
                 <span>
                   <b>Credentials</b>
                   <small>
-                    {data.serviceCounts.credentials} earned · next milestone in Learning
+                    {data.serviceCounts.credentials} earned · next milestone in
+                    Learning
                   </small>
                 </span>
               </button>
@@ -474,7 +533,7 @@ export function UniversityLearning({
                 {notifications?.notifications.slice(0, 4).map((item) => (
                   <button
                     key={item.id}
-                    onClick={() => onNavigate("notifications")}
+                    onClick={() => void openAnnouncement(item)}
                   >
                     <i className={item.readAt ? "" : styles.unread} />
                     <span>
@@ -580,6 +639,14 @@ export function UniversityLearning({
             </section>
           </aside>
         </div>
+        <AnimatePresence>
+          {activeAnnouncement && (
+            <AnnouncementReader
+              item={activeAnnouncement}
+              close={() => setActiveAnnouncement(null)}
+            />
+          )}
+        </AnimatePresence>
       </section>
     );
   }
@@ -640,9 +707,7 @@ export function UniversityLearning({
                 <span>Grant applied at enrollment · You owe $0.00</span>
               </div>
               {course.fulfilled ? (
-                <button disabled>
-                  COMPLETED · CREDIT ON RECORD
-                </button>
+                <button disabled>COMPLETED · CREDIT ON RECORD</button>
               ) : course.enrollments.length ? (
                 <button
                   className={styles.primary}
@@ -742,7 +807,13 @@ export function UniversityLearning({
         />
         <div className={styles.editorialProgramGrid}>
           {filteredPrograms.map((program, index) => (
-            <motion.article initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 12) * .035 }} className={styles.editorialProgramCard} key={program.id}>
+            <motion.article
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: Math.min(index, 12) * 0.035 }}
+              className={styles.editorialProgramCard}
+              key={program.id}
+            >
               <header>
                 <span>
                   {program.level === "SHORT"
@@ -781,10 +852,16 @@ export function UniversityLearning({
               {program.audit.fulfilledCourses > 0 && (
                 <div className={styles.editorialTransferCredit}>
                   <b>{program.audit.creditsApplied} credits already applied</b>
-                  <span>{program.audit.fulfilledCourses} of {program.audit.totalCourses} required courses fulfilled</span>
+                  <span>
+                    {program.audit.fulfilledCourses} of{" "}
+                    {program.audit.totalCourses} required courses fulfilled
+                  </span>
                 </div>
               )}
-              <button className={styles.editorialProgramAction} onClick={() => setSelectedProgram(program)}>
+              <button
+                className={styles.editorialProgramAction}
+                onClick={() => setSelectedProgram(program)}
+              >
                 {program.enrollments.length
                   ? "VIEW ACTIVE PROGRAM →"
                   : "READ PROGRAM DETAILS →"}
@@ -1047,10 +1124,7 @@ function FundingCenter({
   data: FundingData | null;
   renderedAt: number;
 }) {
-  if (!data)
-    return (
-      <div className={styles.loading}>PREPARING YOUR FUNDING STATEMENT</div>
-    );
+  if (!data) return <AcademicLoader label="Preparing your funding statement" />;
   const active =
     data.terms.find((term) => term.status === "ACTIVE") || data.terms[0];
   const days = active
@@ -1064,14 +1138,49 @@ function FundingCenter({
         copy="A complete record of internal, noncash educational sponsorship applied to your Enfusion University study."
         count="YOU OWE $0.00"
       />
-      <div className={styles.valueDisclosure}><b>INTERNAL STATISTICAL VALUE · NEVER STUDENT DEBT</b><span>Every dollar figure is a noncash learning-service measurement. It is not tuition, financial aid, a loan, cash, stored value, or a collectible balance. Student responsibility is always $0.00.</span><Link href="/policies/sponsored-value-no-debt">Read the complete Sponsored Value and No-Debt Disclosure →</Link></div>
-      <section className={styles.fundingSummary} aria-label="Sponsored-learning account summary">
-        <article><small>AVAILABLE</small><b>{money(data.balanceCents)}</b><span>Eligible learning services</span></article>
-        <article><small>PENDING</small><b>{money(data.pendingCents)}</b><span>Not yet available</span></article>
-        <article><small>USED</small><b>{money(data.usedCents)}</b><span>Allocated to learning</span></article>
-        <article><small>EXPIRING SOON</small><b>{money(data.expiringSoonCents)}</b><span>Within 30 days</span></article>
+      <div className={styles.valueDisclosure}>
+        <b>INTERNAL STATISTICAL VALUE · NEVER STUDENT DEBT</b>
+        <span>
+          Every dollar figure is a noncash learning-service measurement. It is
+          not tuition, financial aid, a loan, cash, stored value, or a
+          collectible balance. Student responsibility is always $0.00.
+        </span>
+        <Link href="/policies/sponsored-value-no-debt">
+          Read the complete Sponsored Value and No-Debt Disclosure →
+        </Link>
+      </div>
+      <section
+        className={styles.fundingSummary}
+        aria-label="Sponsored-learning account summary"
+      >
+        <article>
+          <small>AVAILABLE</small>
+          <b>{money(data.balanceCents)}</b>
+          <span>Eligible learning services</span>
+        </article>
+        <article>
+          <small>PENDING</small>
+          <b>{money(data.pendingCents)}</b>
+          <span>Not yet available</span>
+        </article>
+        <article>
+          <small>USED</small>
+          <b>{money(data.usedCents)}</b>
+          <span>Allocated to learning</span>
+        </article>
+        <article>
+          <small>EXPIRING SOON</small>
+          <b>{money(data.expiringSoonCents)}</b>
+          <span>Within 30 days</span>
+        </article>
       </section>
-      {!data.reconciled && <p className={styles.reconcileNotice}>Source detail is being reconciled. The authoritative available balance remains {money(data.balanceCents)}; no student action or payment is required.</p>}
+      {!data.reconciled && (
+        <p className={styles.reconcileNotice}>
+          Source detail is being reconciled. The authoritative available balance
+          remains {money(data.balanceCents)}; no student action or payment is
+          required.
+        </p>
+      )}
       <div className={styles.fundingHero}>
         <div>
           <small>AVAILABLE SPONSORED BALANCE</small>
@@ -1184,9 +1293,80 @@ function FundingCenter({
         </div>
       )}
       <section className={styles.awardSources}>
-        <SectionHead eyebrow="FUNDING SOURCES" title="Awards and sponsored value" action={`${data.awards.length} SOURCES`} />
-        <div>{data.awards.map((award) => <details key={award.id}><summary><span><small>{award.type.replaceAll("_", " ")} · {award.referenceNumber}</small><b>{award.sourceName}</b><em>{award.publicDescription}</em></span><span><strong>{money(award.remainingAmountCents)}</strong><small>of {money(award.originalAmountCents)} available</small></span></summary><div className={styles.awardDetail}><dl><div><dt>Status</dt><dd>{award.status.replaceAll("_", " ")}</dd></div><div><dt>Issued</dt><dd>{new Date(award.awardedAt).toLocaleDateString()}</dd></div><div><dt>Expiration</dt><dd>{award.expiresAt ? new Date(award.expiresAt).toLocaleDateString() : "No scheduled expiration"}</dd></div><div><dt>Issuing department</dt><dd>{award.issuingDepartment}</dd></div></dl><p><b>Restrictions:</b> {award.restrictions}</p><h3>Source activity</h3>{award.transactions.length ? award.transactions.map((entry) => <article key={entry.id}><span>{new Date(entry.createdAt).toLocaleDateString()} · {entry.description}</span><b>{entry.amountCents >= 0 ? "+" : ""}{money(entry.amountCents)}</b></article>) : <p>No source-linked transactions are recorded yet.</p>}</div></details>)}</div>
-        <Link className={styles.statementLink} href="/api/university/documents/sponsored-learning-statement">DOWNLOAD RECONCILED STATEMENT →</Link>
+        <SectionHead
+          eyebrow="FUNDING SOURCES"
+          title="Awards and sponsored value"
+          action={`${data.awards.length} SOURCES`}
+        />
+        <div>
+          {data.awards.map((award) => (
+            <details key={award.id}>
+              <summary>
+                <span>
+                  <small>
+                    {award.type.replaceAll("_", " ")} · {award.referenceNumber}
+                  </small>
+                  <b>{award.sourceName}</b>
+                  <em>{award.publicDescription}</em>
+                </span>
+                <span>
+                  <strong>{money(award.remainingAmountCents)}</strong>
+                  <small>of {money(award.originalAmountCents)} available</small>
+                </span>
+              </summary>
+              <div className={styles.awardDetail}>
+                <dl>
+                  <div>
+                    <dt>Status</dt>
+                    <dd>{award.status.replaceAll("_", " ")}</dd>
+                  </div>
+                  <div>
+                    <dt>Issued</dt>
+                    <dd>{new Date(award.awardedAt).toLocaleDateString()}</dd>
+                  </div>
+                  <div>
+                    <dt>Expiration</dt>
+                    <dd>
+                      {award.expiresAt
+                        ? new Date(award.expiresAt).toLocaleDateString()
+                        : "No scheduled expiration"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Issuing department</dt>
+                    <dd>{award.issuingDepartment}</dd>
+                  </div>
+                </dl>
+                <p>
+                  <b>Restrictions:</b> {award.restrictions}
+                </p>
+                <h3>Source activity</h3>
+                {award.transactions.length ? (
+                  award.transactions.map((entry) => (
+                    <article key={entry.id}>
+                      <span>
+                        {new Date(entry.createdAt).toLocaleDateString()} ·{" "}
+                        {entry.description}
+                      </span>
+                      <b>
+                        {entry.amountCents >= 0 ? "+" : ""}
+                        {money(entry.amountCents)}
+                      </b>
+                    </article>
+                  ))
+                ) : (
+                  <p>No source-linked transactions are recorded yet.</p>
+                )}
+              </div>
+            </details>
+          ))}
+        </div>
+        <Link
+          className={styles.statementLink}
+          href="/api/university/documents/sponsored-learning-statement"
+        >
+          DOWNLOAD RECONCILED STATEMENT →
+        </Link>
       </section>
     </section>
   );
@@ -1240,6 +1420,55 @@ function Notifications({
         )}
       </div>
     </section>
+  );
+}
+
+function AnnouncementReader({
+  item,
+  close,
+}: {
+  item: NotificationItem;
+  close: () => void;
+}) {
+  return (
+    <motion.div
+      className={styles.newsReaderBack}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) close();
+      }}
+    >
+      <motion.article
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="announcement-reader-title"
+        initial={{ opacity: 0, y: 24, scale: 0.985 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 12 }}
+      >
+        <header>
+          <span>
+            <small>CAMPUS ANNOUNCEMENT</small>
+            <b>{item.type}</b>
+          </span>
+          <button onClick={close} aria-label="Close announcement">
+            ×
+          </button>
+        </header>
+        <time>{new Date(item.createdAt).toLocaleString()}</time>
+        <h2 id="announcement-reader-title">{item.title}</h2>
+        <div className={styles.newsRule} />
+        <p>{item.body}</p>
+        <footer>
+          <button onClick={close}>Done reading</button>
+          {item.actionUrl?.startsWith("/") && (
+            <Link href={item.actionUrl}>Open related record →</Link>
+          )}
+        </footer>
+      </motion.article>
+    </motion.div>
   );
 }
 
@@ -1474,15 +1703,22 @@ function ProgramDetail({
         <section className={styles.degreeAudit}>
           <div>
             <small>YOUR ACADEMIC RECORD</small>
-            <h2>{program.audit.creditsApplied} credits transfer into this pathway</h2>
+            <h2>
+              {program.audit.creditsApplied} credits transfer into this pathway
+            </h2>
             <p>
-              Completed certificate courses are never repeated. Credit is applied only when the exact course is a requirement in this curriculum.
+              Completed certificate courses are never repeated. Credit is
+              applied only when the exact course is a requirement in this
+              curriculum.
             </p>
           </div>
           <div className={styles.auditProgress}>
             <span style={{ width: `${program.audit.progressPercent}%` }} />
           </div>
-          <b>{program.audit.fulfilledCourses} / {program.audit.totalCourses} COURSES FULFILLED</b>
+          <b>
+            {program.audit.fulfilledCourses} / {program.audit.totalCourses}{" "}
+            COURSES FULFILLED
+          </b>
           {!program.audit.eligible && <em>{program.audit.blocker}</em>}
         </section>
         <div className={styles.detailBody}>
@@ -1560,7 +1796,9 @@ function ProgramDetail({
                         <div
                           key={item.id}
                           className={
-                            program.audit.fulfilledCourseIds.includes(item.course.id)
+                            program.audit.fulfilledCourseIds.includes(
+                              item.course.id,
+                            )
                               ? styles.requirementComplete
                               : item.course.id === program.audit.nextCourseId
                                 ? styles.requirementNext
@@ -1568,7 +1806,9 @@ function ProgramDetail({
                           }
                         >
                           <i>
-                            {program.audit.fulfilledCourseIds.includes(item.course.id)
+                            {program.audit.fulfilledCourseIds.includes(
+                              item.course.id,
+                            )
                               ? "CREDIT APPLIED"
                               : item.course.id === program.audit.nextCourseId
                                 ? "NEXT COURSE"
@@ -1597,7 +1837,11 @@ function ProgramDetail({
                 <i>{faculty.initials}</i>
                 <span>
                   <h3>{faculty.name}</h3>
-                  <b>{faculty.title.replace("AI Faculty · ", "").replace("AI Dean", "Dean")}</b>
+                  <b>
+                    {faculty.title
+                      .replace("AI Faculty · ", "")
+                      .replace("AI Dean", "Dean")}
+                  </b>
                 </span>
               </div>
               <blockquote>“{faculty.voice}”</blockquote>

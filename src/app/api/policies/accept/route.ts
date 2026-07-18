@@ -12,6 +12,7 @@ export async function POST(request: Request) {
     if (existing) return NextResponse.json({ receiptNumber: existing.receiptNumber, signatureEventId: existing.id, policyCompliant: true, receiptUrl: `/policies/receipts/${existing.id}`, idempotentReplay: true });
   }
   const body = await request.json().catch(() => ({}));
+  if (body.bundleAccepted !== true) return NextResponse.json({ error: "Accept the complete listed policy bundle before signing.", code: "POLICY_BUNDLE_ACCEPTANCE_REQUIRED" }, { status: 400 });
   const validation = await validatePolicyBundle({
     policyVersionIds: Array.isArray(body.policyVersionIds) ? body.policyVersionIds.map(String) : [],
     signerName: String(body.signerName || ""),

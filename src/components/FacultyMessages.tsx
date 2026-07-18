@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import styles from "./FacultyMessages.module.css";
+import { AcademicLoader } from "./AcademicLoader";
 
 type Message = {
   id: string;
@@ -237,8 +238,7 @@ export function FacultyMessages({
     await load();
   }
 
-  if (!data)
-    return <div className={styles.loading}>OPENING CAMPUS MESSAGES</div>;
+  if (!data) return <AcademicLoader label="Opening campus messages" />;
   return (
     <section className={styles.messages}>
       <header className={styles.hero}>

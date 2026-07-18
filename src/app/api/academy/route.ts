@@ -7,6 +7,7 @@ import { queueSubmissionForAi } from "@/lib/ai-grading";
 import { getCompletedCourseIds, getProgramAudit, getProgramSequenceBlockers } from "@/lib/academic-progress";
 import { ensureStudentFacultyNetwork } from "@/lib/faculty-network";
 import { policyGateResponse } from "@/lib/policies";
+import { campusRestrictionResponse, campusStatus } from "@/lib/campus-operations";
 
 const courseLevels = new Set(["FOUNDATION", "INTERMEDIATE", "ADVANCED", "CAPSTONE"]);
 const studios = new Set(["Thunder Buddies Studios", "Black Ridge Studios", "Thunder Buddies Studios + Black Ridge Studios"]);
@@ -38,7 +39,7 @@ export async function GET() {
   const admin = canTeach(user.role);
   const [courses, submissions, certificates, programs, grantLedger] = await Promise.all([
     db.course.findMany({
-      where: admin ? {} : { status: "PUBLISHED" },
+      where: admin ? {} : { OR: [{ status: "PUBLISHED", catalogVisible: true }, { catalogVisible: false, enrollments: { some: { userId: user.id } } }] },
       include: { enrollments: { where: { userId: user.id } }, _count: { select: { enrollments: true, submissions: true } } },
       orderBy: [{ level: "asc" }, { code: "asc" }],
     }),
@@ -59,7 +60,7 @@ export async function GET() {
     db.grantLedger.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 12 }),
   ]);
   const learningCredits = certificates.reduce((total, certificate) => total + certificate.learningCredits, 0);
-  return NextResponse.json({ courses, submissions, certificates, programs, grantLedger, grantBalanceCents: user.grantBalanceCents, learningCredits, canReview: admin, viewerId: user.id });
+  return NextResponse.json({ courses, submissions, certificates, programs, grantLedger, grantBalanceCents: user.grantBalanceCents, learningCredits, canReview: admin, viewerId: user.id, operations: await campusStatus() });
 }
 
 export async function POST(request: Request) {
@@ -68,6 +69,9 @@ export async function POST(request: Request) {
   if (user.isStudent) { const gate = await policyGateResponse(user.id); if (gate) return gate; }
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "");
+
+  if (["enroll_course", "enroll_program"].includes(action)) { const gate = await campusRestrictionResponse("ENROLLMENT"); if (gate) return gate; }
+  if (action === "submit_mod") { const gate = await campusRestrictionResponse("SUBMISSION"); if (gate) return gate; }
 
   if (action === "create_course") {
     if (!canTeach(user.role)) return NextResponse.json({ error: "Faculty authoring authority required" }, { status: 403 });
@@ -107,7 +111,7 @@ export async function POST(request: Request) {
     const result = await db.$transaction(async (tx) => {
       const current = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { grantBalanceCents: true } });
       const grantBalanceCents = current.grantBalanceCents - course.serviceValueCents;
-      const enrollment = await tx.courseEnrollment.create({ data: { courseId, userId: user.id } });
+      const enrollment = await tx.courseEnrollment.create({ data: { courseId, userId: user.id, expectedEndAt: new Date(Date.now() + course.estimatedDays * 86_400_000) } });
       await tx.user.update({ where: { id: user.id }, data: { grantBalanceCents } });
       const sources = await tx.fundingAward.findMany({ where: { userId: user.id, status: { in: ["AVAILABLE", "PARTIALLY_USED", "ADJUSTED"] }, remainingAmountCents: { gt: 0 } }, orderBy: [{ expiresAt: "asc" }, { awardedAt: "asc" }] });
       let required = course.serviceValueCents; let primarySourceId: string | null = null;

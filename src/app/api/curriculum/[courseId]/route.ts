@@ -3,19 +3,22 @@ import { currentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { text } from "@/lib/input";
 import { policyGateResponse } from "@/lib/policies";
+import { campusRestrictionResponse, campusStatus } from "@/lib/campus-operations";
 
 export async function GET(_: Request, { params }: { params: Promise<{ courseId: string }> }) {
   const user = await currentUser(); if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   if (user.isStudent) { const gate = await policyGateResponse(user.id); if (gate) return gate; }
+  { const gate = await campusRestrictionResponse("LEARNING_READ"); if (gate) return gate; }
   const { courseId } = await params;
   const course = await db.course.findUnique({ where: { id: courseId }, include: { days: { include: { progress: { where: { userId: user.id } } }, orderBy: { dayNumber: "asc" } }, sourceMappings: { include: { source: true } }, prerequisites: { include: { prerequisite: { select: { id: true, code: true, title: true } } } }, enrollments: { where: { userId: user.id } } } });
-  if (!course || (course.status !== "PUBLISHED" && !["ADMIN", "OWNER"].includes(user.role))) return NextResponse.json({ error: "Course not found." }, { status: 404 });
-  return NextResponse.json({ course: { ...course, sources: course.sourceMappings.map((mapping) => mapping.source), sourceMappings: undefined } });
+  if (!course || (course.status !== "PUBLISHED" && !["ADMIN", "OWNER"].includes(user.role) && course.enrollments.length === 0)) return NextResponse.json({ error: "Course not found." }, { status: 404 });
+  return NextResponse.json({ course: { ...course, sources: course.sourceMappings.map((mapping) => mapping.source), sourceMappings: undefined }, operations: await campusStatus() });
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ courseId: string }> }) {
   const user = await currentUser(); if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   if (user.isStudent) { const gate = await policyGateResponse(user.id); if (gate) return gate; }
+  { const gate = await campusRestrictionResponse("LEARNING_WRITE"); if (gate) return gate; }
   const { courseId } = await params; const body = await request.json().catch(() => ({}));
   const dayId = text(body.dayId, 100); const answer = text(body.answer, 1000); const reflection = text(body.reflection, 1800);
   const day = await db.courseDay.findFirst({ where: { id: dayId, courseId } });

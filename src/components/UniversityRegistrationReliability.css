@@ -1,0 +1,97 @@
+.applicationResultBack {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  padding: 24px;
+  background: #020810db;
+  backdrop-filter: blur(16px);
+  place-items: center;
+}
+.applicationResultBack > section {
+  width: min(600px, 100%);
+  padding: 36px;
+  border: 1px solid #9a5c56;
+  border-top: 5px solid #c56b61;
+  border-radius: 14px;
+  color: #eff5f6;
+  background: linear-gradient(145deg, #112a3b, #081722);
+  box-shadow: 0 38px 120px #000d;
+}
+.applicationResultBack[data-outcome="success"] > section {
+  border-color: #59aa87;
+  border-top-color: #70d1a4;
+}
+.applicationResultBack > section > span {
+  color: #ed9c90;
+  font:
+    700 0.55rem var(--font-plex-mono, "IBM Plex Mono"),
+    monospace;
+  letter-spacing: 0.15em;
+}
+.applicationResultBack[data-outcome="success"] > section > span {
+  color: #7de0b3;
+}
+.applicationResultBack h2 {
+  margin: 12px 0;
+  color: white;
+  font:
+    600 clamp(2rem, 5vw, 3rem)/1.05 var(--font-plex-serif, "IBM Plex Serif"),
+    serif;
+  letter-spacing: -0.035em;
+}
+.applicationResultBack > section > p {
+  margin: 0;
+  color: #b4c5cc;
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
+.applicationResultBack > section > div {
+  display: grid;
+  gap: 7px;
+  margin: 26px 0;
+  padding: 18px 20px;
+  border-left: 4px solid #c56b61;
+  background: #091925;
+}
+.applicationResultBack[data-outcome="success"] > section > div {
+  border-left-color: #70d1a4;
+}
+.applicationResultBack > section > div b {
+  color: #f1f6f7;
+  font-size: 0.78rem;
+}
+.applicationResultBack > section > div span {
+  color: #93aab4;
+  font-size: 0.72rem;
+  line-height: 1.65;
+}
+.applicationResultBack footer {
+  display: flex;
+  justify-content: flex-end;
+}
+.applicationResultBack button {
+  min-height: 46px;
+  padding: 0 18px;
+  border: 1px solid #78cce0;
+  border-radius: 7px;
+  color: #06151d;
+  background: #7ad9e8;
+  font:
+    700 0.57rem var(--font-plex-mono, "IBM Plex Mono"),
+    monospace;
+  cursor: pointer;
+}
+@media (max-width: 600px) {
+  .applicationResultBack {
+    padding: 14px;
+  }
+  .applicationResultBack > section {
+    padding: 28px 22px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .applicationResultBack {
+    backdrop-filter: none;
+  }
+}

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { currentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { text } from "@/lib/input";
+import { finalizeAdmission } from "@/lib/admissions-automation";
 
 const decisions = new Set(["ADMITTED", "WAITLISTED", "DECLINED"]);
 const MAX_ADJUSTMENT_CENTS = 25_000_000;
@@ -76,7 +77,7 @@ export async function GET() {
     summary: {
       students: totals._count.id,
       availableFundingCents: totals._sum.grantBalanceCents || 0,
-      submitted: byStatus.SUBMITTED || 0,
+      submitted: (byStatus.SUBMITTED || 0) + (byStatus.UNDER_AUTOMATED_REVIEW || 0) + (byStatus.CLARIFICATION_REQUIRED || 0) + (byStatus.AUTOMATION_EXCEPTION || 0),
       admitted: byStatus.ADMITTED || 0,
       waitlisted: byStatus.WAITLISTED || 0,
       declined: byStatus.DECLINED || 0,
@@ -201,6 +202,11 @@ export async function PATCH(request: Request) {
         { error: "Choose a valid admissions decision." },
         { status: 400 },
       );
+    if (status === "ADMITTED") {
+      const admitted = await finalizeAdmission(application.id, owner.id);
+      await db.auditLog.create({ data: { actorId: owner.id, action: "ADMISSION_OWNER_ADMIT_OVERRIDE", entity: "StudentApplication", entityId: application.id, detail: { note } } });
+      return NextResponse.json({ application: { ...application, status: "ADMITTED" }, admitted });
+    }
     const updated = await db.$transaction(async (tx) => {
       const record = await tx.studentApplication.update({
         where: { id: application.id },
