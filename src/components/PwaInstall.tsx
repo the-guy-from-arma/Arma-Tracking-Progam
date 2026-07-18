@@ -21,8 +21,12 @@ export function PwaInstall() {
         Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
       setIos(/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone);
     }, 0);
-    if ("serviceWorker" in navigator)
-      navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js", { updateViaCache: "none" })
+        .then((registration) => registration.update())
+        .catch(() => undefined);
+    }
     const capture = (event: Event) => {
       event.preventDefault();
       setPrompt(event as Prompt);

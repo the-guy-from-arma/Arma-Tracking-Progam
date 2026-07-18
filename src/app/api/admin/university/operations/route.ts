@@ -14,6 +14,25 @@ async function owner() {
   return user?.role === "OWNER" ? user : null;
 }
 
+async function notifyPeriodChange(periodId: string, title: string, body: string) {
+  const students = await db.user.findMany({
+    where: { isStudent: true, accountClosedAt: null },
+    select: { id: true },
+  });
+  if (!students.length) return;
+  await db.notification.createMany({
+    data: students.map((student) => ({
+      userId: student.id,
+      type: "SYSTEM" as const,
+      title,
+      body,
+      actionUrl: "/campus-status",
+      dedupeKey: `campus-period-owner-change:${periodId}:${student.id}`,
+    })),
+    skipDuplicates: true,
+  });
+}
+
 export async function GET() {
   const user = await owner();
   if (!user) return NextResponse.json({ error: "Owner access required." }, { status: 403 });
@@ -70,21 +89,79 @@ export async function POST(request: Request) {
   }
 
   if (action === "reopen") {
-    const setting = await refreshOperationalStatus();
-    if (setting.activePeriodId) {
-      await db.institutionOperationalPeriod.update({ where: { id: setting.activePeriodId }, data: { endsAt: new Date() } });
-      await db.auditLog.create({ data: { actorId: user.id, action: "CAMPUS_REOPENED_EARLY", entity: "InstitutionOperationalPeriod", entityId: setting.activePeriodId, detail: { reason: text(body.reason, 500) } } });
-    }
-    return NextResponse.json({ status: await campusStatus() });
+    const now = new Date();
+    const reason = text(body.reason, 500) || "Owner reopened campus services.";
+    const effectivePeriods = await db.institutionOperationalPeriod.findMany({
+      where: {
+        status: { in: ["SCHEDULED", "ACTIVE"] },
+        startsAt: { lte: now },
+        endsAt: { gt: now },
+      },
+      select: { id: true, status: true },
+    });
+    const activeIds = effectivePeriods.filter((period) => period.status === "ACTIVE").map((period) => period.id);
+    const pendingIds = effectivePeriods.filter((period) => period.status === "SCHEDULED").map((period) => period.id);
+    await db.$transaction(async (tx) => {
+      if (activeIds.length) {
+        await tx.institutionOperationalPeriod.updateMany({
+          where: { id: { in: activeIds }, status: "ACTIVE" },
+          data: { endsAt: now },
+        });
+      }
+      if (pendingIds.length) {
+        await tx.institutionOperationalPeriod.updateMany({
+          where: { id: { in: pendingIds }, status: "SCHEDULED" },
+          data: { status: "CANCELLED" },
+        });
+      }
+      for (const period of effectivePeriods) {
+        await tx.auditLog.create({
+          data: {
+            actorId: user.id,
+            action: period.status === "ACTIVE" ? "CAMPUS_REOPENED_EARLY" : "CAMPUS_PERIOD_CANCELLED",
+            entity: "InstitutionOperationalPeriod",
+            entityId: period.id,
+            detail: { reason, reopenAll: true, previousStatus: period.status },
+          },
+        });
+      }
+    });
+    await refreshOperationalStatus();
+    return NextResponse.json({
+      status: await campusStatus(),
+      ended: activeIds.length,
+      cancelled: pendingIds.length,
+    });
   }
 
-  if (action === "cancel") {
+  if (action === "cancel" || action === "remove") {
     const periodId = text(body.periodId, 100);
+    const reason = text(body.reason, 500) || "Removed from Owner Academic Operations.";
+    await refreshOperationalStatus();
     const period = await db.institutionOperationalPeriod.findUnique({ where: { id: periodId } });
-    if (!period || period.status !== "SCHEDULED") return NextResponse.json({ error: "Only a scheduled future period can be cancelled." }, { status: 409 });
-    await db.institutionOperationalPeriod.update({ where: { id: periodId }, data: { status: "CANCELLED" } });
-    await db.auditLog.create({ data: { actorId: user.id, action: "CAMPUS_PERIOD_CANCELLED", entity: "InstitutionOperationalPeriod", entityId: periodId, detail: { reason: text(body.reason, 500) } } });
-    return NextResponse.json({ ok: true });
+    if (!period) return NextResponse.json({ error: "Operating period not found." }, { status: 404 });
+    if (period.status === "COMPLETED" || period.status === "CANCELLED") {
+      return NextResponse.json({ ok: true, idempotentReplay: true, status: await campusStatus() });
+    }
+
+    const now = new Date();
+    if (period.status === "ACTIVE") {
+      await db.$transaction([
+        db.institutionOperationalPeriod.update({ where: { id: periodId }, data: { endsAt: now } }),
+        db.auditLog.create({ data: { actorId: user.id, action: "CAMPUS_PERIOD_ENDED_BY_OWNER", entity: "InstitutionOperationalPeriod", entityId: periodId, detail: { reason, previousEndsAt: period.endsAt } } }),
+      ]);
+      await refreshOperationalStatus();
+      await notifyPeriodChange(periodId, `${period.title} ended`, "The owner ended this operating period. Current campus availability is shown on the campus status page.");
+      return NextResponse.json({ ok: true, outcome: "ENDED", status: await campusStatus() });
+    }
+
+    await db.$transaction([
+      db.institutionOperationalPeriod.update({ where: { id: periodId }, data: { status: "CANCELLED" } }),
+      db.auditLog.create({ data: { actorId: user.id, action: "CAMPUS_PERIOD_CANCELLED", entity: "InstitutionOperationalPeriod", entityId: periodId, detail: { reason, previousStatus: period.status } } }),
+    ]);
+    await refreshOperationalStatus();
+    await notifyPeriodChange(periodId, `${period.title} cancelled`, "This scheduled operating period has been removed. Current campus availability is shown on the campus status page.");
+    return NextResponse.json({ ok: true, outcome: "CANCELLED", status: await campusStatus() });
   }
 
   return NextResponse.json({ error: "Unknown campus operations action." }, { status: 400 });

@@ -8,6 +8,7 @@ type OperationsData = {
   periods: { id: string; title: string; status: string; startsAt: string; endsAt: string; learningMode: string }[];
   impact: { activeEnrollments: number; pendingApplications: number };
 };
+type OperatingPeriod = OperationsData["periods"][number];
 type AdmissionsData = {
   worker: { enabled: boolean; mode: string; model: string; keyConfigured: boolean; secretConfigured: boolean; queued: number; processing: number; exceptions: number; stale: number };
   applications: { id: string; status: string; submittedAt: string; user: { name: string; email: string }; trackingRecords: { trackingNumber: string }[]; reviewJobs: { status: string; attempt: number; lastError?: string; decision?: { outcome: string; score: number; confidence: number; concerns: string[] } }[] }[];
@@ -27,10 +28,18 @@ export function CampusOperationsPanel() {
   const [admissions, setAdmissions] = useState<AdmissionsData | null>(null);
   const [message, setMessage] = useState("");
   const load = useCallback(async () => {
-    const [operationsResponse, admissionsResponse] = await Promise.all([fetch("/api/admin/university/operations", { cache: "no-store" }), fetch("/api/admin/university/admissions", { cache: "no-store" })]);
-    const [operationsResult, admissionsResult] = await Promise.all([operationsResponse.json(), admissionsResponse.json()]);
-    if (operationsResponse.ok) setOperations(operationsResult);
-    if (admissionsResponse.ok) setAdmissions(admissionsResult);
+    try {
+      const [operationsResponse, admissionsResponse] = await Promise.all([
+        fetch("/api/admin/university/operations", { cache: "no-store", signal: AbortSignal.timeout(12_000) }),
+        fetch("/api/admin/university/admissions", { cache: "no-store", signal: AbortSignal.timeout(12_000) }),
+      ]);
+      const [operationsResult, admissionsResult] = await Promise.all([operationsResponse.json(), admissionsResponse.json()]);
+      if (operationsResponse.ok) setOperations(operationsResult);
+      else setMessage(operationsResult.error || "CAMPUS OPERATIONS COULD NOT BE LOADED");
+      if (admissionsResponse.ok) setAdmissions(admissionsResult);
+    } catch {
+      setMessage("CAMPUS OPERATIONS COULD NOT BE LOADED. RETRY THIS PANEL.");
+    }
   }, []);
   useEffect(() => { const timer = setTimeout(() => void load(), 0); return () => clearTimeout(timer); }, [load]);
 
@@ -45,16 +54,32 @@ export function CampusOperationsPanel() {
   }
 
   async function reopen() {
-    const response = await fetch("/api/admin/university/operations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "reopen", reason: "Owner reopened campus services." }) });
-    setMessage(response.ok ? "CAMPUS REOPENED" : "CAMPUS COULD NOT BE REOPENED");
-    if (response.ok) await load();
+    const reason = window.prompt("Record why all currently effective closures should end:", "Owner reopened campus services.");
+    if (!reason) return;
+    try {
+      const response = await fetch("/api/admin/university/operations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "reopen", reason }), signal: AbortSignal.timeout(15_000) });
+      const result = await response.json();
+      setMessage(response.ok ? `CAMPUS REOPENED · ${result.ended || 0} ACTIVE ENDED · ${result.cancelled || 0} OVERLAPPING CANCELLED` : result.error || "CAMPUS COULD NOT BE REOPENED");
+      if (response.ok) await load();
+    } catch {
+      setMessage("THE REOPEN REQUEST DID NOT COMPLETE. RETRY SAFELY.");
+    }
   }
 
-  async function cancelPeriod(periodId: string) {
-    const response = await fetch("/api/admin/university/operations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "cancel", periodId, reason: "Cancelled from Owner Academic Operations." }) });
-    const result = await response.json();
-    setMessage(response.ok ? "SCHEDULED PERIOD CANCELLED" : result.error || "PERIOD COULD NOT BE CANCELLED");
-    if (response.ok) await load();
+  async function removePeriod(period: OperatingPeriod) {
+    const reason = window.prompt(
+      period.status === "ACTIVE" ? "Record why this active period should end now:" : "Record why this scheduled period should be cancelled:",
+      period.status === "ACTIVE" ? "Owner ended this campus period early." : "Owner cancelled this scheduled campus period.",
+    );
+    if (!reason) return;
+    try {
+      const response = await fetch("/api/admin/university/operations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "remove", periodId: period.id, reason }), signal: AbortSignal.timeout(15_000) });
+      const result = await response.json();
+      setMessage(response.ok ? `OPERATING PERIOD ${result.outcome || "REMOVED"}` : result.error || "PERIOD COULD NOT BE REMOVED");
+      if (response.ok) await load();
+    } catch {
+      setMessage("THE PERIOD CHANGE DID NOT COMPLETE. RETRY SAFELY.");
+    }
   }
 
   async function admissionAction(applicationId: string, action: string) {
@@ -86,8 +111,8 @@ export function CampusOperationsPanel() {
         <label>Starts<input name="startsAt" type="datetime-local" required /></label>
         <label>Reopens<input name="endsAt" type="datetime-local" required /></label>
         <label className={styles.wide}>Private owner note<textarea name="ownerNote" /></label>
-        <div className={styles.actions}><button name="action" value="schedule">SCHEDULE PERIOD</button><button name="action" value="start_now">START NOW</button>{operations?.status.learningMode !== "ACTIVE" && <button type="button" onClick={reopen}>REOPEN CAMPUS</button>}</div>
-        {!!operations?.periods.length && <div className={styles.periods}>{operations.periods.slice(0, 6).map((period) => <div key={period.id}><span><b>{period.title}</b>{new Date(period.startsAt).toLocaleString()} — {new Date(period.endsAt).toLocaleString()}</span><em>{period.status}</em>{period.status === "SCHEDULED" && <button type="button" onClick={() => void cancelPeriod(period.id)}>CANCEL</button>}</div>)}</div>}
+        <div className={styles.actions}><button name="action" value="schedule">SCHEDULE PERIOD</button><button name="action" value="start_now">START NOW</button>{operations && (operations.status.learningMode !== "ACTIVE" || operations.status.admissionsMode !== "OPEN" || operations.status.enrollmentMode !== "OPEN") && <button type="button" onClick={reopen}>REOPEN ALL CURRENT SERVICES</button>}<button type="button" onClick={() => void load()}>REFRESH STATUS</button></div>
+        {!!operations?.periods.length && <div className={styles.periods}>{operations.periods.slice(0, 12).map((period) => <div key={period.id}><span><b>{period.title}</b>{new Date(period.startsAt).toLocaleString()} — {new Date(period.endsAt).toLocaleString()}</span><em>{period.status}</em>{["SCHEDULED", "ACTIVE"].includes(period.status) && <button type="button" onClick={() => void removePeriod(period)}>{period.status === "ACTIVE" ? "END NOW" : "CANCEL"}</button>}</div>)}</div>}
       </form>
       <section className={styles.queue}><header><span>ADMISSIONS QUEUE</span><b>{admissions?.applications.length || 0} ACTIVE</b></header>{admissions?.applications.slice(0, 12).map((application) => { const job = application.reviewJobs[0]; return <article key={application.id}><div><small>{application.trackingRecords[0]?.trackingNumber || application.id}</small><strong>{application.user.name}</strong><span>{application.status.replaceAll("_", " ")} · {job?.decision ? `${job.decision.outcome} / ${job.decision.score} / ${Math.round(job.decision.confidence * 100)}%` : job?.status || "QUEUED"}</span>{job?.decision?.concerns?.length ? <p>{job.decision.concerns.join(" · ")}</p> : null}</div><nav><button onClick={() => void admissionAction(application.id, "retry")}>RETRY</button><button onClick={() => void admissionAction(application.id, "admit")}>ADMIT</button><button onClick={() => void admissionAction(application.id, "decline")}>DECLINE</button></nav></article>})}<footer>Worker: {admissions?.worker.queued || 0} queued · {admissions?.worker.processing || 0} processing · {admissions?.worker.exceptions || 0} exceptions · {admissions?.worker.stale || 0} stale</footer></section>
     </div>
