@@ -23,22 +23,27 @@ const OPEN_STATUS = {
 };
 
 async function notifyStudents(key: string, title: string, body: string) {
-  const students = await db.user.findMany({
-    where: { isStudent: true, accountClosedAt: null },
-    select: { id: true },
-  });
-  if (!students.length) return;
-  await db.notification.createMany({
-    data: students.map((student) => ({
-      userId: student.id,
-      type: "SYSTEM" as const,
-      title,
-      body,
-      actionUrl: "/university?view=dashboard",
-      dedupeKey: `${key}:${student.id}`,
-    })),
-    skipDuplicates: true,
-  });
+  try {
+    const students = await db.user.findMany({
+      where: { isStudent: true, accountClosedAt: null },
+      select: { id: true },
+    });
+    if (!students.length) return;
+    await db.notification.createMany({
+      data: students.map((student) => ({
+        userId: student.id,
+        type: "SYSTEM" as const,
+        title,
+        body,
+        actionUrl: "/university?view=dashboard",
+        dedupeKey: `${key}:${student.id}`,
+      })),
+      skipDuplicates: true,
+    });
+  } catch {
+    // A notification delivery problem must never prevent the operating
+    // calendar from activating or the public campus-status page from loading.
+  }
 }
 
 async function completePeriod(periodId: string) {
@@ -171,6 +176,33 @@ export function operationalAvailability(status: Awaited<ReturnType<typeof refres
 export async function campusStatus() {
   const status = await refreshOperationalStatus();
   return { ...status, availability: operationalAvailability(status), statusUrl: "/campus-status" };
+}
+
+export async function publicCampusStatus() {
+  try {
+    return await campusStatus();
+  } catch {
+    const fallback = {
+      id: "institution-operations",
+      admissionsMode: "PAUSED" as const,
+      enrollmentMode: "PAUSED" as const,
+      learningMode: "MAINTENANCE" as const,
+      timezone: "America/New_York",
+      publicTitle: "Campus status is being refreshed",
+      publicMessage:
+        "The university could not confirm the operating calendar. Academic changes are temporarily paused while records, policies, and support remain available.",
+      reopensAt: null,
+      season: "MAINTENANCE" as const,
+      activePeriodId: null,
+      updatedAt: new Date(),
+    };
+    return {
+      ...fallback,
+      availability: operationalAvailability(fallback),
+      statusUrl: "/campus-status",
+      statusDegraded: true,
+    };
+  }
 }
 
 export async function campusRestriction(capability: CampusCapability) {
