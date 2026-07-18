@@ -3,10 +3,12 @@ import { currentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { text } from "@/lib/input";
 import { recalculateFundingStanding } from "@/lib/funding-standing";
+import { policyGateResponse } from "@/lib/policies";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  { const gate = await policyGateResponse(user.id); if (gate) return gate; }
   const { id } = await params;
   const body = await request.json().catch(() => ({}));
   const reason = text(body.reason, 1800);

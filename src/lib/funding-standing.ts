@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { fundingReference } from "@/lib/funding-awards";
 
 export const MAX_WITHDRAWAL_PENALTY_BPS = 2500;
 export const MIN_RENEWAL_MULTIPLIER_BPS = 6000;
@@ -82,8 +83,11 @@ export async function withdrawFromCourse(userId: string, enrollmentId: string, r
   await db.$transaction(async (tx) => {
     const locked = await tx.courseEnrollment.updateMany({ where: { id: enrollment.id, status: "ACTIVE", withdrawnAt: null }, data: { status: "WITHDRAWN", withdrawnAt: new Date(), withdrawalReason: reason, refundCents: quote.refundCents, refundPercent: quote.refundPercent, withdrawalPenaltyBps: quote.penaltyBps, withdrawalPolicyId: quote.policyId, withdrawalPolicySnapshot: quote } });
     if (locked.count !== 1) return;
-    if (quote.refundCents) await tx.user.update({ where: { id: userId }, data: { grantBalanceCents: { increment: quote.refundCents } } });
-    await tx.grantLedger.create({ data: { userId, courseId: enrollment.courseId, type: "WITHDRAWAL_REFUND", amountCents: quote.refundCents, description: `${enrollment.course.code} withdrawal return (${quote.refundPercent}% of sponsored allocation)`, idempotencyKey, metadata: { ...quote, nonCash: true } } });
+    const account = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { grantBalanceCents: true } });
+    let fundingAwardId: string | undefined;
+    if (quote.refundCents) { await tx.user.update({ where: { id: userId }, data: { grantBalanceCents: { increment: quote.refundCents } } }); const award = await tx.fundingAward.create({ data: { referenceNumber: fundingReference(), userId, type: "REFUND", sourceName: `${enrollment.course.code} withdrawal return`, originalAmountCents: quote.refundCents, remainingAmountCents: quote.refundCents, publicDescription: `${quote.refundPercent}% of the internal course allocation was returned under the effective withdrawal policy.`, restrictions: "Eligible Enfusion University learning services only; noncashable.", issuingDepartment: "University Sponsorship Office" } }); fundingAwardId = award.id; }
+    await tx.grantLedger.create({ data: { userId, fundingAwardId, courseId: enrollment.courseId, type: "WITHDRAWAL_REFUND", amountCents: quote.refundCents, description: `${enrollment.course.code} withdrawal return (${quote.refundPercent}% of sponsored allocation)`, idempotencyKey, referenceNumber: fundingReference("EFT"), runningBalanceCents: account.grantBalanceCents + quote.refundCents, publicReason: "WITHDRAWAL_RETURN", metadata: { ...quote, nonCash: true } } });
+    await tx.studentActivityEvent.create({ data: { studentId: userId, actorId: userId, type: "ENROLLMENT", title: `Withdrew from ${enrollment.course.code}`, detail: `${quote.refundPercent}% of internal sponsored value returned; no student debt was created.`, entity: "CourseEnrollment", entityId: enrollment.id } });
     await tx.notification.create({ data: { userId, type: "ACADEMIC", title: `${enrollment.course.code} withdrawal recorded`, body: `${quote.refundPercent}% of the sponsored allocation returned. Renewal impact: ${quote.penaltyPercent} percentage points.`, actionUrl: "/university?view=student-center", dedupeKey: `${idempotencyKey}:notice` } });
     await tx.auditLog.create({ data: { actorId: userId, action: "COURSE_WITHDRAWN", entity: "CourseEnrollment", entityId: enrollment.id, detail: { courseId: enrollment.courseId, reason, quote } } });
   });

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 
@@ -13,7 +14,7 @@ export default async function CredentialPage({
 }) {
   const { code } = await params;
   const credential = await db.certificate.findUnique({
-    where: { credentialCode: code.toUpperCase() },
+    where: { credentialCode: code.toUpperCase(), publicVisible: true },
     include: {
       user: { select: { name: true } },
       course: { select: { code: true, studio: true } },
@@ -68,6 +69,7 @@ export default async function CredentialPage({
             accredited academic degree unless a recognized institution
             separately confirms acceptance.
           </p>
+          <Link href="/policies/credentials-institutional-status">Credentials and Institutional Status Policy</Link>
         </footer>
       </section>
     </main>

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { recalculateFundingStanding } from "@/lib/funding-standing";
 import { db } from "@/lib/db";
 import { refreshProgramProgress } from "@/lib/academic-progress";
+import { policyCompliance } from "@/lib/policies";
 
 type GradeResult = {
   rubricScores: { criterion: string; score: number; feedback: string }[];
@@ -87,6 +88,12 @@ export async function processNextAiGrade() {
     where: { id: job.submissionId },
     include: { course: { include: { sourceMappings: { include: { source: true } }, gradingRubric: true } } },
   });
+  const consent = await policyCompliance(submission.studentId);
+  if (!consent.compliant) {
+    await db.aiGradeJob.update({ where: { id: job.id }, data: { status: "WAITING_FOR_CONSENT", lockedAt: null, lastError: "Current policy acceptance required" } });
+    await db.courseSubmission.update({ where: { id: submission.id }, data: { status: "PENDING_AI_REVIEW" } });
+    return { processed: false, reason: "waiting_for_consent" };
+  }
   await db.courseSubmission.update({ where: { id: submission.id }, data: { status: "AI_REVIEWING" } });
   const rubric = submission.course.gradingRubric;
   const sources = submission.course.sourceMappings.map((mapping) => mapping.source).filter((source) => source.syncStatus !== "DISABLED" && Boolean(source.lastSuccessAt || source.revisionId));

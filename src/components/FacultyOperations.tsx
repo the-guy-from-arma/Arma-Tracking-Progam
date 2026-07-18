@@ -25,7 +25,7 @@ type Escalation = {
 };
 
 export function FacultyOperations() {
-  const [data, setData] = useState<{ profiles: Profile[]; escalations: Escalation[]; messagingEnabled: boolean; model: string } | null>(null);
+  const [data, setData] = useState<{ profiles: Profile[]; escalations: Escalation[]; messagingEnabled: boolean; model: string; worker: { enabled: boolean; staleJobs: number; oldestJobAt: string | null; leaseMinutes: number; timeoutMs: number }; jobs: { id: string; status: string; attempt: number; maxAttempts: number; createdAt: string; lastError: string | null; student: { name: string; studentNumber: string | null }; faculty: string }[] } | null>(null);
   const [notice, setNotice] = useState("");
   const [draft, setDraft] = useState({ name: "", title: "University Faculty", academy: "", specialty: "" });
 
@@ -70,6 +70,10 @@ export function FacultyOperations() {
     if (response.ok) await load();
   }
 
+  async function retryJob(jobId: string) {
+    const response = await fetch("/api/admin/university/faculty", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ jobId }) }); const payload = await response.json(); setNotice(response.ok ? "The faculty response was safely returned to the queue." : payload.error || "The job could not be retried."); if (response.ok) await load();
+  }
+
   return (
     <div className={styles.workspace}>
       <header className={styles.intro}>
@@ -77,6 +81,11 @@ export function FacultyOperations() {
         <aside data-online={data?.messagingEnabled}><span>{data?.messagingEnabled ? "Messaging connected" : "Messaging paused"}</span><b>{data?.model || "Loading configuration"}</b></aside>
       </header>
       {notice ? <p className={styles.notice} role="status">{notice}</p> : null}
+
+      <section className={styles.section}>
+        <div className={styles.sectionTitle}><div><small>WORKER HEALTH</small><h2>Message delivery diagnostics</h2></div><b>{data?.worker.enabled ? "CONNECTED" : "PAUSED"}</b></div>
+        <div className={styles.directory}><article className={styles.profile}><h3>Queue health</h3><dl><div><dt>Active jobs</dt><dd>{data?.jobs.length || 0}</dd></div><div><dt>Stale leases</dt><dd>{data?.worker.staleJobs || 0}</dd></div><div><dt>Request timeout</dt><dd>{(data?.worker.timeoutMs || 45000) / 1000}s</dd></div></dl><p>Processing leases are reclaimed after {data?.worker.leaseMinutes || 5} minutes. Errors below are sanitized before display.</p></article>{data?.jobs.slice(0, 5).map((job) => <article className={styles.profile} key={job.id}><small>{job.status} · attempt {job.attempt}/{job.maxAttempts}</small><h3>{job.student.name}</h3><p>{job.faculty} · queued {new Date(job.createdAt).toLocaleString()}</p>{job.lastError && <p>{job.lastError}</p>}<div className={styles.controls}><button onClick={() => void retryJob(job.id)}>Manual retry</button></div></article>)}</div>
+      </section>
 
       <section className={styles.section}>
         <div className={styles.sectionTitle}><div><small>UNIVERSITY DIRECTORY</small><h2>Faculty appointments</h2></div><b>{data?.profiles.length || 0} profiles</b></div>

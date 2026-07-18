@@ -6,6 +6,7 @@ import { ensureCourseFunding } from "@/lib/funding";
 import { queueSubmissionForAi } from "@/lib/ai-grading";
 import { getCompletedCourseIds, getProgramAudit, getProgramSequenceBlockers } from "@/lib/academic-progress";
 import { ensureStudentFacultyNetwork } from "@/lib/faculty-network";
+import { policyGateResponse } from "@/lib/policies";
 
 const courseLevels = new Set(["FOUNDATION", "INTERMEDIATE", "ADVANCED", "CAPSTONE"]);
 const studios = new Set(["Thunder Buddies Studios", "Black Ridge Studios", "Thunder Buddies Studios + Black Ridge Studios"]);
@@ -33,6 +34,7 @@ function approvedEvidenceUrl(value: string) {
 export async function GET() {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  if (user.isStudent) { const gate = await policyGateResponse(user.id); if (gate) return gate; }
   const admin = canTeach(user.role);
   const [courses, submissions, certificates, programs, grantLedger] = await Promise.all([
     db.course.findMany({
@@ -63,6 +65,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  if (user.isStudent) { const gate = await policyGateResponse(user.id); if (gate) return gate; }
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "");
 
@@ -106,7 +109,12 @@ export async function POST(request: Request) {
       const grantBalanceCents = current.grantBalanceCents - course.serviceValueCents;
       const enrollment = await tx.courseEnrollment.create({ data: { courseId, userId: user.id } });
       await tx.user.update({ where: { id: user.id }, data: { grantBalanceCents } });
-      await tx.grantLedger.create({ data: { userId: user.id, type: "COURSE_ALLOCATION", amountCents: -course.serviceValueCents, description: `${course.code} ${course.title} sponsored service allocation`, courseId, idempotencyKey: `allocation:${user.id}:${course.id}`, metadata: { studentResponsibilityCents: 0, nonCash: true } } });
+      const sources = await tx.fundingAward.findMany({ where: { userId: user.id, status: { in: ["AVAILABLE", "PARTIALLY_USED", "ADJUSTED"] }, remainingAmountCents: { gt: 0 } }, orderBy: [{ expiresAt: "asc" }, { awardedAt: "asc" }] });
+      let required = course.serviceValueCents; let primarySourceId: string | null = null;
+      for (const source of sources) { if (!required) break; const used = Math.min(required, source.remainingAmountCents); if (!primarySourceId) primarySourceId = source.id; const remaining = source.remainingAmountCents - used; await tx.fundingAward.update({ where: { id: source.id }, data: { remainingAmountCents: remaining, status: remaining === 0 ? "FULLY_USED" : "PARTIALLY_USED" } }); required -= used; }
+      if (required) throw new Error("Funding source reconciliation failed. Enrollment was not changed.");
+      await tx.grantLedger.create({ data: { userId: user.id, fundingAwardId: primarySourceId, type: "COURSE_ALLOCATION", amountCents: -course.serviceValueCents, description: `${course.code} ${course.title} sponsored service allocation`, courseId, idempotencyKey: `allocation:${user.id}:${course.id}`, runningBalanceCents: grantBalanceCents, publicReason: "COURSE_ENROLLMENT", metadata: { studentResponsibilityCents: 0, nonCash: true, allocationMethod: "FIFO_EXPIRATION" } } });
+      await tx.studentActivityEvent.create({ data: { studentId: user.id, actorId: user.id, type: "ENROLLMENT", title: `Enrolled in ${course.code}`, detail: course.title, entity: "CourseEnrollment", entityId: enrollment.id } });
       await tx.auditLog.create({ data: { actorId: user.id, action: "COURSE_ENROLLED", entity: "Course", entityId: courseId, detail: { serviceValueCents: course.serviceValueCents, studentDueCents: 0, grantBalanceCents } } });
       return { enrollment, grantBalanceCents };
     });

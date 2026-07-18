@@ -9,6 +9,8 @@ import { StudentCenter } from "./StudentCenter";
 import { StudentProfile } from "./StudentProfile";
 import { facultyForAcademy } from "@/lib/ai-faculty";
 import { FacultyMessages } from "./FacultyMessages";
+import { StudentPolicies } from "./StudentPolicies";
+import { Award, Banknote, BookOpenCheck, ClipboardList } from "lucide-react";
 
 type Enrollment = { id: string; status: string; progress: number };
 type Course = {
@@ -41,6 +43,7 @@ type Curriculum = {
   nextCourse: Course | null;
   grantBalanceCents: number;
   coverage: { mapped: number; total: number };
+  serviceCounts: { openApplications: number; activeEnrollments: number; pendingSubmissions: number; unreadFeedback: number; credentials: number };
 };
 type CourseDay = {
   id: string;
@@ -146,13 +149,26 @@ type Program = {
 type ProgramsData = { programs: Program[]; degreeWordingEnabled: boolean };
 type FundingData = {
   balanceCents: number;
+  pendingCents: number;
+  usedCents: number;
+  expiringSoonCents: number;
+  reconciled: boolean;
+  varianceCents: number;
   studentResponsibilityCents: number;
+  awards: {
+    id: string; referenceNumber: string; sourceName: string; type: string; status: string; originalAmountCents: number; remainingAmountCents: number; awardedAt: string; expiresAt: string | null; publicDescription: string; restrictions: string; issuingDepartment: string;
+    transactions: { id: string; description: string; amountCents: number; createdAt: string; type: string; publicReason: string | null }[];
+  }[];
   ledger: {
     id: string;
     type: string;
     amountCents: number;
     description: string;
     createdAt: string;
+    runningBalanceCents: number | null;
+    publicReason: string | null;
+    fundingAward: { referenceNumber: string; sourceName: string } | null;
+    course: { code: string; title: string } | null;
   }[];
   terms: {
     id: string;
@@ -301,6 +317,7 @@ export function UniversityLearning({
 
   if (view === "student-center") return <StudentCenter />;
   if (view === "messages") return <FacultyMessages />;
+  if (view === "policies") return <StudentPolicies />;
   if (view === "profile") return <StudentProfile />;
 
   if (view === "dashboard") {
@@ -410,37 +427,37 @@ export function UniversityLearning({
             </section>
             <section className={styles.quickServices}>
               <button onClick={() => onNavigate("student-center")}>
-                <i>SC</i>
+                <i><ClipboardList size={18} /></i>
                 <span>
                   <b>Student Center</b>
-                  <small>Applications, advising and enrollment</small>
+                  <small>{data.serviceCounts.openApplications} applications · {data.serviceCounts.activeEnrollments} active courses</small>
                 </span>
               </button>
               <button onClick={() => onNavigate("funding")}>
-                <i>$</i>
+                <i><Banknote size={18} /></i>
                 <span>
                   <b>Funding Center</b>
                   <small>
                     {money(funding?.balanceCents ?? data.grantBalanceCents)}{" "}
-                    available
+                    available · {money(funding?.expiringSoonCents || 0)} expiring
                   </small>
                 </span>
               </button>
               <button onClick={() => onNavigate("submissions")}>
-                <i>✓</i>
+                <i><BookOpenCheck size={18} /></i>
                 <span>
                   <b>Assignments & Grades</b>
                   <small>
-                    {records?.submissions.length || 0} assessment records
+                    {data.serviceCounts.pendingSubmissions} pending · {data.serviceCounts.unreadFeedback} feedback records
                   </small>
                 </span>
               </button>
               <button onClick={() => onNavigate("credentials")}>
-                <i>★</i>
+                <i><Award size={18} /></i>
                 <span>
                   <b>Credentials</b>
                   <small>
-                    {records?.certificates.length || 0} completion records
+                    {data.serviceCounts.credentials} earned · next milestone in Learning
                   </small>
                 </span>
               </button>
@@ -1047,6 +1064,14 @@ function FundingCenter({
         copy="A complete record of internal, noncash educational sponsorship applied to your Enfusion University study."
         count="YOU OWE $0.00"
       />
+      <div className={styles.valueDisclosure}><b>INTERNAL STATISTICAL VALUE · NEVER STUDENT DEBT</b><span>Every dollar figure is a noncash learning-service measurement. It is not tuition, financial aid, a loan, cash, stored value, or a collectible balance. Student responsibility is always $0.00.</span><Link href="/policies/sponsored-value-no-debt">Read the complete Sponsored Value and No-Debt Disclosure →</Link></div>
+      <section className={styles.fundingSummary} aria-label="Sponsored-learning account summary">
+        <article><small>AVAILABLE</small><b>{money(data.balanceCents)}</b><span>Eligible learning services</span></article>
+        <article><small>PENDING</small><b>{money(data.pendingCents)}</b><span>Not yet available</span></article>
+        <article><small>USED</small><b>{money(data.usedCents)}</b><span>Allocated to learning</span></article>
+        <article><small>EXPIRING SOON</small><b>{money(data.expiringSoonCents)}</b><span>Within 30 days</span></article>
+      </section>
+      {!data.reconciled && <p className={styles.reconcileNotice}>Source detail is being reconciled. The authoritative available balance remains {money(data.balanceCents)}; no student action or payment is required.</p>}
       <div className={styles.fundingHero}>
         <div>
           <small>AVAILABLE SPONSORED BALANCE</small>
@@ -1158,6 +1183,11 @@ function FundingCenter({
           </section>
         </div>
       )}
+      <section className={styles.awardSources}>
+        <SectionHead eyebrow="FUNDING SOURCES" title="Awards and sponsored value" action={`${data.awards.length} SOURCES`} />
+        <div>{data.awards.map((award) => <details key={award.id}><summary><span><small>{award.type.replaceAll("_", " ")} · {award.referenceNumber}</small><b>{award.sourceName}</b><em>{award.publicDescription}</em></span><span><strong>{money(award.remainingAmountCents)}</strong><small>of {money(award.originalAmountCents)} available</small></span></summary><div className={styles.awardDetail}><dl><div><dt>Status</dt><dd>{award.status.replaceAll("_", " ")}</dd></div><div><dt>Issued</dt><dd>{new Date(award.awardedAt).toLocaleDateString()}</dd></div><div><dt>Expiration</dt><dd>{award.expiresAt ? new Date(award.expiresAt).toLocaleDateString() : "No scheduled expiration"}</dd></div><div><dt>Issuing department</dt><dd>{award.issuingDepartment}</dd></div></dl><p><b>Restrictions:</b> {award.restrictions}</p><h3>Source activity</h3>{award.transactions.length ? award.transactions.map((entry) => <article key={entry.id}><span>{new Date(entry.createdAt).toLocaleDateString()} · {entry.description}</span><b>{entry.amountCents >= 0 ? "+" : ""}{money(entry.amountCents)}</b></article>) : <p>No source-linked transactions are recorded yet.</p>}</div></details>)}</div>
+        <Link className={styles.statementLink} href="/api/university/documents/sponsored-learning-statement">DOWNLOAD RECONCILED STATEMENT →</Link>
+      </section>
     </section>
   );
 }

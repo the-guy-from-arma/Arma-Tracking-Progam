@@ -5,6 +5,7 @@ import { createSession, currentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { email, publicUser, text } from "@/lib/input";
 import { createTrackingNumber, trackingEvent } from "@/lib/application-tracking";
+import { recordPolicyAcceptance, requestPolicyMetadata, validatePolicyBundle } from "@/lib/policies";
 
 const INITIAL_GRANT_CENTS = 5_000_000;
 const ESTIMATED_PROGRAM_VALUE_CENTS = 4_275_000;
@@ -52,7 +53,13 @@ export async function POST(request: Request) {
   if (!country || !timeZone || !experienceLevels.has(experienceLevel) || !Number.isInteger(weeklyHours) || weeklyHours < 1 || weeklyHours > 60) return NextResponse.json({ error: "Complete your location, time zone, experience level, and weekly availability." }, { status: 400 });
   if (workbenchExperience.length < 20 || enforceExperience.length < 20 || learningGoals.length < 80 || fundingStatement.length < 40) return NextResponse.json({ error: "Provide detailed experience, learning goals, and sponsorship statements." }, { status: 400 });
   if (portfolioUrl === "INVALID" || githubUrl === "INVALID") return NextResponse.json({ error: "Portfolio and GitHub links must be complete http or https URLs." }, { status: 400 });
-  if (body.acceptPolicies !== true || body.grantAcknowledgement !== true) return NextResponse.json({ error: "Accept the academic policies and non-cash grant disclosure to continue." }, { status: 400 });
+  if (body.acceptPolicies !== true) return NextResponse.json({ error: "Certify that your application is accurate to continue." }, { status: 400 });
+  const policyVersionIds = Array.isArray(body.policyVersionIds) ? body.policyVersionIds.map(String) : [];
+  const acknowledgements = Array.isArray(body.policyAcknowledgements) ? [...new Set(body.policyAcknowledgements.map(String))] : [];
+  if (acknowledgements.length !== policyVersionIds.length || policyVersionIds.some((id: string) => !acknowledgements.includes(id))) return NextResponse.json({ error: "Individually acknowledge every mandatory policy before signing." }, { status: 400 });
+  const policyValidation = await validatePolicyBundle({ policyVersionIds, signerName: text(body.signerName, 100), expectedName: name, ageAttested: body.ageAttested === true, electronicConsent: body.electronicConsent === true });
+  if (!policyValidation.ok) return NextResponse.json({ error: policyValidation.error, code: policyValidation.code }, { status: policyValidation.status });
+  const signatureMetadata = requestPolicyMetadata(request);
 
   const signedIn = await currentUser();
   if (signedIn?.isStudent) return NextResponse.json({ error: "This account is already enrolled at Enfusion University." }, { status: 409 });
@@ -68,8 +75,11 @@ export async function POST(request: Request) {
     const admitted = signedIn ? await tx.user.update({ where: { id: signedIn.id }, data: { academicEmail: academicIdentity, studentNumber, isStudent: true, name, specialty: specialty || signedIn.specialty, grantBalanceCents: INITIAL_GRANT_CENTS } }) : await tx.user.create({ data: { email: personalEmail, academicEmail: academicIdentity, studentNumber, isStudent: true, name, passwordHash: await bcrypt.hash(password, 12), specialty: specialty || null, grantBalanceCents: INITIAL_GRANT_CENTS } });
     const application = await tx.studentApplication.create({ data: { userId: admitted.id, ...applicationData } });
     await tx.applicationTracking.create({ data: { trackingNumber: applicationTrackingNumber, userId: admitted.id, type: "ADMISSION", status: "CLOSED", studentApplicationId: application.id, outcome: "ADMITTED", submittedAt: application.submittedAt, closedAt: application.reviewedAt, statusHistory: [trackingEvent("SUBMITTED", "University application received"), trackingEvent("ADMITTED", "Student identity and sponsored learning account activated")] } });
-    await tx.grantLedger.create({ data: { userId: admitted.id, type: "INITIAL_AWARD", amountCents: INITIAL_GRANT_CENTS, description: "Thunder Buddies Studios Sponsored Learning Grant" } });
+    const fundingAward = await tx.fundingAward.create({ data: { referenceNumber: `ADMISSION-${admitted.id}`, userId: admitted.id, type: "INTERNAL_GRANT", sourceName: "Thunder Buddies Studios Sponsored Learning Grant", originalAmountCents: INITIAL_GRANT_CENTS, remainingAmountCents: INITIAL_GRANT_CENTS, publicDescription: "Opening sponsored-learning value issued upon admission.", restrictions: "Eligible Enfusion University learning services only; noncashable and nontransferable.", issuingDepartment: "Office of Admissions" } });
+    await tx.grantLedger.create({ data: { userId: admitted.id, fundingAwardId: fundingAward.id, type: "INITIAL_AWARD", amountCents: INITIAL_GRANT_CENTS, description: "Thunder Buddies Studios Sponsored Learning Grant", runningBalanceCents: INITIAL_GRANT_CENTS, referenceNumber: `EFT-ADMISSION-${admitted.id}`, metadata: { nonCash: true, studentResponsibilityCents: 0 } } });
+    const signature = await recordPolicyAcceptance({ client: tx, userId: admitted.id, applicantEmail: personalEmail, signerName: text(body.signerName, 100), ageAttested: true, electronicConsent: true, policyVersionIds, ...signatureMetadata });
     await tx.auditLog.create({ data: { actorId: admitted.id, action: "UNIVERSITY_STUDENT_ADMITTED", entity: "User", entityId: admitted.id, detail: { studentNumber, academicIdentity, grantAwardCents: INITIAL_GRANT_CENTS, estimatedProgramValueCents: ESTIMATED_PROGRAM_VALUE_CENTS } } });
+    await tx.auditLog.create({ data: { actorId: admitted.id, action: "ADMISSIONS_POLICY_BUNDLE_SIGNED", entity: "PolicySignatureEvent", entityId: signature.id, detail: { receiptNumber: signature.receiptNumber, policyVersionIds } } });
     return admitted;
   });
   if (!signedIn) await createSession(user.id);

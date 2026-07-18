@@ -4,10 +4,12 @@ import { db } from "@/lib/db";
 import { text } from "@/lib/input";
 import { createTrackingNumber, trackingEvent } from "@/lib/application-tracking";
 import { buildProgramAudits, getCompletedCourseIds, getProgramAudit } from "@/lib/academic-progress";
+import { policyGateResponse } from "@/lib/policies";
 
 export async function GET() {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  if (user.isStudent) { const gate = await policyGateResponse(user.id); if (gate) return gate; }
   const [programs, applications, completedCourseIds, completedProgramEnrollments] = await Promise.all([
     db.academicProgram.findMany({
       where: { active: true },
@@ -25,6 +27,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  if (user.isStudent) { const gate = await policyGateResponse(user.id); if (gate) return gate; }
   const body = await request.json().catch(() => ({}));
   const programId = text(body.programId, 100);
   const statement = text(body.statement, 2000);

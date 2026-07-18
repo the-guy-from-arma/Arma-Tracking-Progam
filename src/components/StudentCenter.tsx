@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import styles from "./StudentCenter.module.css";
@@ -260,7 +261,7 @@ export function StudentCenter() {
   async function enroll(courseId: string) {
     if (
       !confirm(
-        "This is your final enrollment confirmation. Apply sponsored funding and enroll in this course?",
+        "Final enrollment confirmation: apply internal noncash sponsored-service statistics and enroll in this course? This is not tuition, payment, financial aid, cash, or debt. Student responsibility remains $0.00.",
       )
     )
       return;
@@ -358,6 +359,7 @@ export function StudentCenter() {
           ["advising", "Advising", "Plan your next course"],
         ].map(([id, label, detail]) => <button className={section === id ? styles.centerNavActive : ""} key={id} onClick={() => { const next = id as typeof section; setSection(next); window.history.replaceState(null, "", `/university?view=student-center&center=${next}`); }}><b>{label}</b><span>{detail}</span></button>)}
         <a href="/university?view=messages"><b>Faculty messages</b><span>Your support network</span></a>
+        <a href="/university?view=policies"><b>Policies & agreements</b><span>Signatures, receipts, and requests</span></a>
       </nav>
       {message && (
         <div className={styles.message}>
@@ -786,6 +788,7 @@ export function StudentCenter() {
                     {withdrawalQuote.explanation} The quote is recalculated when
                     you confirm.
                   </p>
+                  <p><strong>Internal statistics only.</strong> This return changes a noncash learning-service balance. It is not a cash refund, tuition refund, debt, or payment. Student responsibility remains $0.00. <Link href="/policies/sponsored-value-no-debt">Read the full disclosure.</Link></p>
                 </>
               ) : (
                 <p>

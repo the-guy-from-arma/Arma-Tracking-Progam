@@ -46,7 +46,7 @@ export function UniversitySignIn() {
       setBusy(false);
       return;
     }
-    router.push("/university");
+    router.push(result.policyGateUrl || "/university");
     router.refresh();
   }
 
@@ -188,7 +188,7 @@ export function UniversitySignIn() {
 
       <footer className={styles.footer}>
         <span>Thunder Buddies Studios × Black Ridge Studios</span>
-        <span>Enfusion University · Create · Build · Innovate</span>
+        <span>Enfusion University · Create · Build · Innovate · <Link href="/policies">Policies</Link></span>
       </footer>
     </main>
   );

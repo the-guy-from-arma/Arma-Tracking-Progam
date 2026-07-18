@@ -20,7 +20,8 @@ export type UniversityView =
   | "notifications"
   | "credentials"
   | "submissions"
-  | "messages";
+  | "messages"
+  | "policies";
 const studentViews: { id: UniversityView; label: string; short: string }[] = [
   { id: "dashboard", label: "Campus Home", short: "Home" },
   { id: "learning", label: "My Courses", short: "Courses" },
@@ -28,6 +29,7 @@ const studentViews: { id: UniversityView; label: string; short: string }[] = [
   { id: "catalog", label: "Discover", short: "Discover" },
   { id: "student-center", label: "Student Center", short: "Center" },
   { id: "messages", label: "Campus Messages", short: "Messages" },
+  { id: "policies", label: "Policies & Agreements", short: "Policies" },
   { id: "funding", label: "Funding", short: "Funding" },
   { id: "submissions", label: "Assignments & Grades", short: "Grades" },
   { id: "notifications", label: "Announcements", short: "News" },
@@ -233,6 +235,7 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
           </button>
           <button onClick={() => choose("funding")}>Funding Center</button>
           <button onClick={() => choose("profile")}>Academic Record</button>
+          <button onClick={() => choose("policies")}>Policies & Agreements</button>
         </nav>
         <small>
           Independent online learning institution · Student responsibility $0.00

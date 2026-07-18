@@ -10,9 +10,10 @@ import { FundingOperations } from "@/components/FundingOperations";
 import { GuideAcademy } from "@/components/GuideAcademy";
 import { AdminOverview } from "@/components/AdminOverview";
 import { FacultyOperations } from "@/components/FacultyOperations";
+import { PolicyOperations } from "@/components/PolicyOperations";
 import styles from "./OwnerConsole.module.css";
 type OwnerView =
-  "operations" | "sources" | "funding" | "exceptions" | "faculty" | "academy";
+  "operations" | "sources" | "funding" | "exceptions" | "faculty" | "policies" | "academy";
 const controls: {
   id: OwnerView;
   number: string;
@@ -50,8 +51,14 @@ const controls: {
     detail: "Appointments, messaging and escalations",
   },
   {
-    id: "academy",
+    id: "policies",
     number: "06",
+    title: "Policy Administration",
+    detail: "Versions, consent, inquiries and AI disclosure",
+  },
+  {
+    id: "academy",
+    number: "07",
     title: "Administrator Academy",
     detail: "Interactive operating guides",
   },
@@ -125,6 +132,8 @@ export function OwnerConsole({ ownerName }: { ownerName: string }) {
           <FundingOperations />
         ) : view === "faculty" ? (
           <FacultyOperations />
+        ) : view === "policies" ? (
+          <PolicyOperations />
         ) : view === "academy" ? (
           <GuideAcademy audience="ADMIN" />
         ) : (

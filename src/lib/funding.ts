@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { getOrCreateFundingStanding, recalculateFundingStanding } from "@/lib/funding-standing";
+import { fundingReference } from "@/lib/funding-awards";
 
 const DAY_MS = 86_400_000;
 
@@ -63,9 +64,10 @@ export async function ensureFundingTerm(userId: string) {
       include: { plannedCourses: { include: { course: true }, orderBy: { sequence: "asc" } }, program: true },
     });
     if (depositCents > 0) {
+      const award = await tx.fundingAward.create({ data: { referenceNumber: fundingReference(), userId, type: "PROGRAM_FUNDING", sourceName: "120-day sponsored-learning term award", originalAmountCents: depositCents, remainingAmountCents: depositCents, awardedAt: startsAt, expiresAt: endsAt, publicDescription: "Continuing-study value for the active 120-day academic plan.", restrictions: "Scheduled courses and eligible learning services during the funding term; noncashable.", issuingDepartment: "University Sponsorship Office" } });
       await tx.user.update({ where: { id: userId }, data: { grantBalanceCents: { increment: depositCents } } });
       await tx.grantLedger.create({
-        data: { userId, fundingTermId: term.id, type: "TERM_AWARD", amountCents: depositCents, description: "Thunder Buddies Studios 120-day sponsored learning award", idempotencyKey: key, metadata: { scheduledValueCents, reserveCents, fullAwardCents, renewalMultiplierBps: standing.renewalMultiplierBps, nonCash: true } },
+        data: { userId, fundingTermId: term.id, fundingAwardId: award.id, type: "TERM_AWARD", amountCents: depositCents, description: "Thunder Buddies Studios 120-day sponsored learning award", idempotencyKey: key, referenceNumber: fundingReference("EFT"), runningBalanceCents: current.grantBalanceCents + depositCents, metadata: { scheduledValueCents, reserveCents, fullAwardCents, renewalMultiplierBps: standing.renewalMultiplierBps, nonCash: true } },
       });
     }
     await tx.notification.create({
@@ -87,7 +89,8 @@ export async function ensureCourseFunding(userId: string, courseId: string, requ
     const idempotencyKey = `jit:${userId}:${courseId}`;
     const existing = await tx.grantLedger.findUnique({ where: { idempotencyKey } });
     if (!existing) {
-      await tx.grantLedger.create({ data: { userId, fundingTermId: term.id, courseId, type: "JUST_IN_TIME_AWARD", amountCents: awardedCents, description: "Automatic enrollment continuity award", idempotencyKey, metadata: { nonCash: true } } });
+      const award = await tx.fundingAward.create({ data: { referenceNumber: fundingReference(), userId, type: "PROGRAM_FUNDING", sourceName: "Enrollment continuity award", originalAmountCents: awardedCents, remainingAmountCents: awardedCents, expiresAt: term.endsAt, publicDescription: "Additional internal value applied so an eligible course remains fully sponsored.", restrictions: "The selected eligible course and related learning services; noncashable.", issuingDepartment: "University Sponsorship Office" } });
+      await tx.grantLedger.create({ data: { userId, fundingTermId: term.id, fundingAwardId: award.id, courseId, type: "JUST_IN_TIME_AWARD", amountCents: awardedCents, description: "Automatic enrollment continuity award", idempotencyKey, referenceNumber: fundingReference("EFT"), runningBalanceCents: user.grantBalanceCents + awardedCents, metadata: { nonCash: true } } });
       await tx.user.update({ where: { id: userId }, data: { grantBalanceCents: { increment: awardedCents } } });
       await tx.notification.upsert({
         where: { dedupeKey: `${idempotencyKey}:notice` },
@@ -152,7 +155,8 @@ export async function renewEligibleFundingTerms() {
       const next = await tx.studentFundingTerm.create({ data: { userId: term.userId, programId: term.programId, startsAt, endsAt, status: "ACTIVE", scheduledValueCents: term.scheduledValueCents, reserveCents: term.reserveCents, awardedCents: renewalAwardCents, renewedFromId: term.id, plannedCourses: { create: term.plannedCourses.map((item) => ({ courseId: item.courseId, sequence: item.sequence })) } } });
       await tx.studentFundingTerm.update({ where: { id: term.id }, data: { status: "RENEWED" } });
       await tx.user.update({ where: { id: term.userId }, data: { grantBalanceCents: { increment: renewalAwardCents } } });
-      await tx.grantLedger.create({ data: { userId: term.userId, fundingTermId: next.id, type: "RENEWAL_AWARD", amountCents: renewalAwardCents, description: "Automatic 120-day sponsored learning renewal", idempotencyKey: key, metadata: { fullAwardCents, renewalMultiplierBps: standing.renewalMultiplierBps, nonCash: true } } });
+      const award = await tx.fundingAward.create({ data: { referenceNumber: fundingReference(), userId: term.userId, type: "PROGRAM_FUNDING", sourceName: "Automatic 120-day renewal", originalAmountCents: renewalAwardCents, remainingAmountCents: renewalAwardCents, awardedAt: startsAt, expiresAt: endsAt, publicDescription: "Sponsored-learning renewal based on the scheduled academic plan and standing.", restrictions: "Eligible course and credential services during this term; noncashable.", issuingDepartment: "University Sponsorship Office" } });
+      await tx.grantLedger.create({ data: { userId: term.userId, fundingTermId: next.id, fundingAwardId: award.id, type: "RENEWAL_AWARD", amountCents: renewalAwardCents, description: "Automatic 120-day sponsored learning renewal", idempotencyKey: key, referenceNumber: fundingReference("EFT"), runningBalanceCents: term.user.grantBalanceCents + renewalAwardCents, metadata: { fullAwardCents, renewalMultiplierBps: standing.renewalMultiplierBps, nonCash: true } } });
       await tx.notification.create({ data: { userId: term.userId, type: "FUNDING", title: "Your sponsored learning funding renewed", body: `A new 120-day award was issued at ${standing.renewalMultiplierBps / 100}% of the scheduled sponsorship. Student responsibility remains $0.00.`, actionUrl: "/university?view=student-center", dedupeKey: `${key}:notice` } });
     });
     renewed++;

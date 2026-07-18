@@ -6,18 +6,27 @@ import { text } from "@/lib/input";
 export async function GET() {
   const user = await currentUser();
   if (!user || !isAdmin(user.role)) return NextResponse.json({ error: "Administrator authority required" }, { status: 403 });
-  const [profiles, escalations, facultyAccounts] = await Promise.all([
+  const staleBefore = new Date(Date.now() - 5 * 60_000);
+  const [profiles, escalations, facultyAccounts, jobs, staleJobs] = await Promise.all([
     db.facultyProfile.findMany({ include: { linkedUser: { select: { id: true, name: true, academicEmail: true } }, _count: { select: { assignments: true, conversations: true } } }, orderBy: [{ isPrimaryAdvisor: "desc" }, { academy: "asc" }] }),
     db.facultyConversation.findMany({ where: { escalationStatus: "OPEN" }, include: { student: { select: { name: true, studentNumber: true } }, facultyProfile: { select: { name: true } }, course: { select: { code: true, title: true } }, messages: { orderBy: { createdAt: "desc" }, take: 4 } }, orderBy: { updatedAt: "asc" } }),
     db.user.findMany({ where: { role: "FACULTY", suspended: false }, select: { id: true, name: true, academicEmail: true } }),
+    db.facultyReplyJob.findMany({ where: { status: { in: ["QUEUED", "PROCESSING", "WAITING_FOR_CONSENT", "EXCEPTION"] } }, include: { conversation: { select: { student: { select: { name: true, studentNumber: true } }, facultyProfile: { select: { name: true } } } } }, orderBy: { updatedAt: "asc" }, take: 50 }),
+    db.facultyReplyJob.count({ where: { status: "PROCESSING", lockedAt: { lt: staleBefore } } }),
   ]);
-  return NextResponse.json({ profiles, escalations, facultyAccounts, messagingEnabled: process.env.FACULTY_MESSAGING_ENABLED === "true", model: process.env.GEMINI_MODEL || "gemini-3.1-pro-preview" });
+  return NextResponse.json({ profiles, escalations, facultyAccounts, jobs: jobs.map((job) => ({ id: job.id, status: job.status, attempt: job.attempt, maxAttempts: job.maxAttempts, createdAt: job.createdAt, updatedAt: job.updatedAt, lockedAt: job.lockedAt, availableAt: job.availableAt, lastError: job.lastError, student: job.conversation.student, faculty: job.conversation.facultyProfile.name })), worker: { enabled: process.env.FACULTY_MESSAGING_ENABLED === "true", staleJobs, oldestJobAt: jobs[0]?.createdAt || null, leaseMinutes: Number(process.env.FACULTY_JOB_LEASE_MINUTES || 5), timeoutMs: Number(process.env.FACULTY_REPLY_TIMEOUT_MS || 45000) }, messagingEnabled: process.env.FACULTY_MESSAGING_ENABLED === "true", model: process.env.GEMINI_MODEL || "gemini-3.1-pro-preview" });
 }
 
 export async function POST(request: Request) {
   const user = await currentUser();
   if (!user || !isAdmin(user.role)) return NextResponse.json({ error: "Administrator authority required" }, { status: 403 });
   const body = await request.json().catch(() => ({}));
+  if (body.jobId) {
+    const jobId = text(body.jobId, 100); const job = await db.facultyReplyJob.findUnique({ where: { id: jobId } }); if (!job) return NextResponse.json({ error: "Reply job not found" }, { status: 404 });
+    await db.facultyReplyJob.update({ where: { id: jobId }, data: { status: "QUEUED", attempt: 0, lockedAt: null, heartbeatAt: null, availableAt: new Date(), lastError: null } });
+    await db.auditLog.create({ data: { actorId: user.id, action: "FACULTY_REPLY_MANUAL_RETRY", entity: "FacultyReplyJob", entityId: jobId } });
+    return NextResponse.json({ ok: true });
+  }
   const name = text(body.name, 100);
   const academy = text(body.academy, 120) || null;
   const slug = text(body.slug, 80).toLowerCase().replace(/[^a-z0-9-]/g, "-");

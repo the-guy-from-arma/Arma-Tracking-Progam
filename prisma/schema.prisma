@@ -155,10 +155,79 @@ enum FacultyMessageRole {
 
 enum FacultyJobStatus {
   QUEUED
+  WAITING_FOR_CONSENT
   PROCESSING
   COMPLETED
   EXCEPTION
   FAILED
+}
+
+enum VeteranStatus {
+  NOT_DISCLOSED
+  NOT_A_VETERAN
+  VETERAN
+  ACTIVE_DUTY
+  RESERVE_OR_GUARD
+  MILITARY_FAMILY
+}
+
+enum ResidencyStatus {
+  NOT_DISCLOSED
+  DOMESTIC
+  INTERNATIONAL
+  OTHER
+}
+
+enum StudentActivityType {
+  ENROLLMENT
+  GRADE
+  ADVISING
+  CREDENTIAL
+  APPLICATION
+  FUNDING
+  PROFILE
+}
+
+enum FundingAwardType {
+  INTERNAL_SCHOLARSHIP
+  INTERNAL_GRANT
+  UNIVERSITY_CREDIT
+  PROGRAM_FUNDING
+  EMPLOYER_SPONSORSHIP
+  PROMOTIONAL_AWARD
+  REFUND
+  ADMINISTRATIVE_ADJUSTMENT
+  TRANSFER_VALUE
+  OTHER
+}
+
+enum FundingAwardStatus {
+  PENDING
+  AVAILABLE
+  PARTIALLY_USED
+  FULLY_USED
+  EXPIRED
+  SUSPENDED
+  REVERSED
+  REMOVED
+  ADJUSTED
+}
+
+enum FundingTransactionStatus {
+  PENDING
+  POSTED
+  REVERSED
+  ADJUSTED
+}
+
+enum FundingCapability {
+  VIEW
+  NOTE
+  ISSUE
+  EDIT_DETAILS
+  ADJUST
+  REVERSE_UNUSED
+  SUSPEND
 }
 
 enum FacultyOutreachType {
@@ -181,10 +250,49 @@ enum FacultyEscalationStatus {
 
 enum AiGradeJobStatus {
   QUEUED
+  WAITING_FOR_CONSENT
   PROCESSING
   COMPLETED
   EXCEPTION
   FAILED
+}
+
+enum PolicyVersionStatus {
+  DRAFT
+  PUBLISHED
+  RETIRED
+}
+
+enum PolicyInquiryCategory {
+  PRIVACY
+  ELECTRONIC_RECORDS
+  ACCOUNT_CLOSURE
+  BOHEMIA_IP
+  AI_DECISION
+  MONETARY_DISCLOSURE
+  ACCESSIBILITY
+  TERMS_DISPUTE
+  OTHER
+}
+
+enum PolicyInquiryStatus {
+  OPEN
+  IN_REVIEW
+  AWAITING_REQUESTER
+  RESOLVED
+  CLOSED
+}
+
+enum PolicyMessageRole {
+  REQUESTER
+  OWNER
+  SYSTEM
+}
+
+enum AiDataMode {
+  UNCONFIRMED_OR_UNPAID
+  PAID_SERVICE_CONFIRMED
+  AI_DISABLED
 }
 
 enum AiDecisionStatus {
@@ -248,91 +356,106 @@ enum ApplicationTrackingStatus {
 }
 
 model User {
-  id                  String                  @id @default(cuid())
-  email               String                  @unique
-  academicEmail       String?                 @unique
-  studentNumber       String?                 @unique
-  isStudent           Boolean                 @default(false)
-  grantBalanceCents   Int                     @default(0)
-  name                String
-  passwordHash        String
-  role                UserRole                @default(TRAINEE)
-  specialty           String?
-  suspended           Boolean                 @default(false)
-  createdAt           DateTime                @default(now())
-  updatedAt           DateTime                @updatedAt
-  sessions            Session[]
-  projects            Project[]               @relation("ProjectOwner")
-  reviews             Project[]               @relation("ProjectReviewer")
-  memberships         Membership[]
-  auditLogs           AuditLog[]
-  authoredCourses     Course[]                @relation("CourseAuthor")
-  courseEnrollments   CourseEnrollment[]
-  courseSubmissions   CourseSubmission[]      @relation("StudentSubmissions")
-  reviewedSubmissions CourseSubmission[]      @relation("SubmissionReviewer")
-  certificates        Certificate[]
-  programEnrollments  ProgramEnrollment[]
-  programApplications ProgramApplication[]
-  applicationTrackers ApplicationTracking[]
-  fundingTerms        StudentFundingTerm[]
-  fundingStanding     StudentFundingStanding?
-  notifications       Notification[]
-  submissionAppeals   SubmissionAppeal[]      @relation("StudentAppeals")
-  reviewedAppeals     SubmissionAppeal[]      @relation("AppealReviewer")
-  studentApplication  StudentApplication?
-  grantLedger         GrantLedger[]
-  lessonProgress      LessonProgress[]
-  quizAttempts        QuizAttempt[]
-  projectUpdates      ProjectUpdate[]
-  projectNotes        ProjectNote[]
-  assignedObjectives  ProjectObjective[]      @relation("ObjectiveAssignee")
-  projectComments     ProjectComment[]
-  sourceSyncAttempts  SourceSyncAttempt[]
-  sourceBypasses      CurriculumSource[]      @relation("SourceBypassOwner")
-  withdrawalPolicies  WithdrawalPolicy[]
-  guideProgress       GuideProgress[]
-  facultyAccount      FacultyProfile?           @relation("FacultyAccount")
-  facultyAssignments  FacultyAssignment[]       @relation("StudentFacultyAssignments")
-  facultyMessages     FacultyMessage[]          @relation("FacultyMessageSender")
-  facultyConversations FacultyConversation[]    @relation("StudentFacultyConversations")
-  supportProfile      StudentSupportProfile?
-  facultyOutreach     FacultyOutreachEvent[]     @relation("StudentFacultyOutreach")
+  id                        String                  @id @default(cuid())
+  email                     String                  @unique
+  academicEmail             String?                 @unique
+  studentNumber             String?                 @unique
+  isStudent                 Boolean                 @default(false)
+  grantBalanceCents         Int                     @default(0)
+  name                      String
+  passwordHash              String
+  role                      UserRole                @default(TRAINEE)
+  specialty                 String?
+  suspended                 Boolean                 @default(false)
+  accountClosedAt           DateTime?
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+  sessions                  Session[]
+  projects                  Project[]               @relation("ProjectOwner")
+  reviews                   Project[]               @relation("ProjectReviewer")
+  memberships               Membership[]
+  auditLogs                 AuditLog[]
+  authoredCourses           Course[]                @relation("CourseAuthor")
+  courseEnrollments         CourseEnrollment[]
+  courseSubmissions         CourseSubmission[]      @relation("StudentSubmissions")
+  reviewedSubmissions       CourseSubmission[]      @relation("SubmissionReviewer")
+  certificates              Certificate[]
+  programEnrollments        ProgramEnrollment[]
+  programApplications       ProgramApplication[]
+  applicationTrackers       ApplicationTracking[]
+  fundingTerms              StudentFundingTerm[]
+  fundingStanding           StudentFundingStanding?
+  notifications             Notification[]
+  submissionAppeals         SubmissionAppeal[]      @relation("StudentAppeals")
+  reviewedAppeals           SubmissionAppeal[]      @relation("AppealReviewer")
+  studentApplication        StudentApplication?
+  grantLedger               GrantLedger[]
+  lessonProgress            LessonProgress[]
+  quizAttempts              QuizAttempt[]
+  projectUpdates            ProjectUpdate[]
+  projectNotes              ProjectNote[]
+  assignedObjectives        ProjectObjective[]      @relation("ObjectiveAssignee")
+  projectComments           ProjectComment[]
+  sourceSyncAttempts        SourceSyncAttempt[]
+  sourceBypasses            CurriculumSource[]      @relation("SourceBypassOwner")
+  withdrawalPolicies        WithdrawalPolicy[]
+  guideProgress             GuideProgress[]
+  facultyAccount            FacultyProfile?         @relation("FacultyAccount")
+  facultyAssignments        FacultyAssignment[]     @relation("StudentFacultyAssignments")
+  facultyMessages           FacultyMessage[]        @relation("FacultyMessageSender")
+  facultyConversations      FacultyConversation[]   @relation("StudentFacultyConversations")
+  supportProfile            StudentSupportProfile?
+  facultyOutreach           FacultyOutreachEvent[]  @relation("StudentFacultyOutreach")
+  policySignatureEvents     PolicySignatureEvent[]
+  policyAcceptances         PolicyAcceptance[]
+  policyInquiries           PolicyInquiry[]
+  policyInquiryMessages     PolicyInquiryMessage[]  @relation("PolicyInquiryAuthor")
+  profileDetails            StudentProfileDetail?
+  studentActivities         StudentActivityEvent[]  @relation("StudentActivities")
+  recordedActivities        StudentActivityEvent[]  @relation("ActivityActor")
+  fundingAwards             FundingAward[]          @relation("StudentFundingAwards")
+  issuedFundingAwards       FundingAward[]          @relation("FundingAwardIssuer")
+  fundingAwardRevisions     FundingAwardRevision[]  @relation("FundingRevisionActor")
+  fundingPermissions        FundingPermission[]     @relation("FundingPermissionUser")
+  grantedFundingPermissions FundingPermission[]     @relation("FundingPermissionGrantor")
+  fundingTransactions       GrantLedger[]           @relation("FundingTransactionActor")
 
   @@index([role])
 }
 
 model Course {
-  id                  String                     @id @default(cuid())
-  code                String                     @unique
-  title               String
-  summary             String
-  deliverable         String
-  studio              String
-  level               CourseLevel
-  status              CourseStatus               @default(DRAFT)
-  learningCredits     Int                        @default(3)
-  serviceValueCents   Int                        @default(450000)
-  academy             String                     @default("Workbench Foundations")
-  estimatedDays       Int                        @default(10)
-  workloadHours       Int                        @default(20)
-  outcomes            Json                       @default("[]")
-  wikiManaged         Boolean                    @default(false)
-  createdById         String?
-  createdBy           User?                      @relation("CourseAuthor", fields: [createdById], references: [id], onDelete: SetNull)
-  enrollments         CourseEnrollment[]
-  submissions         CourseSubmission[]
-  certificates        Certificate[]
-  days                CourseDay[]
-  sourceMappings      CourseSourceMapping[]
-  prerequisites       CoursePrerequisite[]       @relation("CoursePrerequisites")
-  requiredFor         CoursePrerequisite[]       @relation("CourseDependents")
-  programRequirements ProgramCourseRequirement[]
-  termPlanCourses     TermPlanCourse[]
-  gradingRubric       GradingRubric?
-  facultyAssignments  FacultyAssignment[]
+  id                   String                     @id @default(cuid())
+  code                 String                     @unique
+  title                String
+  summary              String
+  deliverable          String
+  studio               String
+  level                CourseLevel
+  status               CourseStatus               @default(DRAFT)
+  learningCredits      Int                        @default(3)
+  serviceValueCents    Int                        @default(450000)
+  academy              String                     @default("Workbench Foundations")
+  estimatedDays        Int                        @default(10)
+  workloadHours        Int                        @default(20)
+  outcomes             Json                       @default("[]")
+  wikiManaged          Boolean                    @default(false)
+  createdById          String?
+  createdBy            User?                      @relation("CourseAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  enrollments          CourseEnrollment[]
+  submissions          CourseSubmission[]
+  certificates         Certificate[]
+  days                 CourseDay[]
+  sourceMappings       CourseSourceMapping[]
+  prerequisites        CoursePrerequisite[]       @relation("CoursePrerequisites")
+  requiredFor          CoursePrerequisite[]       @relation("CourseDependents")
+  programRequirements  ProgramCourseRequirement[]
+  termPlanCourses      TermPlanCourse[]
+  gradingRubric        GradingRubric?
+  facultyAssignments   FacultyAssignment[]
   facultyConversations FacultyConversation[]
-  createdAt           DateTime                   @default(now())
-  updatedAt           DateTime                   @updatedAt
+  fundingTransactions  GrantLedger[]
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
 
   @@index([status, level])
   @@index([studio])
@@ -485,6 +608,50 @@ model StudentApplication {
   trackingRecords     ApplicationTracking[]
 }
 
+model StudentProfileDetail {
+  id                    String          @id @default(cuid())
+  userId                String          @unique
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addressLine1          String?
+  addressLine2          String?
+  city                  String?
+  region                String?
+  postalCode            String?
+  country               String?
+  phone                 String?
+  emergencyName         String?
+  emergencyRelationship String?
+  emergencyPhone        String?
+  veteranStatus         VeteranStatus   @default(NOT_DISCLOSED)
+  residencyStatus       ResidencyStatus @default(NOT_DISCLOSED)
+  preferredPronouns     String?
+  minorAcademy          String?
+  profilePhoto          Bytes?
+  profilePhotoMime      String?
+  profilePhotoUpdatedAt DateTime?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+}
+
+model StudentActivityEvent {
+  id         String              @id @default(cuid())
+  studentId  String
+  student    User                @relation("StudentActivities", fields: [studentId], references: [id], onDelete: Cascade)
+  type       StudentActivityType
+  title      String
+  detail     String
+  entity     String?
+  entityId   String?
+  occurredAt DateTime            @default(now())
+  actorId    String?
+  actor      User?               @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+  metadata   Json                @default("{}")
+  createdAt  DateTime            @default(now())
+
+  @@index([studentId, occurredAt])
+  @@index([entity, entityId])
+}
+
 model ApplicationTracking {
   id                   String                    @id @default(cuid())
   trackingNumber       String                    @unique
@@ -509,20 +676,92 @@ model ApplicationTracking {
 }
 
 model GrantLedger {
-  id             String              @id @default(cuid())
-  userId         String
-  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type           GrantLedgerType
-  amountCents    Int
-  description    String
-  courseId       String?
-  fundingTermId  String?
-  fundingTerm    StudentFundingTerm? @relation(fields: [fundingTermId], references: [id], onDelete: SetNull)
-  idempotencyKey String?             @unique
-  metadata       Json                @default("{}")
-  createdAt      DateTime            @default(now())
+  id                  String                   @id @default(cuid())
+  userId              String
+  user                User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type                GrantLedgerType
+  amountCents         Int
+  description         String
+  courseId            String?
+  course              Course?                  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  fundingTermId       String?
+  fundingTerm         StudentFundingTerm?      @relation(fields: [fundingTermId], references: [id], onDelete: SetNull)
+  idempotencyKey      String?                  @unique
+  fundingAwardId      String?
+  fundingAward        FundingAward?            @relation(fields: [fundingAwardId], references: [id], onDelete: SetNull)
+  status              FundingTransactionStatus @default(POSTED)
+  runningBalanceCents Int?
+  publicReason        String?
+  internalNote        String?
+  actorId             String?
+  actor               User?                    @relation("FundingTransactionActor", fields: [actorId], references: [id], onDelete: SetNull)
+  reversalOfId        String?
+  reversalOf          GrantLedger?             @relation("FundingTransactionReversal", fields: [reversalOfId], references: [id], onDelete: SetNull)
+  reversals           GrantLedger[]            @relation("FundingTransactionReversal")
+  referenceNumber     String?                  @unique
+  metadata            Json                     @default("{}")
+  createdAt           DateTime                 @default(now())
 
   @@index([userId, createdAt])
+  @@index([fundingAwardId, createdAt])
+}
+
+model FundingAward {
+  id                   String                 @id @default(cuid())
+  referenceNumber      String                 @unique
+  userId               String
+  user                 User                   @relation("StudentFundingAwards", fields: [userId], references: [id], onDelete: Cascade)
+  type                 FundingAwardType
+  status               FundingAwardStatus     @default(AVAILABLE)
+  sourceName           String
+  originalAmountCents  Int
+  remainingAmountCents Int
+  awardedAt            DateTime               @default(now())
+  expiresAt            DateTime?
+  publicDescription    String
+  restrictions         String
+  issuingDepartment    String
+  issuedById           String?
+  issuedBy             User?                  @relation("FundingAwardIssuer", fields: [issuedById], references: [id], onDelete: SetNull)
+  internalNote         String?
+  legacy               Boolean                @default(false)
+  transactions         GrantLedger[]
+  revisions            FundingAwardRevision[]
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  @@index([userId, status, awardedAt])
+  @@index([expiresAt])
+}
+
+model FundingAwardRevision {
+  id             String       @id @default(cuid())
+  fundingAwardId String
+  fundingAward   FundingAward @relation(fields: [fundingAwardId], references: [id], onDelete: Cascade)
+  actorId        String?
+  actor          User?        @relation("FundingRevisionActor", fields: [actorId], references: [id], onDelete: SetNull)
+  action         String
+  reason         String
+  publicReason   String
+  internalNote   String?
+  previous       Json
+  updated        Json
+  createdAt      DateTime     @default(now())
+
+  @@index([fundingAwardId, createdAt])
+}
+
+model FundingPermission {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation("FundingPermissionUser", fields: [userId], references: [id], onDelete: Cascade)
+  capability  FundingCapability
+  grantedById String
+  grantedBy   User              @relation("FundingPermissionGrantor", fields: [grantedById], references: [id], onDelete: Restrict)
+  createdAt   DateTime          @default(now())
+
+  @@unique([userId, capability])
+  @@index([capability])
 }
 
 model CourseEnrollment {
@@ -668,6 +907,7 @@ model Certificate {
   issuer          String
   learningCredits Int
   issuedAt        DateTime         @default(now())
+  publicVisible   Boolean          @default(true)
 
   @@index([userId, issuedAt])
 }
@@ -815,28 +1055,28 @@ model Notification {
 }
 
 model FacultyProfile {
-  id                 String                  @id @default(cuid())
-  slug               String                  @unique
-  userId             String?                 @unique
-  linkedUser         User?                   @relation("FacultyAccount", fields: [userId], references: [id], onDelete: SetNull)
+  id                 String                 @id @default(cuid())
+  slug               String                 @unique
+  userId             String?                @unique
+  linkedUser         User?                  @relation("FacultyAccount", fields: [userId], references: [id], onDelete: SetNull)
   name               String
   title              String
   initials           String
-  academy             String?
-  isPrimaryAdvisor   Boolean                 @default(false)
+  academy            String?
+  isPrimaryAdvisor   Boolean                @default(false)
   specialty          String
   biography          String
   teachingPhilosophy String
   voice              String
-  availability       String                  @default("Available through Campus Messages")
-  boundaries         Json                    @default("[]")
-  deliveryMode       FacultyDeliveryMode     @default(AUTOMATED)
-  active             Boolean                 @default(true)
+  availability       String                 @default("Available through Campus Messages")
+  boundaries         Json                   @default("[]")
+  deliveryMode       FacultyDeliveryMode    @default(AUTOMATED)
+  active             Boolean                @default(true)
   assignments        FacultyAssignment[]
   conversations      FacultyConversation[]
   outreachEvents     FacultyOutreachEvent[]
-  createdAt          DateTime                @default(now())
-  updatedAt          DateTime                @updatedAt
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
 
   @@index([academy, active])
   @@index([isPrimaryAdvisor, active])
@@ -860,96 +1100,100 @@ model FacultyAssignment {
 }
 
 model StudentSupportProfile {
-  id                String   @id @default(cuid())
-  userId            String   @unique
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  goals             Json     @default("[]")
-  preferences       Json     @default("{}")
-  advisorSummary    String?
-  quietHoursStart   Int      @default(20)
-  quietHoursEnd     Int      @default(8)
-  outreachEnabled   Boolean  @default(true)
-  lastOutreachAt    DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals           Json      @default("[]")
+  preferences     Json      @default("{}")
+  advisorSummary  String?
+  quietHoursStart Int       @default(20)
+  quietHoursEnd   Int       @default(8)
+  outreachEnabled Boolean   @default(true)
+  lastOutreachAt  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model FacultyConversation {
-  id                 String                    @id @default(cuid())
-  conversationKey    String                    @unique
-  studentId          String
-  student            User                      @relation("StudentFacultyConversations", fields: [studentId], references: [id], onDelete: Cascade)
-  facultyProfileId   String
-  facultyProfile     FacultyProfile            @relation(fields: [facultyProfileId], references: [id], onDelete: Cascade)
-  courseId           String?
-  course             Course?                   @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  subject            String
-  summary            String?
-  muted              Boolean                   @default(false)
-  escalationStatus   FacultyEscalationStatus   @default(NONE)
+  id                  String                  @id @default(cuid())
+  conversationKey     String                  @unique
+  studentId           String
+  student             User                    @relation("StudentFacultyConversations", fields: [studentId], references: [id], onDelete: Cascade)
+  facultyProfileId    String
+  facultyProfile      FacultyProfile          @relation(fields: [facultyProfileId], references: [id], onDelete: Cascade)
+  courseId            String?
+  course              Course?                 @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  subject             String
+  summary             String?
+  muted               Boolean                 @default(false)
+  escalationStatus    FacultyEscalationStatus @default(NONE)
   lastReadByStudentAt DateTime?
-  lastMessageAt      DateTime                   @default(now())
-  messages           FacultyMessage[]
-  replyJobs          FacultyReplyJob[]
-  outreachEvents     FacultyOutreachEvent[]
-  createdAt          DateTime                   @default(now())
-  updatedAt          DateTime                   @updatedAt
+  lastMessageAt       DateTime                @default(now())
+  messages            FacultyMessage[]
+  replyJobs           FacultyReplyJob[]
+  outreachEvents      FacultyOutreachEvent[]
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
 
   @@index([studentId, lastMessageAt])
   @@index([facultyProfileId, escalationStatus])
 }
 
 model FacultyMessage {
-  id             String             @id @default(cuid())
-  conversationId String
-  conversation   FacultyConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  senderRole     FacultyMessageRole
-  senderUserId   String?
-  senderUser     User?              @relation("FacultyMessageSender", fields: [senderUserId], references: [id], onDelete: SetNull)
-  body           String
-  readAt         DateTime?
-  createdAt      DateTime           @default(now())
-  triggerJobs    FacultyReplyJob[]   @relation("FacultyReplyTrigger")
-  responseJob    FacultyReplyJob?    @relation("FacultyReplyResponse")
-  modelAudit     FacultyModelAudit?
+  id              String              @id @default(cuid())
+  conversationId  String
+  conversation    FacultyConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderRole      FacultyMessageRole
+  senderUserId    String?
+  senderUser      User?               @relation("FacultyMessageSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+  body            String
+  clientMessageId String?             @unique
+  readAt          DateTime?
+  createdAt       DateTime            @default(now())
+  triggerJobs     FacultyReplyJob[]   @relation("FacultyReplyTrigger")
+  responseJob     FacultyReplyJob?    @relation("FacultyReplyResponse")
+  modelAudit      FacultyModelAudit?
 
   @@index([conversationId, createdAt])
 }
 
 model FacultyReplyJob {
-  id                String             @id @default(cuid())
-  conversationId    String
-  conversation      FacultyConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  triggerMessageId  String             @unique
-  triggerMessage    FacultyMessage     @relation("FacultyReplyTrigger", fields: [triggerMessageId], references: [id], onDelete: Cascade)
-  responseMessageId String?            @unique
-  responseMessage   FacultyMessage?    @relation("FacultyReplyResponse", fields: [responseMessageId], references: [id], onDelete: SetNull)
-  status            FacultyJobStatus   @default(QUEUED)
-  attempt           Int                @default(0)
-  maxAttempts       Int                @default(3)
-  availableAt       DateTime           @default(now())
-  lockedAt          DateTime?
-  lastError         String?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  id                 String              @id @default(cuid())
+  conversationId     String
+  conversation       FacultyConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  triggerMessageId   String              @unique
+  triggerMessage     FacultyMessage      @relation("FacultyReplyTrigger", fields: [triggerMessageId], references: [id], onDelete: Cascade)
+  responseMessageId  String?             @unique
+  responseMessage    FacultyMessage?     @relation("FacultyReplyResponse", fields: [responseMessageId], references: [id], onDelete: SetNull)
+  status             FacultyJobStatus    @default(QUEUED)
+  attempt            Int                 @default(0)
+  maxAttempts        Int                 @default(3)
+  availableAt        DateTime            @default(now())
+  lockedAt           DateTime?
+  heartbeatAt        DateTime?
+  acknowledgedAt     DateTime?
+  supportRequestedAt DateTime?
+  lastError          String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@index([status, availableAt])
 }
 
 model FacultyOutreachEvent {
-  id               String              @id @default(cuid())
+  id               String               @id @default(cuid())
   studentId        String
-  student          User                @relation("StudentFacultyOutreach", fields: [studentId], references: [id], onDelete: Cascade)
+  student          User                 @relation("StudentFacultyOutreach", fields: [studentId], references: [id], onDelete: Cascade)
   facultyProfileId String
-  facultyProfile   FacultyProfile      @relation(fields: [facultyProfileId], references: [id], onDelete: Cascade)
+  facultyProfile   FacultyProfile       @relation(fields: [facultyProfileId], references: [id], onDelete: Cascade)
   conversationId   String?
   conversation     FacultyConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
   type             FacultyOutreachType
-  dedupeKey        String              @unique
-  scheduledAt      DateTime            @default(now())
+  dedupeKey        String               @unique
+  scheduledAt      DateTime             @default(now())
   sentAt           DateTime?
-  detail           Json                @default("{}")
-  createdAt        DateTime            @default(now())
+  detail           Json                 @default("{}")
+  createdAt        DateTime             @default(now())
 
   @@index([studentId, scheduledAt])
   @@index([sentAt, scheduledAt])
@@ -1175,4 +1419,114 @@ model AuditLog {
 
   @@index([createdAt])
   @@index([entity, entityId])
+}
+
+model PolicyDocument {
+  id        String          @id @default(cuid())
+  slug      String          @unique
+  title     String
+  summary   String
+  sortOrder Int
+  mandatory Boolean         @default(true)
+  versions  PolicyVersion[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([sortOrder])
+}
+
+model PolicyVersion {
+  id                  String              @id @default(cuid())
+  documentId          String
+  document            PolicyDocument      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version             Int
+  content             Json
+  checksum            String
+  revisionNote        String
+  status              PolicyVersionStatus @default(DRAFT)
+  materialChange      Boolean             @default(true)
+  effectiveAt         DateTime?
+  publishedAt         DateTime?
+  legalReviewedAt     DateTime?
+  trademarkReviewedAt DateTime?
+  acceptances         PolicyAcceptance[]
+  createdAt           DateTime            @default(now())
+
+  @@unique([documentId, version])
+  @@index([status, effectiveAt])
+}
+
+model PolicySignatureEvent {
+  id                String             @id @default(cuid())
+  receiptNumber     String             @unique
+  userId            String?
+  user              User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  applicantEmail    String?
+  signerName        String
+  ageAttested       Boolean
+  electronicConsent Boolean
+  userAgent         String
+  ipHash            String
+  signedAt          DateTime           @default(now())
+  acceptances       PolicyAcceptance[]
+
+  @@index([userId, signedAt])
+}
+
+model PolicyAcceptance {
+  id               String               @id @default(cuid())
+  signatureEventId String
+  signatureEvent   PolicySignatureEvent @relation(fields: [signatureEventId], references: [id], onDelete: Restrict)
+  policyVersionId  String
+  policyVersion    PolicyVersion        @relation(fields: [policyVersionId], references: [id], onDelete: Restrict)
+  userId           String
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  acceptedAt       DateTime             @default(now())
+
+  @@unique([signatureEventId, policyVersionId])
+  @@unique([userId, policyVersionId])
+  @@index([userId, acceptedAt])
+}
+
+model PolicyInquiry {
+  id              String                 @id @default(cuid())
+  trackingNumber  String                 @unique
+  tokenHash       String?
+  userId          String?
+  user            User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  requesterName   String
+  requesterEmail  String?
+  category        PolicyInquiryCategory
+  subject         String
+  status          PolicyInquiryStatus    @default(OPEN)
+  disputeDeadline DateTime?
+  closedAt        DateTime?
+  messages        PolicyInquiryMessage[]
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, category, createdAt])
+}
+
+model PolicyInquiryMessage {
+  id        String            @id @default(cuid())
+  inquiryId String
+  inquiry   PolicyInquiry     @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  role      PolicyMessageRole
+  authorId  String?
+  author    User?             @relation("PolicyInquiryAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  body      String
+  createdAt DateTime          @default(now())
+
+  @@index([inquiryId, createdAt])
+}
+
+model InstitutionPolicySetting {
+  id                         String     @id @default("institution-policy")
+  gateActive                 Boolean    @default(false)
+  aiDataMode                 AiDataMode @default(UNCONFIRMED_OR_UNPAID)
+  legalReviewConfirmedAt     DateTime?
+  trademarkReviewConfirmedAt DateTime?
+  updatedAt                  DateTime   @updatedAt
 }

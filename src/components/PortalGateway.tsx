@@ -121,6 +121,7 @@ export function PortalGateway({
         <span>Thunder Buddies Studios × Black Ridge Studios</span>
         <div>
           <small>Independent online learning institution</small>
+          <Link href="/policies">Policy Center</Link>
           <Link href={user?.role === "OWNER" ? "/owner" : "/owner/login"}>Owner access</Link>
         </div>
       </footer>

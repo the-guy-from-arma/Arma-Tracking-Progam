@@ -12,5 +12,7 @@ echo "[startup] Seeding the Enfusion University curriculum."
 node scripts/seed-curriculum.mjs
 echo "[startup] Seeding the Enfusion University faculty network."
 node scripts/seed-faculty.mjs
+echo "[startup] Preparing immutable university policy drafts."
+node scripts/seed-policies.mjs
 echo "[startup] Launching Enfusion University on port ${PORT:-3000}."
 exec pnpm exec next start -p "${PORT:-3000}"
