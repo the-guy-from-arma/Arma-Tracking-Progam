@@ -1914,6 +1914,7 @@ button {
   color: var(--mint);
   font: 26px var(--mono);
 }
+.credentialLogo{width:280px}.credentialLogo img{display:block;width:100%;height:auto}
 .credentialSheet header div:last-child {
   display: flex;
   flex-direction: column;
@@ -3681,3 +3682,4 @@ button {
     padding: 16px;
   }
 }
+.authInstitutionBrand{display:grid!important;gap:10px;width:min(520px,80vw)}.authInstitutionBrand img{display:block;width:100%;height:auto}.authInstitutionBrand>small{color:#78a2b8;font:600 8px var(--font-plex-mono,monospace);letter-spacing:1.4px}

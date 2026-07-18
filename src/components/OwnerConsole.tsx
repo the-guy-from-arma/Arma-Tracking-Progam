@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Academy } from "@/components/Academy";
@@ -61,7 +62,12 @@ export function OwnerConsole({ ownerName }: { ownerName: string }) {
       <AcademicBoot label="UNIVERSITY ADMINISTRATION" />
       <header className={styles.top}>
         <Link href="/" className={styles.brand}>
-          <b>OA</b>
+          <Image
+            src="/enfusion-university-lockup.png"
+            alt="Enfusion University"
+            width={1600}
+            height={388}
+          />
           <span>
             <strong>OWNER ADMINISTRATION</strong>
             <small>SEPARATE INSTITUTIONAL CONTROL</small>

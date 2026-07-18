@@ -18,6 +18,8 @@
   text-decoration: none;
   font: 650 10px var(--font-plex-mono, monospace);
 }
+.console > header .brand { width: 235px; }
+.console > header .brand img { display: block; width: 100%; height: auto; }
 .console > header span {
   margin-left: auto;
 }

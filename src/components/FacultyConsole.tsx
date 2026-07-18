@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { Academy } from "@/components/Academy";
 import { AcademicBoot } from "@/components/AcademicBoot";
@@ -11,7 +12,14 @@ export function FacultyConsole({ name }: { name: string }) {
     <main className={styles.console}>
       <AcademicBoot label="FACULTY ACADEMY" />
       <header>
-        <Link href="/">EFU / FACULTY</Link>
+        <Link href="/" className={styles.brand}>
+          <Image
+            src="/enfusion-university-lockup.png"
+            alt="Enfusion University"
+            width={1600}
+            height={388}
+          />
+        </Link>
         <span>{name}</span>
         <Link href="/university">STUDENT CAMPUS ↗</Link>
       </header>

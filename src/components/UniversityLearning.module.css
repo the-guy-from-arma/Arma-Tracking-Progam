@@ -2998,3 +2998,31 @@
 :global([data-university-theme="dark"]) .lesson { background:#0d1d2a; color:#e4ecf1; }
 :global([data-university-theme="dark"]) .lesson p,
 :global([data-university-theme="dark"]) .lesson li { color:#a4b5c1; }
+
+/* Live-campus faculty and readable editorial pathways */
+.facultyPresence { padding:22px; border:1px solid #d0e0e6; background:linear-gradient(145deg,#f7fbfc,#edf6f7); }
+.facultyPresence > small { color:#377a91; font:600 8px var(--font-plex-mono,monospace); letter-spacing:1px; }
+.facultyPresence article { display:grid; grid-template-columns:38px 1fr auto; gap:11px; align-items:center; padding:13px 0; border-bottom:1px solid #dce7ea; }
+.facultyPresence article:last-child { border:0; }
+.facultyPresence i,.facultyBadge > i { display:grid; width:36px; height:36px; border-radius:50%; color:#8de0e7; background:#123d54; font:normal 600 9px var(--font-plex-mono,monospace); place-items:center; }
+.facultyPresence b,.facultyPresence p { display:block; margin:0; }
+.facultyPresence b { color:#17374b; font-size:12px; }
+.facultyPresence p { margin-top:3px; color:#70858e; font-size:9px; }
+.facultyPresence em { color:#228265; font:normal 600 7px var(--font-plex-mono,monospace); }
+.facultyBadge { display:flex; gap:10px; align-items:center; margin:18px 0 16px; }
+.facultyBadge > span { display:grid; min-width:0; }
+.facultyBadge small { color:#3c8097; font:600 7px var(--font-plex-mono,monospace); letter-spacing:.8px; }
+.facultyBadge b { margin-top:2px; color:inherit; font-size:11px; }
+.facultyBadge em { display:none; color:#72858d; font:normal 9px/1.45 var(--font-plex-sans,sans-serif); }
+.programGrid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+.programCard { min-height:0; padding:28px; border-radius:8px; }
+.programCard .facultyBadge { margin:20px 0 14px; }
+.programCard .facultyBadge em { display:block; max-width:430px; margin-top:4px; }
+.programCard > small { display:block; margin:0 0 10px; }
+.programCard h2,.programCard .titleButton h2 { overflow-wrap:normal; word-break:normal; hyphens:auto; font-size:clamp(25px,2.15vw,36px); line-height:1.08; letter-spacing:-.8px; }
+.programCard > p { min-height:0; margin:16px 0 22px; }
+.programCard .programStats { margin-top:auto; }
+:global([data-university-theme="dark"]) .facultyPresence { border-color:#294657; background:#102532; }
+:global([data-university-theme="dark"]) .facultyPresence b { color:#e4edf0; }
+@media(max-width:900px){.programGrid{grid-template-columns:1fr}.programCard h2,.programCard .titleButton h2{font-size:30px}}
+@media(max-width:600px){.programCard{padding:22px}.facultyBadge em{display:none!important}}

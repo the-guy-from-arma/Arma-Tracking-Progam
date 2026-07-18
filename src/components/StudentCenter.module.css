@@ -1029,3 +1029,4 @@
 :global([data-university-theme="dark"]) .advisor { border-color:#31566c; background:linear-gradient(145deg,#0c263a,#123752); }
 :global([data-university-theme="dark"]) .modal { border-color:#31566c; background:#0e2130; color:#e5edf2; }
 :global([data-university-theme="dark"]) .modal textarea { border-color:#365269; background:#091722; color:#e5edf2; }
+.recommendationFaculty{display:flex!important;align-items:center;gap:10px;margin-top:14px!important}.recommendationFaculty>b{display:grid;width:34px;height:34px;border-radius:50%;color:#8de3eb;background:#174862;font:600 8px var(--font-plex-mono,monospace);place-items:center}.recommendationFaculty>span{display:grid}.recommendationFaculty small{color:#62b5d0!important;font-size:7px!important}.recommendationFaculty strong{margin-top:2px;color:#e9f3f5;font-size:11px}.recommendationFaculty em{margin:3px 0 0!important;padding:0!important;border:0!important;color:#8fa9b7!important;font-size:8px!important}
