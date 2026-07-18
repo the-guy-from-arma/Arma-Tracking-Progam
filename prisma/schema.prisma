@@ -1289,6 +1289,8 @@ model FacultyReplyJob {
   status             FacultyJobStatus    @default(QUEUED)
   attempt            Int                 @default(0)
   maxAttempts        Int                 @default(3)
+  rateLimitCount     Int                 @default(0)
+  lastProviderStatus Int?
   availableAt        DateTime            @default(now())
   lockedAt           DateTime?
   heartbeatAt        DateTime?

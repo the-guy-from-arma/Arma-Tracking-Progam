@@ -353,7 +353,9 @@ export function FacultyMessages({
                       <i />
                       <span>
                         {job.status === "QUEUED"
-                          ? job.attempt > 0
+                          ? job.lastError?.startsWith("RATE_LIMITED:")
+                            ? `Campus messaging is temporarily at capacity. Your message is safe and will retry automatically${job.availableAt ? ` after ${new Date(job.availableAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}.`
+                            : job.attempt > 0
                             ? `Reply retry ${job.attempt} of ${job.maxAttempts} is scheduled`
                             : "Your message is queued for a faculty reply"
                           : job.status === "PROCESSING"

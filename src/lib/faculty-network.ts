@@ -245,6 +245,8 @@ export async function retryFacultyReply(
       lockedAt: null,
       heartbeatAt: null,
       lastError: null,
+      rateLimitCount: 0,
+      lastProviderStatus: null,
       supportRequestedAt: null,
     },
   });
@@ -377,14 +379,32 @@ async function facultyContext(studentId: string, courseId: string | null) {
   return { student, course };
 }
 
-async function callFacultyModel(prompt: string) {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key || process.env.FACULTY_MESSAGING_ENABLED !== "true")
-    throw new Error("Faculty messaging is not enabled.");
-  const model =
-    process.env.FACULTY_GEMINI_MODEL ||
-    process.env.GEMINI_MODEL ||
-    "gemini-3.1-pro-preview";
+class FacultyModelRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code: "RATE_LIMITED" | "PROVIDER_ERROR",
+    readonly retryAfterMs: number | null = null,
+  ) {
+    super(message);
+    this.name = "FacultyModelRequestError";
+  }
+}
+
+function retryAfterMs(response: Response, payload: unknown) {
+  const header = response.headers.get("retry-after");
+  if (header) {
+    const seconds = Number(header);
+    if (Number.isFinite(seconds)) return Math.max(1_000, seconds * 1_000);
+    const timestamp = Date.parse(header);
+    if (Number.isFinite(timestamp)) return Math.max(1_000, timestamp - Date.now());
+  }
+  const serialized = JSON.stringify(payload);
+  const providerDelay = serialized.match(/"retryDelay"\s*:\s*"([0-9.]+)s"/i);
+  return providerDelay ? Math.max(1_000, Number(providerDelay[1]) * 1_000) : null;
+}
+
+async function requestFacultyModel(prompt: string, key: string, model: string) {
   const timeoutMs = Math.max(
     10_000,
     Math.min(90_000, Number(process.env.FACULTY_REPLY_TIMEOUT_MS || 45_000)),
@@ -418,18 +438,45 @@ async function callFacultyModel(prompt: string) {
   const raw = payload?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!response.ok || !raw) {
     const providerMessage = cleanModelText(payload?.error?.message, 240);
-    throw new Error(
-      `Faculty model request failed (${response.status})${providerMessage ? `: ${providerMessage}` : "."}`,
+    const rateLimited = response.status === 429;
+    throw new FacultyModelRequestError(
+      rateLimited
+        ? "Faculty messaging capacity is temporarily limited. Delivery will resume automatically."
+        : `Faculty model request failed (${response.status})${providerMessage ? `: ${providerMessage}` : "."}`,
+      response.status,
+      rateLimited ? "RATE_LIMITED" : "PROVIDER_ERROR",
+      rateLimited ? retryAfterMs(response, payload) : null,
     );
   }
+  return { payload, raw };
+}
+
+async function callFacultyModel(prompt: string) {
+  const key = process.env.FACULTY_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!key || process.env.FACULTY_MESSAGING_ENABLED !== "true")
+    throw new Error("Faculty messaging is not enabled.");
+  const model =
+    process.env.FACULTY_GEMINI_MODEL ||
+    process.env.GEMINI_MODEL ||
+    "gemini-3.1-pro-preview";
+  const fallbackModel = String(process.env.FACULTY_GEMINI_FALLBACK_MODEL || "").trim();
+  let activeModel = model;
+  let response;
+  try {
+    response = await requestFacultyModel(prompt, key, model);
+  } catch (error) {
+    if (!(error instanceof FacultyModelRequestError) || error.status !== 429 || !fallbackModel || fallbackModel === model) throw error;
+    activeModel = fallbackModel;
+    response = await requestFacultyModel(prompt, key, fallbackModel);
+  }
   return {
-    result: JSON.parse(raw) as {
+    result: JSON.parse(response.raw) as {
       body: string;
       summary: string;
       escalation: boolean;
     },
-    model,
-    usage: payload.usageMetadata || {},
+    model: activeModel,
+    usage: response.payload.usageMetadata || {},
   };
 }
 
@@ -538,6 +585,8 @@ export async function processNextFacultyReply() {
           lockedAt: null,
           heartbeatAt: null,
           lastError: null,
+          rateLimitCount: 0,
+          lastProviderStatus: null,
         },
       });
       await tx.facultyConversation.update({
@@ -581,20 +630,30 @@ export async function processNextFacultyReply() {
     const latest = await db.facultyReplyJob.findUniqueOrThrow({
       where: { id: record.id },
     });
-    const exhausted = latest.attempt >= latest.maxAttempts;
+    const rateLimited = error instanceof FacultyModelRequestError && error.code === "RATE_LIMITED";
+    const exhausted = !rateLimited && latest.attempt >= latest.maxAttempts;
+    const quotaBackoffMs = Math.max(
+      60_000,
+      Number(process.env.FACULTY_RATE_LIMIT_BACKOFF_SECONDS || 120) * 1_000,
+      error instanceof FacultyModelRequestError ? error.retryAfterMs || 0 : 0,
+      Math.min(30 * 60_000, 2 ** Math.max(0, latest.rateLimitCount) * 60_000),
+    );
+    const availableAt = new Date(
+      Date.now() + (rateLimited ? quotaBackoffMs : Math.min(5, 2 ** latest.attempt) * 30_000),
+    );
     await db.facultyReplyJob.update({
       where: { id: record.id },
       data: {
         status: exhausted ? "EXCEPTION" : "QUEUED",
-        availableAt: new Date(
-          Date.now() + Math.min(5, 2 ** latest.attempt) * 30_000,
-        ),
+        attempt: rateLimited ? { decrement: 1 } : undefined,
+        rateLimitCount: rateLimited ? { increment: 1 } : undefined,
+        lastProviderStatus: error instanceof FacultyModelRequestError ? error.status : null,
+        availableAt,
         lockedAt: null,
         heartbeatAt: null,
-        lastError: cleanModelText(
-          error instanceof Error ? error.message : "Faculty response failed",
-          500,
-        ),
+        lastError: rateLimited
+          ? `RATE_LIMITED: Faculty capacity is temporarily limited. Automatic retry scheduled for ${availableAt.toISOString()}.`
+          : cleanModelText(error instanceof Error ? error.message : "Faculty response failed", 500),
       },
     });
     if (exhausted)
@@ -631,7 +690,7 @@ export async function processNextFacultyReply() {
           },
         });
       });
-    return { processed: true, jobId: record.id, retrying: !exhausted };
+    return { processed: true, jobId: record.id, retrying: !exhausted, rateLimited, retryAt: availableAt };
   }
 }
 

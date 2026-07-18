@@ -39,6 +39,10 @@ export function FacultyOperations() {
       oldestJobAt: string | null;
       leaseMinutes: number;
       timeoutMs: number;
+      rateLimitedJobs: number;
+      nextRetryAt: string | null;
+      dedicatedKeyConfigured: boolean;
+      fallbackModel: string | null;
     };
     jobs: {
       id: string;
@@ -47,6 +51,10 @@ export function FacultyOperations() {
       maxAttempts: number;
       createdAt: string;
       lastError: string | null;
+      rateLimited: boolean;
+      nextRetryAt: string | null;
+      rateLimitCount: number;
+      lastProviderStatus: number | null;
       student: { name: string; studentNumber: string | null };
       faculty: string;
     }[];
@@ -223,27 +231,41 @@ export function FacultyOperations() {
                 <dt>Request timeout</dt>
                 <dd>{(data?.worker.timeoutMs || 45000) / 1000}s</dd>
               </div>
+              <div>
+                <dt>Capacity waits</dt>
+                <dd>{data?.worker.rateLimitedJobs || 0}</dd>
+              </div>
+              <div>
+                <dt>Next retry</dt>
+                <dd>{data?.worker.nextRetryAt ? new Date(data.worker.nextRetryAt).toLocaleTimeString() : "None"}</dd>
+              </div>
             </dl>
             <p>
-              The faculty service uses the main Gemini API key. Its Railway
-              worker must run continuously with the faculty worker secret.
-              Errors below are sanitized before display.
+              The faculty service uses {data?.worker.dedicatedKeyConfigured ? "a dedicated faculty credential" : "the main Gemini credential"}. Rate limits pause delivery without consuming a retry. The Railway worker resumes automatically after the provider window.
             </p>
+            {data?.worker.fallbackModel && <p>Capacity fallback: {data.worker.fallbackModel}</p>}
           </article>
           {data?.jobs.slice(0, 5).map((job) => (
             <article className={styles.profile} key={job.id}>
               <small>
-                {job.status} · attempt {job.attempt}/{job.maxAttempts}
+                {job.rateLimited
+                  ? `${job.status} · capacity wait ${job.rateLimitCount}`
+                  : `${job.status} · attempt ${job.attempt}/${job.maxAttempts}`}
               </small>
               <h3>{job.student.name}</h3>
               <p>
                 {job.faculty} · queued{" "}
                 {new Date(job.createdAt).toLocaleString()}
               </p>
-              {job.lastError && <p>{job.lastError}</p>}
+              {job.rateLimited ? (
+                <p>Provider capacity is temporarily limited. The message is preserved and will retry automatically{job.nextRetryAt ? ` at ${new Date(job.nextRetryAt).toLocaleString()}` : ""}.</p>
+              ) : job.lastError ? <p>{job.lastError}</p> : null}
               <div className={styles.controls}>
-                <button onClick={() => void retryJob(job.id)}>
-                  Manual retry
+                <button
+                  disabled={job.rateLimited}
+                  onClick={() => void retryJob(job.id)}
+                >
+                  {job.rateLimited ? "Automatic retry scheduled" : "Manual retry"}
                 </button>
               </div>
             </article>

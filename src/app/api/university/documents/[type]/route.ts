@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import fontkit from "@pdf-lib/fontkit";
 import { NextResponse } from "next/server";
 import {
   degrees,
@@ -67,63 +68,6 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number) {
   }
   if (line) lines.push(line);
   return lines.length ? lines : [""];
-}
-
-function drawSeal(
-  page: PDFPage,
-  x: number,
-  y: number,
-  radius: number,
-  bold: PDFFont,
-  regular: PDFFont,
-) {
-  page.drawCircle({ x, y, size: radius, borderWidth: 1.4, borderColor: gold });
-  page.drawCircle({
-    x,
-    y,
-    size: radius - 5,
-    borderWidth: 0.7,
-    borderColor: rgb(0.9, 0.8, 0.55),
-  });
-  page.drawCircle({
-    x,
-    y,
-    size: radius - 11,
-    borderWidth: 0.9,
-    borderColor: gold,
-    color: navy,
-  });
-  const mark = "EU";
-  const markSize = radius * 0.62;
-  page.drawText(mark, {
-    x: x - bold.widthOfTextAtSize(mark, markSize) / 2,
-    y: y - markSize * 0.31,
-    size: markSize,
-    font: bold,
-    color: paper,
-  });
-  const established = "EST. 2026";
-  page.drawText(established, {
-    x: x - regular.widthOfTextAtSize(established, 4.6) / 2,
-    y: y - radius + 7,
-    size: 4.6,
-    font: regular,
-    color: gold,
-  });
-  page.drawText("*", {
-    x: x - radius + 8,
-    y: y - 2,
-    size: 7,
-    font: bold,
-    color: gold,
-  });
-  page.drawText("*", {
-    x: x + radius - 12,
-    y: y - 2,
-    size: 7,
-    font: bold,
-    color: gold,
-  });
 }
 
 export async function GET(
@@ -228,6 +172,7 @@ export async function GET(
     .toUpperCase()
     .slice(0, 24);
   const pdf = await PDFDocument.create();
+  pdf.registerFontkit(fontkit);
   pdf.setTitle(`Enfusion University - ${TITLES[type]}`);
   pdf.setAuthor("Enfusion University Office of Academic Records");
   pdf.setSubject(`Private institutional record ${documentId}`);
@@ -244,6 +189,24 @@ export async function GET(
   const serif = await pdf.embedFont(StandardFonts.TimesRoman);
   const serifBold = await pdf.embedFont(StandardFonts.TimesRomanBold);
   const serifItalic = await pdf.embedFont(StandardFonts.TimesRomanItalic);
+  let signatureFont = serifItalic;
+  try {
+    signatureFont = await pdf.embedFont(
+      await readFile(
+        path.join(
+          process.cwd(),
+          "node_modules",
+          "@fontsource",
+          "allura",
+          "files",
+          "allura-latin-400-normal.woff",
+        ),
+      ),
+      { subset: true },
+    );
+  } catch {
+    signatureFont = serifItalic;
+  }
   let logo: PDFImage | null = null;
   try {
     logo = await pdf.embedPng(
@@ -267,12 +230,12 @@ export async function GET(
     if (logo) {
       page.drawImage(logo, { x: 46, y: 718, width: 270, height: 65.5 });
       page.drawImage(logo, {
-        x: 86,
-        y: 286,
-        width: 440,
-        height: 106.7,
-        opacity: 0.035,
-        rotate: degrees(-8),
+        x: 60,
+        y: 326,
+        width: 500,
+        height: 121.25,
+        opacity: 0.085,
+        rotate: degrees(-10),
       });
     } else {
       page.drawText("ENFUSION UNIVERSITY", {
@@ -282,8 +245,39 @@ export async function GET(
         font: bold,
         color: paper,
       });
+      page.drawText("ENFUSION UNIVERSITY", {
+        x: 92,
+        y: 370,
+        size: 38,
+        font: serifBold,
+        color: navy,
+        opacity: 0.055,
+        rotate: degrees(-10),
+      });
     }
-    drawSeal(page, 548, 741, 32, bold, regular);
+    page.drawText("AUTHORIZED STUDENT COPY - CONTROLLED INSTITUTIONAL RECORD", {
+      x: 102,
+      y: 304,
+      size: 8.5,
+      font: bold,
+      color: gold,
+      opacity: 0.14,
+      rotate: degrees(-10),
+    });
+    page.drawText("CONTROLLED DIGITAL RECORD", {
+      x: 564 - bold.widthOfTextAtSize("CONTROLLED DIGITAL RECORD", 6.3),
+      y: 755,
+      size: 6.3,
+      font: bold,
+      color: gold,
+    });
+    page.drawText(documentId.slice(0, 18), {
+      x: 564 - regular.widthOfTextAtSize(documentId.slice(0, 18), 5.8),
+      y: 741,
+      size: 5.8,
+      font: regular,
+      color: rgb(0.72, 0.8, 0.84),
+    });
     page.drawText("O F F I C E   O F   A C A D E M I C   R E C O R D S", {
       x: 48,
       y: 701,
@@ -525,12 +519,23 @@ export async function GET(
   const signatureY = y - 24;
   documentAuthorities.forEach((authority, index) => {
     const x = 48 + index * 258;
-    page.drawText(authority.name, {
+    const signedName = authority.name.replace(/^(Dr\.|Dean)\s+/i, "");
+    const signatureSize = 24;
+    page.drawText(signedName, {
       x,
-      y: signatureY + 18,
-      size: 15,
-      font: serifItalic,
-      color: blue,
+      y: signatureY + 13,
+      size: signatureSize,
+      font: signatureFont,
+      color: rgb(0.035, 0.22, 0.34),
+      rotate: degrees(index === 0 ? -1.2 : 0.8),
+    });
+    const flourishStart = Math.min(155, signatureFont.widthOfTextAtSize(signedName, signatureSize) + 8);
+    page.drawLine({
+      start: { x: x + Math.max(20, flourishStart - 35), y: signatureY + 15 },
+      end: { x: x + Math.min(195, flourishStart + 38), y: signatureY + 19 },
+      thickness: 0.75,
+      color: rgb(0.035, 0.22, 0.34),
+      opacity: 0.9,
     });
     page.drawLine({
       start: { x, y: signatureY + 12 },
@@ -552,11 +557,16 @@ export async function GET(
       font: regular,
       color: muted,
     });
-    page.drawText("Electronic authority signature", {
+    const signatureDigest = createHash("sha256")
+      .update(`${documentId}:${authority.name}:${authority.title}`)
+      .digest("hex")
+      .toUpperCase()
+      .slice(0, 12);
+    page.drawText(`AUTHORIZED ELECTRONIC SIGNATURE  ${signatureDigest}`, {
       x,
       y: signatureY - 22,
-      size: 6.3,
-      font: regular,
+      size: 5.5,
+      font: bold,
       color: gold,
     });
   });
@@ -574,7 +584,7 @@ export async function GET(
       { size: 7.4, color: muted, leading: 10.5, gap: 5 },
     );
   text(
-    "This digitally generated record may be retained by the named student. Unauthorized alteration, fraudulent reproduction, or misuse of the institutional seal or authority signatures is prohibited. Verify using the document ID and verification code shown on this record.",
+    "This digitally generated record may be retained by the named student. Unauthorized alteration, fraudulent reproduction, or misuse of the institutional identity or electronic authority marks is prohibited. Verify using the document ID and verification code shown on this record.",
     { size: 7.4, color: muted, leading: 10.5 },
   );
 

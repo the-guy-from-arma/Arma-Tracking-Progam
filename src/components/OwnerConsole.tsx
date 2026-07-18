@@ -11,9 +11,10 @@ import { GuideAcademy } from "@/components/GuideAcademy";
 import { AdminOverview } from "@/components/AdminOverview";
 import { FacultyOperations } from "@/components/FacultyOperations";
 import { PolicyOperations } from "@/components/PolicyOperations";
+import { CampusOperationsPanel } from "@/components/CampusOperationsPanel";
 import styles from "./OwnerConsole.module.css";
 type OwnerView =
-  "operations" | "sources" | "funding" | "exceptions" | "faculty" | "policies" | "academy";
+  "operations" | "calendar" | "sources" | "funding" | "exceptions" | "faculty" | "policies" | "academy";
 const controls: {
   id: OwnerView;
   number: string;
@@ -27,38 +28,44 @@ const controls: {
     detail: "Applications, programs and AI status",
   },
   {
-    id: "sources",
+    id: "calendar",
     number: "02",
+    title: "Campus Calendar",
+    detail: "Breaks, recesses and service availability",
+  },
+  {
+    id: "sources",
+    number: "03",
     title: "Curriculum Sources",
     detail: "Diagnostics, mappings and sync history",
   },
   {
     id: "funding",
-    number: "03",
+    number: "04",
     title: "Funding Ledger",
     detail: "Transactions and withdrawal policy",
   },
   {
     id: "exceptions",
-    number: "04",
+    number: "05",
     title: "AI exceptions",
     detail: "Human review and appeals",
   },
   {
     id: "faculty",
-    number: "05",
+    number: "06",
     title: "Faculty Network",
     detail: "Appointments, messaging and escalations",
   },
   {
     id: "policies",
-    number: "06",
+    number: "07",
     title: "Policy Administration",
     detail: "Versions, consent, inquiries and AI disclosure",
   },
   {
     id: "academy",
-    number: "07",
+    number: "08",
     title: "Administrator Academy",
     detail: "Interactive operating guides",
   },
@@ -126,6 +133,8 @@ export function OwnerConsole({ ownerName }: { ownerName: string }) {
         </div>
         {view === "operations" ? (
           <AdminOverview />
+        ) : view === "calendar" ? (
+          <CampusOperationsPanel />
         ) : view === "sources" ? (
           <CurriculumSources />
         ) : view === "funding" ? (

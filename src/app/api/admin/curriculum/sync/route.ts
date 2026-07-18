@@ -12,10 +12,17 @@ export async function POST(request: Request) {
   const user = await currentUser();
   if (!authorized(request, user?.role)) return NextResponse.json({ error: "Owner or sync authority required." }, { status: 403 });
   const sources = await db.curriculumSource.findMany({ where: { syncStatus: { not: "DISABLED" } }, select: { id: true }, orderBy: { wikiTitle: "asc" } });
-  let updated = 0; let failed = 0;
-  for (const source of sources) {
-    const result = await syncCurriculumSource(source.id, { actorId: user?.id || null });
-    result.ok ? updated++ : failed++;
+  let updated = 0;
+  let failed = 0;
+  for (let offset = 0; offset < sources.length; offset += 5) {
+    const results = await Promise.all(
+      sources.slice(offset, offset + 5).map((source) =>
+        syncCurriculumSource(source.id, { actorId: user?.id || null }),
+      ),
+    );
+    for (const result of results) {
+      ["FAILED", "WARNING"].includes(result.source.syncStatus) ? failed++ : updated++;
+    }
   }
   await db.auditLog.create({ data: { actorId: user?.id || null, action: "CURRICULUM_WIKI_SYNC", entity: "CurriculumSource", detail: { sources: sources.length, updated, failed, mode: "PER_SOURCE_DIAGNOSTIC" } } });
   return NextResponse.json({ sources: sources.length, updated, failed, syncedAt: new Date() });

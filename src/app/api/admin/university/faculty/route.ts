@@ -56,9 +56,9 @@ export async function GET() {
       }),
     ]);
   const messagingEnabled = process.env.FACULTY_MESSAGING_ENABLED === "true";
+  const facultyKey = process.env.FACULTY_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
   const keyConfigured = Boolean(
-    process.env.GEMINI_API_KEY &&
-    !process.env.GEMINI_API_KEY.startsWith("replace-with"),
+    facultyKey && !facultyKey.startsWith("replace-with"),
   );
   const workerSecretConfigured = Boolean(
     process.env.FACULTY_MESSAGING_WORKER_SECRET &&
@@ -78,6 +78,10 @@ export async function GET() {
       lockedAt: job.lockedAt,
       availableAt: job.availableAt,
       lastError: job.lastError,
+      rateLimitCount: job.rateLimitCount,
+      lastProviderStatus: job.lastProviderStatus,
+      rateLimited: job.lastError?.startsWith("RATE_LIMITED:") || false,
+      nextRetryAt: job.status === "QUEUED" ? job.availableAt : null,
       student: job.conversation.student,
       faculty: job.conversation.facultyProfile.name,
     })),
@@ -90,6 +94,13 @@ export async function GET() {
       oldestJobAt: jobs[0]?.createdAt || null,
       leaseMinutes: Number(process.env.FACULTY_JOB_LEASE_MINUTES || 5),
       timeoutMs: Number(process.env.FACULTY_REPLY_TIMEOUT_MS || 45000),
+      rateLimitedJobs: jobs.filter((job) => job.lastError?.startsWith("RATE_LIMITED:")).length,
+      nextRetryAt: jobs
+        .filter((job) => job.status === "QUEUED")
+        .map((job) => job.availableAt)
+        .sort((left, right) => left.getTime() - right.getTime())[0] || null,
+      dedicatedKeyConfigured: Boolean(process.env.FACULTY_GEMINI_API_KEY),
+      fallbackModel: process.env.FACULTY_GEMINI_FALLBACK_MODEL || null,
     },
     messagingEnabled,
     model:
@@ -124,6 +135,8 @@ export async function POST(request: Request) {
         heartbeatAt: null,
         availableAt: new Date(),
         lastError: null,
+        rateLimitCount: 0,
+        lastProviderStatus: null,
       },
     });
     await db.auditLog.create({
