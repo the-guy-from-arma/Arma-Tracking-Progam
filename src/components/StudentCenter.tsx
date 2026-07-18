@@ -201,6 +201,11 @@ const money = (cents: number) =>
   }).format(cents / 100);
 
 export function StudentCenter() {
+  const [section, setSection] = useState<"overview" | "academic" | "applications" | "enrollment" | "advising">(() => {
+    if (typeof window === "undefined") return "overview";
+    const value = new URLSearchParams(window.location.search).get("center");
+    return ["overview", "academic", "applications", "enrollment", "advising"].includes(value || "") ? value as "overview" | "academic" | "applications" | "enrollment" | "advising" : "overview";
+  });
   const [data, setData] = useState<CenterData | null>(null);
   const [withdrawing, setWithdrawing] = useState<Enrollment | null>(null);
   const [withdrawalQuote, setWithdrawalQuote] =
@@ -211,7 +216,6 @@ export function StudentCenter() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [advisorSummary, setAdvisorSummary] = useState("");
   const [advisorBusy, setAdvisorBusy] = useState(false);
-  const [advisorAi, setAdvisorAi] = useState(false);
   const load = useCallback(async () => {
     const response = await fetch("/api/university/student-center");
     const result = await response.json();
@@ -251,7 +255,6 @@ export function StudentCenter() {
     }
     setRecommendations(result.recommendations);
     setAdvisorSummary(result.summary);
-    setAdvisorAi(result.usedAi);
     setQuestion(10);
   }
   async function enroll(courseId: string) {
@@ -330,7 +333,7 @@ export function StudentCenter() {
     );
   const renewalPercent = data.standing.renewalMultiplierBps / 100;
   return (
-    <section className={styles.center}>
+    <section className={styles.center} data-center-section={section}>
       <header className={styles.hero}>
         <div>
           <p>ACADEMIC SERVICES / ONE STOP</p>
@@ -346,6 +349,16 @@ export function StudentCenter() {
           <span>Student responsibility · $0.00</span>
         </aside>
       </header>
+      <nav className={styles.centerNav} aria-label="Student Center sections">
+        {[
+          ["overview", "Overview", "Today and priorities"],
+          ["academic", "Academic record", "Standing and results"],
+          ["applications", "Applications", "Tracking and decisions"],
+          ["enrollment", "Enrollment", "Courses and withdrawals"],
+          ["advising", "Advising", "Plan your next course"],
+        ].map(([id, label, detail]) => <button className={section === id ? styles.centerNavActive : ""} key={id} onClick={() => { const next = id as typeof section; setSection(next); window.history.replaceState(null, "", `/university?view=student-center&center=${next}`); }}><b>{label}</b><span>{detail}</span></button>)}
+        <a href="/university?view=messages"><b>Faculty messages</b><span>Your support network</span></a>
+      </nav>
       {message && (
         <div className={styles.message}>
           {message}
@@ -370,7 +383,7 @@ export function StudentCenter() {
               : "—"}
           </b>
           <span>
-            {data.standing.finalizedGradeCount} finalized Gemini assessment
+            {data.standing.finalizedGradeCount} finalized assessment
             {data.standing.finalizedGradeCount === 1 ? "" : "s"}
           </span>
         </article>
@@ -461,7 +474,7 @@ export function StudentCenter() {
             <small>BEFORE YOU ENROLL</small>
           <h2>Meet Dr. Elara Voss, your university advisor</h2>
             <p>
-              Answer ten questions. Orbit will compare your goals, readiness,
+              Answer ten questions. Dr. Voss will compare your goals, readiness,
               time, and prerequisites to the live 192-course catalog.
               Recommendations never enroll you automatically.
             </p>
@@ -542,7 +555,7 @@ export function StudentCenter() {
           <div className={styles.results}>
             <div className={styles.advisorNote}>
               <b>
-                {advisorAi ? "PERSONALIZED FACULTY COURSE MATCH" : "CATALOG MATCH"}
+                PERSONALIZED FACULTY COURSE MATCH
               </b>
               <p>{advisorSummary}</p>
               <button
@@ -656,7 +669,7 @@ export function StudentCenter() {
             <li>
               <b>Below 70%</b>
               <span>
-                New awards pause for academic support. Active AI exceptions and
+                New awards pause for academic support. Active assessment exceptions and
                 appeals are excluded.
               </span>
             </li>
@@ -701,7 +714,7 @@ export function StudentCenter() {
       {!!data.grades.length && (
         <section className={styles.history}>
           <header>
-            <small>GEMINI ASSESSMENT RECORD</small>
+            <small>FINALIZED ASSESSMENT RECORD</small>
             <h2>Funding-eligible grades</h2>
           </header>
           {data.grades.map((grade) => {

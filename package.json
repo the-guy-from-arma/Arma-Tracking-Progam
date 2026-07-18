@@ -1,5 +1,5 @@
 {
-  "name": "project-valoris",
+  "name": "enfusion-university",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -19,7 +19,10 @@
     "curriculum:sync": "node scripts/sync-wiki.mjs",
     "curriculum:reconcile": "node scripts/reconcile-wiki-sources.mjs",
     "grading:worker": "node scripts/run-ai-worker.mjs",
-    "funding:renew": "node scripts/run-funding-renewals.mjs"
+    "funding:renew": "node scripts/run-funding-renewals.mjs",
+    "faculty:seed": "node scripts/seed-faculty.mjs",
+    "faculty:worker": "node scripts/run-faculty-worker.mjs",
+    "faculty:outreach": "node scripts/run-faculty-outreach.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.2.7",

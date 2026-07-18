@@ -15,6 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = requestHeaders.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
   const origin = `${protocol}://${host}`;
   const image = `${origin}/og.png`;
+
   return {
     title: { default: "Enfusion University", template: "%s · Enfusion University" },
     description: "Structured Enfusion Workbench education, sponsored learning, intelligent assessment, and durable academic records.",
@@ -48,5 +49,12 @@ export const viewport: Viewport = {
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <html lang="en"><body>{children}<PwaInstall /></body></html>;
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <PwaInstall />
+      </body>
+    </html>
+  );
 }

@@ -8,6 +8,7 @@ import styles from "./UniversityLearning.module.css";
 import { StudentCenter } from "./StudentCenter";
 import { StudentProfile } from "./StudentProfile";
 import { facultyForAcademy } from "@/lib/ai-faculty";
+import { FacultyMessages } from "./FacultyMessages";
 
 type Enrollment = { id: string; status: string; progress: number };
 type Course = {
@@ -299,6 +300,7 @@ export function UniversityLearning({
     );
 
   if (view === "student-center") return <StudentCenter />;
+  if (view === "messages") return <FacultyMessages />;
   if (view === "profile") return <StudentProfile />;
 
   if (view === "dashboard") {
@@ -721,9 +723,9 @@ export function UniversityLearning({
           setSearch={setSearch}
           levels={["SHORT", "ASSOCIATE", "BACHELOR"]}
         />
-        <div className={styles.programGrid}>
-          {filteredPrograms.map((program) => (
-            <article className={styles.programCard} key={program.id}>
+        <div className={styles.editorialProgramGrid}>
+          {filteredPrograms.map((program, index) => (
+            <motion.article initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 12) * .035 }} className={styles.editorialProgramCard} key={program.id}>
               <header>
                 <span>
                   {program.level === "SHORT"
@@ -737,14 +739,14 @@ export function UniversityLearning({
               <FacultyBadge academy={program.academy} />
               <small>{program.academy}</small>
               <button
-                className={styles.titleButton}
+                className={styles.editorialProgramTitle}
                 onClick={() => setSelectedProgram(program)}
               >
                 <h2>{program.title}</h2>
                 <span>EXPLORE THE FULL PATHWAY →</span>
               </button>
               <p>{program.summary}</p>
-              <div className={styles.programStats}>
+              <div className={styles.editorialProgramStats}>
                 <span>
                   <b>{program.requirements.length}</b> COURSES
                 </span>
@@ -755,22 +757,22 @@ export function UniversityLearning({
                   <b>{Math.ceil(program.durationDays / 120)}</b> TERMS
                 </span>
               </div>
-              <div className={styles.programValue}>
+              <div className={styles.editorialProgramValue}>
                 <span>PROGRAM SPONSORED VALUE</span>
                 <b>{money(program.estimatedValueCents)}</b>
               </div>
               {program.audit.fulfilledCourses > 0 && (
-                <div className={styles.transferCredit}>
+                <div className={styles.editorialTransferCredit}>
                   <b>{program.audit.creditsApplied} credits already applied</b>
                   <span>{program.audit.fulfilledCourses} of {program.audit.totalCourses} required courses fulfilled</span>
                 </div>
               )}
-              <button onClick={() => setSelectedProgram(program)}>
+              <button className={styles.editorialProgramAction} onClick={() => setSelectedProgram(program)}>
                 {program.enrollments.length
                   ? "VIEW ACTIVE PROGRAM →"
                   : "READ PROGRAM DETAILS →"}
               </button>
-            </article>
+            </motion.article>
           ))}
         </div>
         <AnimatePresence>

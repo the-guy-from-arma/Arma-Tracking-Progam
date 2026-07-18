@@ -19,13 +19,15 @@ export type UniversityView =
   | "funding"
   | "notifications"
   | "credentials"
-  | "submissions";
+  | "submissions"
+  | "messages";
 const studentViews: { id: UniversityView; label: string; short: string }[] = [
   { id: "dashboard", label: "Campus Home", short: "Home" },
   { id: "learning", label: "My Courses", short: "Courses" },
   { id: "programs", label: "Programs", short: "Programs" },
   { id: "catalog", label: "Discover", short: "Discover" },
   { id: "student-center", label: "Student Center", short: "Center" },
+  { id: "messages", label: "Campus Messages", short: "Messages" },
   { id: "funding", label: "Funding", short: "Funding" },
   { id: "submissions", label: "Assignments & Grades", short: "Grades" },
   { id: "notifications", label: "Announcements", short: "News" },

@@ -5,6 +5,7 @@ import { text } from "@/lib/input";
 import { ensureCourseFunding } from "@/lib/funding";
 import { queueSubmissionForAi } from "@/lib/ai-grading";
 import { getCompletedCourseIds, getProgramAudit, getProgramSequenceBlockers } from "@/lib/academic-progress";
+import { ensureStudentFacultyNetwork } from "@/lib/faculty-network";
 
 const courseLevels = new Set(["FOUNDATION", "INTERMEDIATE", "ADVANCED", "CAPSTONE"]);
 const studios = new Set(["Thunder Buddies Studios", "Black Ridge Studios", "Thunder Buddies Studios + Black Ridge Studios"]);
@@ -109,6 +110,7 @@ export async function POST(request: Request) {
       await tx.auditLog.create({ data: { actorId: user.id, action: "COURSE_ENROLLED", entity: "Course", entityId: courseId, detail: { serviceValueCents: course.serviceValueCents, studentDueCents: 0, grantBalanceCents } } });
       return { enrollment, grantBalanceCents };
     });
+    await ensureStudentFacultyNetwork(user.id);
     return NextResponse.json({ ...result, allocatedCents: course.serviceValueCents, studentDueCents: 0 });
   }
 
