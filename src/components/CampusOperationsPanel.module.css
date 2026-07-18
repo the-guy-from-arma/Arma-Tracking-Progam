@@ -85,6 +85,11 @@
   letter-spacing: 0.08em;
   color: #9fb8c9;
 }
+.scheduler label > small {
+  color: #6f93a7;
+  font: 400 9px var(--font-plex-sans, sans-serif);
+  letter-spacing: 0;
+}
 .scheduler input,
 .scheduler select,
 .scheduler textarea {
@@ -112,6 +117,10 @@
   padding: 11px 14px;
   font: 700 9px var(--font-plex-mono, monospace);
   letter-spacing: 0.08em;
+}
+.actions button:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 .queue header {
   display: flex;

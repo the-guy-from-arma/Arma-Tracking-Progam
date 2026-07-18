@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
 import { campusStatus, refreshOperationalStatus } from "@/lib/campus-operations";
 import { db } from "@/lib/db";
@@ -67,25 +67,59 @@ export async function POST(request: Request) {
     if (!admissionsModes.has(admissionsMode) || !enrollmentModes.has(enrollmentMode) || !learningModes.has(learningMode) || !seasons.has(season)) {
       return NextResponse.json({ error: "Choose valid operating modes and a campus presentation." }, { status: 400 });
     }
-    const period = await db.institutionOperationalPeriod.create({
-      data: {
-        title,
-        publicMessage,
-        ownerNote,
-        admissionsMode: admissionsMode as never,
-        enrollmentMode: enrollmentMode as never,
-        learningMode: learningMode as never,
-        season: season as never,
-        startsAt,
-        endsAt,
-        createdById: user.id,
-      },
+    const activatesNow = action === "start_now" || startsAt <= new Date();
+    const period = await db.$transaction(async (tx) => {
+      const created = await tx.institutionOperationalPeriod.create({
+        data: {
+          title,
+          publicMessage,
+          ownerNote,
+          admissionsMode: admissionsMode as never,
+          enrollmentMode: enrollmentMode as never,
+          learningMode: learningMode as never,
+          season: season as never,
+          status: activatesNow ? "ACTIVE" : "SCHEDULED",
+          activatedAt: activatesNow ? new Date() : null,
+          startsAt,
+          endsAt,
+          createdById: user.id,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: user.id,
+          action: activatesNow ? "CAMPUS_PERIOD_STARTED" : "CAMPUS_PERIOD_SCHEDULED",
+          entity: "InstitutionOperationalPeriod",
+          entityId: created.id,
+          detail: { admissionsMode, enrollmentMode, learningMode, season, startsAt, endsAt, ownerNote, activatesNow },
+        },
+      });
+      return created;
     });
-    await db.auditLog.create({ data: { actorId: user.id, action: action === "start_now" ? "CAMPUS_PERIOD_STARTED" : "CAMPUS_PERIOD_SCHEDULED", entity: "InstitutionOperationalPeriod", entityId: period.id, detail: { admissionsMode, enrollmentMode, learningMode, season, startsAt, endsAt, ownerNote } } });
-    const students = await db.user.findMany({ where: { isStudent: true, accountClosedAt: null }, select: { id: true } });
-    if (students.length) await db.notification.createMany({ data: students.map((student) => ({ userId: student.id, type: "SYSTEM" as const, title: action === "start_now" ? title : `Scheduled: ${title}`, body: `${publicMessage} Reopening is scheduled for ${endsAt.toLocaleString()}.`, actionUrl: "/university?view=notifications", dedupeKey: `campus-period-scheduled:${period.id}:${student.id}` })), skipDuplicates: true });
     await refreshOperationalStatus();
-    return NextResponse.json({ period, status: await campusStatus() }, { status: 201 });
+    const status = await campusStatus();
+    after(async () => {
+      try {
+        const students = await db.user.findMany({ where: { isStudent: true, accountClosedAt: null }, select: { id: true } });
+        if (students.length) {
+          await db.notification.createMany({
+            data: students.map((student) => ({
+              userId: student.id,
+              type: "SYSTEM" as const,
+              title: activatesNow ? title : `Scheduled: ${title}`,
+              body: `${publicMessage} Reopening is scheduled for ${endsAt.toLocaleString()}.`,
+              actionUrl: "/university?view=notifications",
+              dedupeKey: `campus-period-scheduled:${period.id}:${student.id}`,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      } catch {
+        // The operating change is authoritative even when a notification must
+        // be retried later.
+      }
+    });
+    return NextResponse.json({ period, status, activatesNow }, { status: 201 });
   }
 
   if (action === "reopen") {

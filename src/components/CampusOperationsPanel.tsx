@@ -27,6 +27,9 @@ export function CampusOperationsPanel() {
   const [operations, setOperations] = useState<OperationsData | null>(null);
   const [admissions, setAdmissions] = useState<AdmissionsData | null>(null);
   const [message, setMessage] = useState("");
+  const [season, setSeason] = useState<keyof typeof templates>("SPRING_RECESS");
+  const [learningMode, setLearningMode] = useState<string>(templates.SPRING_RECESS.learningMode);
+  const [savingPeriod, setSavingPeriod] = useState(false);
   const load = useCallback(async () => {
     try {
       const [operationsResponse, admissionsResponse] = await Promise.all([
@@ -44,13 +47,35 @@ export function CampusOperationsPanel() {
   useEffect(() => { const timer = setTimeout(() => void load(), 0); return () => clearTimeout(timer); }, [load]);
 
   async function schedule(formData: FormData) {
-    setMessage("SAVING OPERATING PERIOD…");
-    const season = String(formData.get("season") || "SPRING_RECESS") as keyof typeof templates;
-    const preset = templates[season];
-    const response = await fetch("/api/admin/university/operations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: formData.get("action"), title: formData.get("title") || preset.title, publicMessage: formData.get("publicMessage") || preset.message, ownerNote: formData.get("ownerNote"), admissionsMode: formData.get("admissionsMode"), enrollmentMode: formData.get("enrollmentMode"), learningMode: formData.get("learningMode"), season, startsAt: formData.get("startsAt"), endsAt: formData.get("endsAt") }) });
-    const result = await response.json();
-    setMessage(response.ok ? "CAMPUS OPERATING PERIOD SAVED" : result.error || "OPERATING PERIOD COULD NOT BE SAVED");
-    if (response.ok) await load();
+    if (savingPeriod) return;
+    const action = String(formData.get("action") || "schedule");
+    const selectedSeason = String(formData.get("season") || "SPRING_RECESS") as keyof typeof templates;
+    const preset = templates[selectedSeason] || templates.SPRING_RECESS;
+    if (action === "schedule" && !String(formData.get("startsAt") || "")) {
+      setMessage("CHOOSE A FUTURE START TIME, OR USE START NOW.");
+      return;
+    }
+    if (!String(formData.get("endsAt") || "")) {
+      setMessage("CHOOSE WHEN CAMPUS SERVICES SHOULD REOPEN.");
+      return;
+    }
+    setSavingPeriod(true);
+    setMessage(action === "start_now" ? "ACTIVATING CAMPUS RESTRICTIONS…" : "SAVING OPERATING PERIOD…");
+    try {
+      const response = await fetch("/api/admin/university/operations", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action, title: formData.get("title") || preset.title, publicMessage: formData.get("publicMessage") || preset.message, ownerNote: formData.get("ownerNote"), admissionsMode: formData.get("admissionsMode"), enrollmentMode: formData.get("enrollmentMode"), learningMode: formData.get("learningMode"), season: selectedSeason, startsAt: formData.get("startsAt"), endsAt: formData.get("endsAt") }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      const result = await response.json();
+      setMessage(response.ok ? (result.activatesNow ? `CAMPUS LOCK ACTIVE · ${result.status.learningMode.replaceAll("_", " ")} · REOPENS ${new Date(result.period.endsAt).toLocaleString()}` : `VACATION SCHEDULED · STARTS ${new Date(result.period.startsAt).toLocaleString()}`) : result.error || "OPERATING PERIOD COULD NOT BE SAVED");
+      if (response.ok) await load();
+    } catch {
+      setMessage("THE CALENDAR REQUEST TIMED OUT. REFRESH STATUS BEFORE RETRYING; DUPLICATE PERIODS ARE PREVENTED BY THE RECORDED LIST.");
+    } finally {
+      setSavingPeriod(false);
+    }
   }
 
   async function reopen() {
@@ -102,16 +127,16 @@ export function CampusOperationsPanel() {
     <div className={styles.operationsBody}>
       <form action={schedule} className={styles.scheduler}>
         <div><span>SCHEDULE CAMPUS PERIOD</span><h3>Create a recess or closure</h3></div>
-        <label>Presentation<select name="season" defaultValue="SPRING_RECESS">{Object.keys(templates).map((template) => <option key={template}>{template.replaceAll("_", " ")}</option>)}</select></label>
+        <label>Presentation<select name="season" value={season} onChange={(event) => { const next = event.target.value as keyof typeof templates; setSeason(next); setLearningMode(templates[next].learningMode); }}>{Object.keys(templates).map((template) => <option key={template}>{template.replaceAll("_", " ")}</option>)}</select></label>
         <label>Admissions<select name="admissionsMode" defaultValue="OPEN"><option>OPEN</option><option>PAUSED</option></select></label>
         <label>New enrollment<select name="enrollmentMode" defaultValue="PAUSED"><option>OPEN</option><option>PAUSED</option></select></label>
-        <label>Learning campus<select name="learningMode" defaultValue="ACADEMIC_BREAK"><option>ACTIVE</option><option>ACADEMIC_BREAK</option><option>MAINTENANCE</option><option>EMERGENCY_CLOSURE</option></select></label>
+        <label>Learning campus<select name="learningMode" value={learningMode} onChange={(event) => setLearningMode(event.target.value)}><option>ACTIVE</option><option>ACADEMIC_BREAK</option><option>MAINTENANCE</option><option>EMERGENCY_CLOSURE</option></select></label>
         <label>Public title<input name="title" placeholder="Uses the selected template when empty" /></label>
         <label className={styles.wide}>Public explanation<textarea name="publicMessage" placeholder="Uses the selected template when empty" /></label>
-        <label>Starts<input name="startsAt" type="datetime-local" required /></label>
+        <label>Starts <small>Required only when scheduling ahead</small><input name="startsAt" type="datetime-local" /></label>
         <label>Reopens<input name="endsAt" type="datetime-local" required /></label>
         <label className={styles.wide}>Private owner note<textarea name="ownerNote" /></label>
-        <div className={styles.actions}><button name="action" value="schedule">SCHEDULE PERIOD</button><button name="action" value="start_now">START NOW</button>{operations && (operations.status.learningMode !== "ACTIVE" || operations.status.admissionsMode !== "OPEN" || operations.status.enrollmentMode !== "OPEN") && <button type="button" onClick={reopen}>REOPEN ALL CURRENT SERVICES</button>}<button type="button" onClick={() => void load()}>REFRESH STATUS</button></div>
+        <div className={styles.actions}><button name="action" value="schedule" disabled={savingPeriod}>SCHEDULE PERIOD</button><button name="action" value="start_now" disabled={savingPeriod}>{savingPeriod ? "ACTIVATING…" : "START NOW"}</button>{operations && (operations.status.learningMode !== "ACTIVE" || operations.status.admissionsMode !== "OPEN" || operations.status.enrollmentMode !== "OPEN") && <button type="button" onClick={reopen}>REOPEN ALL CURRENT SERVICES</button>}<button type="button" onClick={() => void load()}>REFRESH STATUS</button></div>
         {!!operations?.periods.length && <div className={styles.periods}>{operations.periods.slice(0, 12).map((period) => <div key={period.id}><span><b>{period.title}</b>{new Date(period.startsAt).toLocaleString()} — {new Date(period.endsAt).toLocaleString()}</span><em>{period.status}</em>{["SCHEDULED", "ACTIVE"].includes(period.status) && <button type="button" onClick={() => void removePeriod(period)}>{period.status === "ACTIVE" ? "END NOW" : "CANCEL"}</button>}</div>)}</div>}
       </form>
       <section className={styles.queue}><header><span>ADMISSIONS QUEUE</span><b>{admissions?.applications.length || 0} ACTIVE</b></header>{admissions?.applications.slice(0, 12).map((application) => { const job = application.reviewJobs[0]; return <article key={application.id}><div><small>{application.trackingRecords[0]?.trackingNumber || application.id}</small><strong>{application.user.name}</strong><span>{application.status.replaceAll("_", " ")} · {job?.decision ? `${job.decision.outcome} / ${job.decision.score} / ${Math.round(job.decision.confidence * 100)}%` : job?.status || "QUEUED"}</span>{job?.decision?.concerns?.length ? <p>{job.decision.concerns.join(" · ")}</p> : null}</div><nav><button onClick={() => void admissionAction(application.id, "retry")}>RETRY</button><button onClick={() => void admissionAction(application.id, "admit")}>ADMIT</button><button onClick={() => void admissionAction(application.id, "decline")}>DECLINE</button></nav></article>})}<footer>Worker: {admissions?.worker.queued || 0} queued · {admissions?.worker.processing || 0} processing · {admissions?.worker.exceptions || 0} exceptions · {admissions?.worker.stale || 0} stale</footer></section>
