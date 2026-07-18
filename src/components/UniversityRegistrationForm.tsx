@@ -5,6 +5,7 @@ import Image from "next/image";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { InlinePolicyReview } from "./InlinePolicyReview";
 import type { PublicPolicy } from "./PolicyCenter";
 
 type Award = {
@@ -48,13 +49,18 @@ export function UniversityRegistrationForm({
   const [furthest, setFurthest] = useState(0);
   const [policies, setPolicies] = useState<PublicPolicy[]>([]);
   const [reviewedPolicies, setReviewedPolicies] = useState<string[]>([]);
+  const [acknowledgedPolicies, setAcknowledgedPolicies] = useState<string[]>(
+    [],
+  );
   const [pendingApplication, setPendingApplication] = useState<Record<
     string,
     unknown
   > | null>(null);
 
   useEffect(() => {
-    void fetch("/api/policies").then((response) => response.json()).then((payload) => setPolicies(payload.policies || []));
+    void fetch("/api/policies")
+      .then((response) => response.json())
+      .then((payload) => setPolicies(payload.policies || []));
   }, []);
 
   function move(next: number, source?: HTMLElement) {
@@ -595,24 +601,151 @@ export function UniversityRegistrationForm({
                       application is transmitted.
                     </p>
                   </div>
-                  <button type="button" className="submitApplication" onClick={(event) => move(5, event.currentTarget)}>
+                  <button
+                    type="button"
+                    className="submitApplication"
+                    onClick={(event) => move(5, event.currentTarget)}
+                  >
                     CONTINUE TO POLICIES →
                   </button>
                 </div>
               </fieldset>
-              <fieldset className={`admissionStep ${step === 5 ? "active" : ""}`} data-step="5">
-                <legend><span>06</span><div><small>REQUIRED ELECTRONIC RECORD</small><b>Policies and electronic signature</b><p>Open, review, and acknowledge the exact published version of every required document.</p></div></legend>
-                {policies.length === 0 ? <div className="grantPreview"><div><small>ADMISSIONS PAUSED</small><strong>LEGAL REVIEW IN PROGRESS</strong><span>The policy bundle must be published before an account can be created.</span></div></div> : <div className="policyAcceptanceList">
-                  {policies.map((policy, index) => {
-                    const reviewed = reviewedPolicies.includes(policy.version.id);
-                    return <label className="checkField" key={policy.id}><input name={`policy_${policy.version.id}`} type="checkbox" required disabled={!reviewed} /><span><b>{String(index + 1).padStart(2, "0")} · {policy.title} · Version {policy.version.number}</b>{policy.summary}<Link href={`/policies/${policy.slug}`} target="_blank" onClick={() => setReviewedPolicies((current) => current.includes(policy.version.id) ? current : [...current, policy.version.id])}>Open and review document ↗</Link><small>Effective {policy.version.effectiveAt ? new Date(policy.version.effectiveAt).toLocaleDateString() : "upon publication"} · SHA-256 {policy.version.checksum}</small></span></label>;
-                  })}
-                </div>}
-                <label className="checkField"><input name="ageAttested" type="checkbox" required /><span><b>Adult eligibility</b>I attest that I am at least 18 years old and legally able to enter this agreement.</span></label>
-                <label className="largeField">TYPE YOUR APPLICATION NAME TO SIGN<input name="signerName" required placeholder="Your full legal or public name" /><small>Your typed name must match the name entered in Section 01.</small></label>
-                <label className="checkField"><input name="electronicConsent" type="checkbox" required /><span><b>Intent to sign and receive records electronically</b>I consent to electronic policies, signatures, notices, academic records, and retainable HTML receipts and intend this typed signature to be legally effective.</span></label>
-                <div className="reviewSummary"><div><span>DOCUMENTS</span><b>{policies.length} mandatory policies</b></div><div><span>VERSIONS</span><b>Exact checksums recorded</b></div><div><span>STUDENT RESPONSIBILITY</span><b>$0.00</b></div><div><span>RECORD</span><b>Retainable HTML receipt</b></div></div>
-                <div className="finalSubmit"><button type="button" onClick={() => move(4)}>← BACK</button><div><small>FINAL CONFIRMATION REQUIRED</small><p>The server verifies that every signed version is still current before creating your account.</p></div><button className="submitApplication" disabled={busy || policies.length !== 8}>{busy ? "CREATING YOUR STUDENT RECORD…" : "REVIEW SIGNED SUBMISSION →"}</button></div>
+              <fieldset
+                className={`admissionStep ${step === 5 ? "active" : ""}`}
+                data-step="5"
+              >
+                <legend>
+                  <span>06</span>
+                  <div>
+                    <small>REQUIRED ELECTRONIC RECORD</small>
+                    <b>Policies and electronic signature</b>
+                    <p>
+                      Open, review, and acknowledge the exact published version
+                      of every required document.
+                    </p>
+                  </div>
+                </legend>
+                {policies.length === 0 ? (
+                  <div className="grantPreview">
+                    <div>
+                      <small>ADMISSIONS PAUSED</small>
+                      <strong>LEGAL REVIEW IN PROGRESS</strong>
+                      <span>
+                        The policy bundle must be published before an account
+                        can be created.
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="policyAcceptanceList">
+                    {policies.map((policy, index) => {
+                      const reviewed = reviewedPolicies.includes(
+                        policy.version.id,
+                      );
+                      const acknowledged = acknowledgedPolicies.includes(
+                        policy.version.id,
+                      );
+                      return (
+                        <InlinePolicyReview
+                          key={policy.id}
+                          policy={policy}
+                          index={index}
+                          reviewed={reviewed}
+                          acknowledged={acknowledged}
+                          inputName={`policy_${policy.version.id}`}
+                          required
+                          onReview={() =>
+                            setReviewedPolicies((current) =>
+                              current.includes(policy.version.id)
+                                ? current
+                                : [...current, policy.version.id],
+                            )
+                          }
+                          onAcknowledged={(value) =>
+                            setAcknowledgedPolicies((current) =>
+                              value
+                                ? current.includes(policy.version.id)
+                                  ? current
+                                  : [...current, policy.version.id]
+                                : current.filter(
+                                    (id) => id !== policy.version.id,
+                                  ),
+                            )
+                          }
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+                <label className="checkField">
+                  <input name="ageAttested" type="checkbox" required />
+                  <span>
+                    <b>Adult eligibility</b>I attest that I am at least 18 years
+                    old and legally able to enter this agreement.
+                  </span>
+                </label>
+                <label className="largeField">
+                  TYPE YOUR APPLICATION NAME TO SIGN
+                  <input
+                    name="signerName"
+                    required
+                    placeholder="Your full legal or public name"
+                  />
+                  <small>
+                    Your typed name must match the name entered in Section 01.
+                  </small>
+                </label>
+                <label className="checkField">
+                  <input name="electronicConsent" type="checkbox" required />
+                  <span>
+                    <b>Intent to sign and receive records electronically</b>I
+                    consent to electronic policies, signatures, notices,
+                    academic records, and retainable HTML receipts and intend
+                    this typed signature to be legally effective.
+                  </span>
+                </label>
+                <div className="reviewSummary">
+                  <div>
+                    <span>DOCUMENTS</span>
+                    <b>{policies.length} mandatory policies</b>
+                  </div>
+                  <div>
+                    <span>VERSIONS</span>
+                    <b>Exact checksums recorded</b>
+                  </div>
+                  <div>
+                    <span>STUDENT RESPONSIBILITY</span>
+                    <b>$0.00</b>
+                  </div>
+                  <div>
+                    <span>RECORD</span>
+                    <b>Retainable HTML receipt</b>
+                  </div>
+                </div>
+                <div className="finalSubmit">
+                  <button type="button" onClick={() => move(4)}>
+                    ← BACK
+                  </button>
+                  <div>
+                    <small>FINAL CONFIRMATION REQUIRED</small>
+                    <p>
+                      The server verifies that every signed version is still
+                      current before creating your account.
+                    </p>
+                  </div>
+                  <button
+                    className="submitApplication"
+                    disabled={
+                      busy ||
+                      policies.length !== 8 ||
+                      acknowledgedPolicies.length !== policies.length
+                    }
+                  >
+                    {busy
+                      ? "CREATING YOUR STUDENT RECORD…"
+                      : "REVIEW SIGNED SUBMISSION →"}
+                  </button>
+                </div>
               </fieldset>
             </motion.div>
           </AnimatePresence>
