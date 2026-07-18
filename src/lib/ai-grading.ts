@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { recalculateFundingStanding } from "@/lib/funding-standing";
 import { db } from "@/lib/db";
+import { refreshProgramProgress } from "@/lib/academic-progress";
 
 type GradeResult = {
   rubricScores: { criterion: string; score: number; feedback: string }[];
@@ -127,6 +128,9 @@ export async function processNextAiGrade() {
         await tx.courseEnrollment.update({ where: { courseId_userId: { courseId: submission.courseId, userId: submission.studentId } }, data: { status: "COMPLETED", progress: 100, completedAt: new Date() } });
       }
     });
+    if (!needsHuman && result.passed) {
+      await refreshProgramProgress(submission.studentId);
+    }
     await recalculateFundingStanding(submission.studentId);
     return { processed: true, jobId: job.id, exception: needsHuman };
   } catch (error) {

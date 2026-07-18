@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { currentUser, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getCompletedCourseIds } from "@/lib/academic-progress";
 
 export async function GET() {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-  const courses = await db.course.findMany({
+  const [courses, fulfilledCourseIds] = await Promise.all([db.course.findMany({
     where: isAdmin(user.role) ? {} : { status: "PUBLISHED" },
     include: {
       prerequisites: { include: { prerequisite: { select: { id: true, code: true, title: true } } } },
@@ -15,10 +16,10 @@ export async function GET() {
       _count: { select: { enrollments: true, days: true } },
     },
     orderBy: [{ academy: "asc" }, { code: "asc" }],
-  });
+  }), getCompletedCourseIds(user.id)]);
   const completedByCourse = await db.lessonProgress.groupBy({ where: { userId: user.id, completed: true }, by: ["courseDayId"], _count: true });
   const completedIds = new Set(completedByCourse.map((item) => item.courseDayId));
-  const normalized = courses.map((course) => ({ ...course, sources: course.sourceMappings.map((mapping) => mapping.source), sourceMappings: undefined, completedDays: course.days.filter((day) => completedIds.has(day.id)).length, days: undefined }));
+  const normalized = courses.map((course) => ({ ...course, fulfilled: fulfilledCourseIds.has(course.id), sources: course.sourceMappings.map((mapping) => mapping.source), sourceMappings: undefined, completedDays: course.days.filter((day) => completedIds.has(day.id)).length, days: undefined }));
   const academies = [...new Set(courses.map((course) => course.academy))];
   const enrolled = normalized.filter((course) => course.enrollments.length > 0);
   const nextCourse = enrolled.find((course) => course.completedDays < course._count.days) || null;

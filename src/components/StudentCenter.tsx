@@ -92,7 +92,13 @@ type Recommendation = {
     level: string;
     estimatedDays: number;
     workloadHours: number;
-    faculty?: { name: string; title: string; initials: string; specialty: string; voice: string };
+    faculty?: {
+      name: string;
+      title: string;
+      initials: string;
+      specialty: string;
+      voice: string;
+    };
     prerequisites: { prerequisite: { code: string; title: string } }[];
   };
 };
@@ -453,7 +459,7 @@ export function StudentCenter() {
         <header>
           <div>
             <small>BEFORE YOU ENROLL</small>
-          <h2>Meet Dr. Elara Voss, your AI university advisor</h2>
+          <h2>Meet Dr. Elara Voss, your university advisor</h2>
             <p>
               Answer ten questions. Orbit will compare your goals, readiness,
               time, and prerequisites to the live 192-course catalog.
@@ -462,7 +468,7 @@ export function StudentCenter() {
           </div>
           <div className={styles.bot}>
             <i />
-          <b>EV</b>
+            <b>EV</b>
             <span>
               {recommendations.length
                 ? "PATH READY"
@@ -536,7 +542,7 @@ export function StudentCenter() {
           <div className={styles.results}>
             <div className={styles.advisorNote}>
               <b>
-                {advisorAi ? "GEMINI-GUIDED COURSE MATCH" : "CATALOG MATCH"}
+                {advisorAi ? "PERSONALIZED FACULTY COURSE MATCH" : "CATALOG MATCH"}
               </b>
               <p>{advisorSummary}</p>
               <button
@@ -560,8 +566,17 @@ export function StudentCenter() {
                       <h3>
                         {item.course.code} · {item.course.title}
                       </h3>
-                  <p>{item.reason}</p>
-                  {item.course.faculty && <div className={styles.recommendationFaculty}><b>{item.course.faculty.initials}</b><span><small>COURSE AI FACULTY</small><strong>{item.course.faculty.name}</strong><em>{item.course.faculty.voice}</em></span></div>}
+                      <p>{item.reason}</p>
+                      {item.course.faculty && (
+                        <div className={styles.recommendationFaculty}>
+                          <b>{item.course.faculty.initials}</b>
+                          <span>
+                            <small>COURSE FACULTY</small>
+                            <strong>{item.course.faculty.name}</strong>
+                            <em>{item.course.faculty.voice}</em>
+                          </span>
+                        </div>
+                      )}
                       <div>
                         <i>{item.readiness}</i>
                         <i>{item.weeklyPlan}</i>

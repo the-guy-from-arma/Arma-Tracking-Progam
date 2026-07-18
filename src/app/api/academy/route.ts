@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { text } from "@/lib/input";
 import { ensureCourseFunding } from "@/lib/funding";
 import { queueSubmissionForAi } from "@/lib/ai-grading";
+import { getCompletedCourseIds, getProgramAudit, getProgramSequenceBlockers } from "@/lib/academic-progress";
 
 const courseLevels = new Set(["FOUNDATION", "INTERMEDIATE", "ADVANCED", "CAPSTONE"]);
 const studios = new Set(["Thunder Buddies Studios", "Black Ridge Studios", "Thunder Buddies Studios + Black Ridge Studios"]);
@@ -88,11 +89,15 @@ export async function POST(request: Request) {
     if (!course) return NextResponse.json({ error: "Course not found" }, { status: 404 });
     const existing = await db.courseEnrollment.findUnique({ where: { courseId_userId: { courseId, userId: user.id } } });
     if (existing?.status === "WITHDRAWN") return NextResponse.json({ error: "This course was withdrawn for the current term. Visit Student Center for advising before a future-term re-entry." }, { status: 409 });
+    const completedCourseIds = await getCompletedCourseIds(user.id);
+    if (completedCourseIds.has(courseId)) return NextResponse.json({ error: "This course is already complete. Its credits are automatically applied to every program that requires it.", fulfilled: true, courseId }, { status: 409 });
     if (existing) return NextResponse.json({ enrollment: existing, grantBalanceCents: user.grantBalanceCents, allocatedCents: 0 });
     if (course.prerequisites.length) {
-      const completed = await db.courseEnrollment.count({ where: { userId: user.id, status: "COMPLETED", courseId: { in: course.prerequisites.map((item) => item.prerequisiteId) } } });
-      if (completed !== course.prerequisites.length) return NextResponse.json({ error: "Complete the listed prerequisite course before enrolling." }, { status: 409 });
+      const missing = course.prerequisites.filter((item) => !completedCourseIds.has(item.prerequisiteId));
+      if (missing.length) return NextResponse.json({ error: "Complete the listed prerequisite course before enrolling.", missingPrerequisiteIds: missing.map((item) => item.prerequisiteId) }, { status: 409 });
     }
+    const sequenceBlockers = await getProgramSequenceBlockers(user.id, courseId, completedCourseIds);
+    if (sequenceBlockers.length) return NextResponse.json({ error: `Complete the earlier program coursework first: ${sequenceBlockers.join(", ")}.`, sequenceBlockers }, { status: 409 });
     try { await ensureCourseFunding(user.id, course.id, course.serviceValueCents); }
     catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Course funding could not be confirmed." }, { status: 409 }); }
     const result = await db.$transaction(async (tx) => {
@@ -134,8 +139,9 @@ export async function POST(request: Request) {
     const programId = text(body.programId, 100);
     const program = await db.academicProgram.findFirst({ where: { id: programId, active: true } });
     if (!program) return NextResponse.json({ error: "Academic path not found" }, { status: 404 });
-    const creditSum = await db.certificate.aggregate({ where: { userId: user.id }, _sum: { learningCredits: true } });
-    const creditsEarned = creditSum._sum.learningCredits || 0;
+    const audit = await getProgramAudit(user.id, programId);
+    if (!audit?.eligible) return NextResponse.json({ error: audit?.blocker || "Complete the prerequisite academic pathway first.", audit }, { status: 409 });
+    const creditsEarned = audit.creditsApplied;
     const enrollment = await db.programEnrollment.upsert({ where: { programId_userId: { programId, userId: user.id } }, update: { status: "ACTIVE", creditsEarned }, create: { programId, userId: user.id, creditsEarned } });
     return NextResponse.json({ enrollment });
   }

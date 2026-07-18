@@ -2846,6 +2846,38 @@
 .termMap small {
   display: block;
 }
+.transferCredit {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 16px;
+  padding: 13px 15px;
+  border-left: 3px solid #32a57c;
+  background: #e9f6f0;
+  color: #174f3e;
+}
+.transferCredit b { font-size: 13px; }
+.transferCredit span { font-size: 11px; }
+.degreeAudit {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 25px 5.5%;
+  border-bottom: 1px solid #cadce3;
+  background: #f1f7f4;
+}
+.degreeAudit h2 { margin: 5px 0; font-size: 24px; }
+.degreeAudit p { margin: 0; max-width: 780px; }
+.degreeAudit > b { color: #276b59; font: 700 10px var(--font-plex-mono, monospace); letter-spacing: 1px; }
+.degreeAudit > em { color: #8b382f; font-style: normal; font-weight: 600; }
+.auditProgress { overflow: hidden; height: 7px; border-radius: 8px; background: #ccded9; }
+.auditProgress span { display: block; height: 100%; background: linear-gradient(90deg,#217aa0,#2fa879); }
+.termMap > article > div.requirementComplete { background: #edf8f2; }
+.termMap > article > div.requirementComplete i { color: #1a7858; }
+.termMap > article > div.requirementNext { box-shadow: inset 4px 0 #269fc0; }
+:global([data-university-theme="dark"]) .transferCredit { background:#102f2a; color:#9de0c8; }
+:global([data-university-theme="dark"]) .degreeAudit { border-color:#315064; background:#102a2c; }
+:global([data-university-theme="dark"]) .degreeAudit > b { color:#84d9bb; }
+:global([data-university-theme="dark"]) .termMap > article > div.requirementComplete { background:#12352f; }
 .termMap small {
   margin-top: 4px;
   color: #748a9b;
@@ -3026,3 +3058,58 @@
 :global([data-university-theme="dark"]) .facultyPresence b { color:#e4edf0; }
 @media(max-width:900px){.programGrid{grid-template-columns:1fr}.programCard h2,.programCard .titleButton h2{font-size:30px}}
 @media(max-width:600px){.programCard{padding:22px}.facultyBadge em{display:none!important}}
+
+/* Program typography, dark-theme separation, and pathway experience */
+.learning,.courseDetail{font-family:var(--font-plex-sans,"IBM Plex Sans",sans-serif)}
+.pageHead h1,.courseCard h2,.programCard h2,.courseDetail h1,.courseDetail h2,.courseDetail h3{font-family:var(--font-plex-serif,"IBM Plex Serif",serif)}
+.programCard>.titleButton{display:block!important;width:100%!important;min-height:0!important;padding:0!important;border:0!important;border-radius:0!important;color:#12334b!important;background:transparent!important;box-shadow:none!important;text-align:left!important}
+.programCard>.titleButton:hover,.programCard>.titleButton:focus-visible{background:transparent!important;box-shadow:none!important;transform:none!important}
+.programCard>.titleButton h2{max-width:100%;margin:0;overflow-wrap:normal;word-break:normal;white-space:normal;font-size:clamp(24px,1.8vw,31px);font-weight:600;line-height:1.1;letter-spacing:-.7px}
+.programCard>.titleButton span{margin-top:11px;color:#26738e}
+.programCard>.titleButton:focus-visible h2{text-decoration:underline;text-decoration-color:#55b8d1;text-underline-offset:5px}
+.programCard>.programValue{border-top:1px solid #d7e2e5}
+.programCard>button:last-child{border:1px solid #8ab1c0!important;border-radius:6px!important;color:#195777!important;background:transparent!important}
+.programCard>button:last-child:hover{color:white!important;background:#176485!important}
+:global([data-university-theme="dark"]) .programCard{border-color:#34546a;background:linear-gradient(145deg,#132b3c,#0e2232);color:#eef5f7;box-shadow:0 18px 45px #02091055}
+:global([data-university-theme="dark"]) .programCard>.titleButton{color:#f2f6f7!important;background:transparent!important}
+:global([data-university-theme="dark"]) .programCard>.titleButton h2{color:#f2f6f7!important;text-shadow:none}
+:global([data-university-theme="dark"]) .programCard>.titleButton span{color:#70cde2!important}
+:global([data-university-theme="dark"]) .programCard>p{color:#b2c4cc}
+:global([data-university-theme="dark"]) .programCard .facultyBadge b{color:#f2f6f7}
+:global([data-university-theme="dark"]) .programCard .facultyBadge em{color:#9eb2bc}
+:global([data-university-theme="dark"]) .programCard .programStats span{border:1px solid #29485d;background:#183449;color:#c3d1d7}
+:global([data-university-theme="dark"]) .programCard .programStats b{color:#80cce4}
+:global([data-university-theme="dark"]) .programCard>.programValue{border-color:#315064}
+:global([data-university-theme="dark"]) .programCard .programValue b{color:#75ddb4}
+:global([data-university-theme="dark"]) .programCard>button:last-child{border-color:#4d8399!important;color:#8fd5e5!important;background:#10293a!important}
+
+.programDetail{width:min(1260px,100%);background:#f5f2ea}
+.programDetail>header{min-height:360px;grid-template-columns:minmax(0,1fr) 170px;padding:58px 64px 46px;background:radial-gradient(circle at 84% 14%,#4cc7cf42,transparent 25rem),linear-gradient(125deg,#092c4a,#14597b 62%,#187c88)}
+.detailInstitution{margin-bottom:22px;color:#b9d6df;font:600 8px var(--font-plex-mono,"IBM Plex Mono",monospace);letter-spacing:1.6px}
+.programDetail>header h1{max-width:860px;font-size:clamp(42px,5.4vw,76px);font-weight:400;line-height:.97;letter-spacing:-2.8px}
+.programDetail>header p{max-width:760px;font-size:16px}
+.programDetail .detailFacts{margin:0;border-radius:0;background:#0c2435;color:white;box-shadow:none}
+.programDetail .detailFacts>span{border-color:#315064}
+.programDetail .detailFacts small{color:#6fa8bd}
+.programJourney{margin-bottom:58px!important;padding:28px;border:1px solid #c2d3d5;background:linear-gradient(135deg,#fdfcf7,#eaf3f3)}
+.programJourney>div{display:grid;grid-template-columns:1fr 42px 1fr 42px 1fr;gap:8px;align-items:center;margin-top:22px}
+.programJourney>div>span{display:grid;min-height:155px;align-content:start;padding:18px;background:white}
+.programJourney>div>span>b{color:#3aa4bd;font:400 30px var(--font-plex-serif,serif)}
+.programJourney>div>span>em{margin:7px 0;color:#173b50;font:normal 600 9px var(--font-plex-mono,monospace);letter-spacing:1px}
+.programJourney>div>span>p{margin:0;font-size:12px;line-height:1.6}
+.programJourney>div>i{height:1px;background:linear-gradient(90deg,#79b7c5,#54c6bc)}
+.programFaculty>div{display:flex;gap:13px;align-items:center;margin-top:16px}
+.programFaculty>div>i{display:grid;width:50px;height:50px;flex:0 0 50px;border-radius:50%;color:#a7eff0;background:#123e55;font:normal 600 11px var(--font-plex-mono,monospace);place-items:center}
+.programFaculty>div h3{margin:0!important}
+.programFaculty>div b{display:block;margin-top:3px;color:#4e7d8e;font-size:10px}
+.programFaculty blockquote{margin:20px 0 12px;padding:16px 0;border-block:1px solid #c4d8dc;color:#264c60;font:400 16px/1.6 var(--font-plex-serif,serif)}
+.programDetail .detailBody>aside{border-left:1px solid #c5d4d5;padding-left:28px}
+.programDetail .detailBody>aside>section{border-radius:4px;background:#e6eff0}
+:global([data-university-theme="dark"]) .programDetail{background:#081722;color:#edf4f6}
+:global([data-university-theme="dark"]) .programJourney{border-color:#315064;background:linear-gradient(135deg,#102a3b,#0c202e)}
+:global([data-university-theme="dark"]) .programJourney>div>span{background:#142f40}
+:global([data-university-theme="dark"]) .programJourney>div>span>em{color:#dce9ec}
+:global([data-university-theme="dark"]) .programDetail .detailBody>aside{border-color:#315064}
+:global([data-university-theme="dark"]) .programDetail .detailBody>aside>section{border:1px solid #315064;background:#102a3b}
+:global([data-university-theme="dark"]) .programFaculty blockquote{border-color:#315064;color:#c8d9df}
+@media(max-width:760px){.programDetail>header{padding:48px 25px 34px}.programDetail>header h1{font-size:42px}.programJourney>div{grid-template-columns:1fr}.programJourney>div>i{display:none}.programJourney>div>span{min-height:0}.programDetail .detailBody>aside{border-left:0;padding-left:0}}

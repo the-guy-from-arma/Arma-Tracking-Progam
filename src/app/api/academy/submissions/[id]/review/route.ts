@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { canTeach, currentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { text } from "@/lib/input";
+import { refreshProgramProgress } from "@/lib/academic-progress";
 
 const decisions = new Set(["APPROVED", "REVISION_REQUIRED", "DECLINED"]);
 
@@ -30,17 +31,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         create: { credentialCode: `EFU-${crypto.randomBytes(5).toString("hex").toUpperCase()}`, userId: submission.studentId, courseId: submission.courseId, submissionId: id, title: submission.course.title, issuer: `${submission.course.studio} / Enfusion University`, learningCredits: submission.course.learningCredits },
       });
       await tx.courseEnrollment.update({ where: { courseId_userId: { courseId: submission.courseId, userId: submission.studentId } }, data: { status: "COMPLETED", progress: 100, completedAt: new Date() } });
-      const creditSum = await tx.certificate.aggregate({ where: { userId: submission.studentId }, _sum: { learningCredits: true } });
-      const creditsEarned = creditSum._sum.learningCredits || 0;
-      const programEnrollments = await tx.programEnrollment.findMany({ where: { userId: submission.studentId }, include: { program: true } });
-      for (const enrollment of programEnrollments) {
-        const completed = creditsEarned >= enrollment.program.creditsRequired;
-        await tx.programEnrollment.update({ where: { id: enrollment.id }, data: { creditsEarned, status: completed ? "COMPLETED" : "ACTIVE", completedAt: completed ? new Date() : null } });
-      }
     }
     await tx.auditLog.create({ data: { actorId: reviewer.id, action: `SUBMISSION_${decision}`, entity: "CourseSubmission", entityId: id, detail: { studentId: submission.studentId, courseId: submission.courseId } } });
     return { submission: updated, certificate };
   });
   if (!result) return NextResponse.json({ error: "Submission not found" }, { status: 404 });
+  if (decision === "APPROVED") await refreshProgramProgress(result.submission.studentId);
   return NextResponse.json(result);
 }

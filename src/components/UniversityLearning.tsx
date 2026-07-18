@@ -25,6 +25,7 @@ type Course = {
   serviceValueCents: number;
   outcomes: string[];
   completedDays: number;
+  fulfilled: boolean;
   enrollments: Enrollment[];
   prerequisites: {
     prerequisite: { id: string; code: string; title: string };
@@ -125,6 +126,21 @@ type Program = {
   }[];
   enrollments: Enrollment[];
   applications: { id: string; status: string }[];
+  audit: {
+    fulfilledCourseIds: string[];
+    fulfilledRequirementIds: string[];
+    fulfilledCourses: number;
+    totalCourses: number;
+    creditsApplied: number;
+    creditsRequired: number;
+    remainingCredits: number;
+    progressPercent: number;
+    nextCourseId: string | null;
+    eligible: boolean;
+    prerequisiteLevel: string | null;
+    prerequisiteProgramId: string | null;
+    blocker: string | null;
+  };
 };
 type ProgramsData = { programs: Program[]; degreeWordingEnabled: boolean };
 type FundingData = {
@@ -524,10 +540,23 @@ export function UniversityLearning({
               </button>
             </section>
             <section className={styles.facultyPresence}>
-              <small>AI FACULTY COMMONS · AVAILABLE NOW</small>
-              {["Workbench Foundations", "Enforce Script", "Terrain and World Building"].map((academy) => {
+              <small>FACULTY COMMONS · AVAILABLE NOW</small>
+              {[
+                "Workbench Foundations",
+                "Enforce Script",
+                "Terrain and World Building",
+              ].map((academy) => {
                 const faculty = facultyForAcademy(academy);
-                return <article key={faculty.id}><i>{faculty.initials}</i><span><b>{faculty.name}</b><p>{faculty.specialty}</p></span><em>ONLINE</em></article>;
+                return (
+                  <article key={faculty.id}>
+                    <i>{faculty.initials}</i>
+                    <span>
+                      <b>{faculty.name}</b>
+                      <p>{faculty.specialty}</p>
+                    </span>
+                    <em>ONLINE</em>
+                  </article>
+                );
               })}
             </section>
           </aside>
@@ -591,7 +620,11 @@ export function UniversityLearning({
                 <b>{money(course.serviceValueCents)}</b>
                 <span>Grant applied at enrollment · You owe $0.00</span>
               </div>
-              {course.enrollments.length ? (
+              {course.fulfilled ? (
+                <button disabled>
+                  COMPLETED · CREDIT ON RECORD
+                </button>
+              ) : course.enrollments.length ? (
                 <button
                   className={styles.primary}
                   onClick={() => openCourse(course.id)}
@@ -726,6 +759,12 @@ export function UniversityLearning({
                 <span>PROGRAM SPONSORED VALUE</span>
                 <b>{money(program.estimatedValueCents)}</b>
               </div>
+              {program.audit.fulfilledCourses > 0 && (
+                <div className={styles.transferCredit}>
+                  <b>{program.audit.creditsApplied} credits already applied</b>
+                  <span>{program.audit.fulfilledCourses} of {program.audit.totalCourses} required courses fulfilled</span>
+                </div>
+              )}
               <button onClick={() => setSelectedProgram(program)}>
                 {program.enrollments.length
                   ? "VIEW ACTIVE PROGRAM →"
@@ -910,7 +949,7 @@ function FacultyBadge({ academy }: { academy: string }) {
     <div className={styles.facultyBadge}>
       <i>{faculty.initials}</i>
       <span>
-        <small>AI FACULTY</small>
+        <small>FACULTY</small>
         <b>{faculty.name}</b>
         <em>{faculty.voice}</em>
       </span>
@@ -1341,6 +1380,7 @@ function ProgramDetail({
   const terms = [
     ...new Set(program.requirements.map((item) => item.termNumber)),
   ];
+  const faculty = facultyForAcademy(program.academy);
   return (
     <motion.div
       className={styles.detailBack}
@@ -1366,6 +1406,9 @@ function ProgramDetail({
         </button>
         <header>
           <div>
+            <div className={styles.detailInstitution}>
+              ENFUSION UNIVERSITY · SCHOOL OF {program.academy.toUpperCase()}
+            </div>
             <small>
               {program.code} / {program.academy}
             </small>
@@ -1396,8 +1439,53 @@ function ProgramDetail({
             <b>{money(program.estimatedValueCents)}</b>
           </span>
         </div>
+        <section className={styles.degreeAudit}>
+          <div>
+            <small>YOUR ACADEMIC RECORD</small>
+            <h2>{program.audit.creditsApplied} credits transfer into this pathway</h2>
+            <p>
+              Completed certificate courses are never repeated. Credit is applied only when the exact course is a requirement in this curriculum.
+            </p>
+          </div>
+          <div className={styles.auditProgress}>
+            <span style={{ width: `${program.audit.progressPercent}%` }} />
+          </div>
+          <b>{program.audit.fulfilledCourses} / {program.audit.totalCourses} COURSES FULFILLED</b>
+          {!program.audit.eligible && <em>{program.audit.blocker}</em>}
+        </section>
         <div className={styles.detailBody}>
           <main>
+            <section className={styles.programJourney}>
+              <small>YOUR PATH THROUGH THE PROGRAM</small>
+              <div>
+                <span>
+                  <b>01</b>
+                  <em>FOUNDATION</em>
+                  <p>
+                    Establish the technical language and repeatable working
+                    methods.
+                  </p>
+                </span>
+                <i />
+                <span>
+                  <b>02</b>
+                  <em>STUDIO PRACTICE</em>
+                  <p>
+                    Apply those methods through increasingly independent
+                    development work.
+                  </p>
+                </span>
+                <i />
+                <span>
+                  <b>03</b>
+                  <em>CULMINATING WORK</em>
+                  <p>
+                    Demonstrate mastery in a documented, assessable final
+                    experience.
+                  </p>
+                </span>
+              </div>
+            </section>
             <section>
               <small>DESIGNED FOR</small>
               <h2>Who this pathway serves</h2>
@@ -1437,8 +1525,23 @@ function ProgramDetail({
                     {program.requirements
                       .filter((item) => item.termNumber === term)
                       .map((item) => (
-                        <div key={item.id}>
-                          <i>{item.type}</i>
+                        <div
+                          key={item.id}
+                          className={
+                            program.audit.fulfilledCourseIds.includes(item.course.id)
+                              ? styles.requirementComplete
+                              : item.course.id === program.audit.nextCourseId
+                                ? styles.requirementNext
+                                : undefined
+                          }
+                        >
+                          <i>
+                            {program.audit.fulfilledCourseIds.includes(item.course.id)
+                              ? "CREDIT APPLIED"
+                              : item.course.id === program.audit.nextCourseId
+                                ? "NEXT COURSE"
+                                : item.type}
+                          </i>
                           <span>
                             <b>
                               {item.course.code} · {item.course.title}
@@ -1456,6 +1559,21 @@ function ProgramDetail({
             </section>
           </main>
           <aside>
+            <section className={styles.programFaculty}>
+              <small>PROGRAM FACULTY</small>
+              <div>
+                <i>{faculty.initials}</i>
+                <span>
+                  <h3>{faculty.name}</h3>
+                  <b>{faculty.title.replace("AI Faculty · ", "").replace("AI Dean", "Dean")}</b>
+                </span>
+              </div>
+              <blockquote>“{faculty.voice}”</blockquote>
+              <p>
+                {faculty.specialty} · Faculty availability:{" "}
+                {faculty.officeHours.toLowerCase()}.
+              </p>
+            </section>
             <section>
               <small>CREDENTIAL RECORD</small>
               <h3>{program.credentialTitle}</h3>
@@ -1494,6 +1612,10 @@ function ProgramDetail({
           ) : program.applications.length ? (
             <button disabled>
               APPLICATION {program.applications[0].status}
+            </button>
+          ) : !program.audit.eligible ? (
+            <button disabled title={program.audit.blocker || undefined}>
+              PRIOR PATHWAY REQUIRED
             </button>
           ) : (
             <button className={styles.primary} onClick={apply}>
