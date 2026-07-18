@@ -823,120 +823,131 @@
 
 /* Student Center editorial redesign */
 .center {
-  font-family: "Aptos", "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  max-width: 1380px;
+  padding: 30px clamp(18px, 3vw, 42px) 72px;
+  font-family: var(--font-plex-sans, "IBM Plex Sans", sans-serif);
 }
 .hero {
-  min-height: 220px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  padding: 28px 10px 38px;
+  min-height: 0;
+  padding: clamp(28px, 4vw, 48px);
+  border: 1px solid #c7dbe7;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 82% 5%, #79cde32b, transparent 34%),
+    linear-gradient(135deg, #f8fbfd, #eef6fa);
+  box-shadow: 0 18px 52px #153d5b12;
 }
 .hero h1,
 .advisor h2,
 .advisor h3,
 .records h2,
 .history h2 {
-  font-family:
-    "Aptos Display", "Segoe UI Variable Display", "Segoe UI", sans-serif;
-  font-weight: 700;
-  letter-spacing: -1.4px;
+  font-family: var(--font-plex-serif, "IBM Plex Serif", serif);
+  font-weight: 600;
+  letter-spacing: -0.035em;
 }
 .hero h1 {
-  font-size: clamp(46px, 5vw, 72px);
+  margin: 8px 0 12px;
+  font-size: clamp(36px, 4vw, 54px);
+  line-height: 1.02;
 }
 .hero > div > span {
-  font-size: 15px;
+  max-width: 760px;
+  font-size: 14px;
+  line-height: 1.7;
 }
 .hero aside {
-  border: 0;
-  border-radius: 50px 18px 50px 50px;
-  background: linear-gradient(145deg, #fff, #eaf6fb);
-  box-shadow: 0 25px 65px #2a597716;
+  padding: 24px;
+  border: 1px solid #c4dce8;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 34px #214f6d12;
 }
 .hero aside small,
 .hero p,
 .advisor small,
 .records small,
 .history small {
-  font-family: "Bahnschrift", "Aptos", sans-serif;
+  font-family: var(--font-plex-mono, "IBM Plex Mono", monospace);
   font-size: 10px;
 }
 .standingGrid {
-  gap: 0;
-  overflow: hidden;
-  border-radius: 42px 14px 42px 42px;
-  background: #ffffffc7;
-  box-shadow: 0 24px 65px #315f7e12;
-}
-.standingGrid article {
-  min-height: 145px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  overflow: visible;
   border: 0;
-  border-right: 1px solid #dce8ef;
-  border-radius: 0;
   background: transparent;
   box-shadow: none;
-  padding: 28px;
+}
+.standingGrid article {
+  min-width: 0;
+  min-height: 152px;
+  padding: 24px;
+  border: 1px solid #cbdde7;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 28px #224c6810;
 }
 .standingGrid article:last-child {
-  border: 0;
+  border: 1px solid #cbdde7;
 }
 .standingGrid small {
-  font-family: "Bahnschrift", "Aptos", sans-serif;
+  font-family: var(--font-plex-mono, "IBM Plex Mono", monospace);
   font-size: 9px;
 }
 .standingGrid b {
-  font-family: "Aptos Display", sans-serif;
-  font-weight: 700;
-  font-size: 32px;
+  font-family: var(--font-plex-serif, "IBM Plex Serif", serif);
+  font-weight: 600;
+  font-size: 30px;
 }
 .standingGrid span {
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1.55;
 }
 .advisor {
   border: 0;
-  border-radius: 64px 20px 64px 20px;
+  border-radius: 16px;
   background:
     radial-gradient(circle at 92% 10%, #348bc65c, transparent 24%),
     linear-gradient(135deg, #092744, #123d61);
-  box-shadow: 0 38px 95px #11375338;
+  box-shadow: 0 24px 64px #1137532a;
 }
 .advisor > header {
-  padding: 45px 52px;
+  padding: 36px 40px;
   border: 0;
 }
 .advisor > header h2 {
-  font-size: 38px;
+  font-size: clamp(28px, 3vw, 38px);
 }
 .advisor > header p {
   font-size: 13px;
   max-width: 820px;
 }
 .bot {
-  width: 125px;
-  height: 125px;
+  width: 108px;
+  height: 108px;
   border: 0;
   box-shadow:
     0 0 0 18px #68bcff0b,
     0 0 55px #69c7ff27;
 }
 .interview {
-  padding: 38px 52px 48px;
+  padding: 34px 40px 42px;
 }
 .interview h3 {
-  font-family: "Aptos Display", sans-serif;
-  font-weight: 650;
-  font-size: clamp(33px, 3.5vw, 52px);
-  letter-spacing: -1.7px;
+  font-family: var(--font-plex-serif, "IBM Plex Serif", serif);
+  font-weight: 600;
+  font-size: clamp(28px, 3vw, 42px);
+  letter-spacing: -0.035em;
 }
 .options {
   gap: 12px;
 }
 .options button {
-  min-height: 62px;
+  min-height: 58px;
   border: 1px solid #8bc4eb52;
-  border-radius: 999px;
+  border-radius: 10px;
   padding: 15px 22px;
   font-size: 13px;
 }
@@ -959,9 +970,10 @@
 .records > section,
 .records > aside,
 .history {
-  border: 0;
-  border-radius: 38px 12px 38px 38px;
-  box-shadow: 0 24px 65px #315f7e12;
+  border: 1px solid #cbdde7;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 34px #315f7e10;
   padding: 34px;
 }
 .enrollment {
@@ -1002,9 +1014,7 @@
   .standingGrid article {
     border-right: 0;
   }
-  .advisor {
-    border-radius: 38px 12px 38px 12px;
-  }
+  .advisor { border-radius: 12px; }
   .advisor > header,
   .interview {
     padding: 30px 24px;
@@ -1033,12 +1043,14 @@
 .center{font-family:var(--font-plex-sans,"IBM Plex Sans",sans-serif)}.hero h1,.advisor h2,.advisor h3,.records h2,.history h2{font-family:var(--font-plex-serif,"IBM Plex Serif",serif);font-weight:600}.advisor>header p,.hero>div>span,.results p{font-size:13px;line-height:1.7}
 
 /* Student Center academic service pages */
-.centerNav{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));margin:0 0 38px;border-block:1px solid #bacdd4}.centerNav button,.centerNav a{display:grid;gap:5px;min-width:0;padding:18px 14px;border:0;border-right:1px solid #d2dfe3;background:transparent;color:inherit;text-align:left;text-decoration:none}.centerNav b{font:600 13px var(--font-plex-sans,"IBM Plex Sans",sans-serif)}.centerNav span{color:#6a808a;font-size:10px}.centerNav .centerNavActive{box-shadow:inset 0 -3px #2184a1;background:linear-gradient(#eef7f7,transparent)}
+.centerNav{display:flex;align-items:stretch;margin:20px 0 28px;overflow-x:auto;border:1px solid #c7d9e3;border-radius:12px;background:#fff;box-shadow:0 8px 24px #21485f0b;scrollbar-width:thin}.centerNav button,.centerNav a{display:grid;flex:1 0 154px;gap:5px;min-width:0;padding:17px 16px;border:0;border-right:1px solid #d7e3e9;background:transparent;color:inherit;text-align:left;text-decoration:none;cursor:pointer;transition:background-color .18s ease,color .18s ease,box-shadow .18s ease}.centerNav button:last-child,.centerNav a:last-child{border-right:0}.centerNav b{font:600 13px var(--font-plex-sans,"IBM Plex Sans",sans-serif)}.centerNav span{color:#617984;font-size:10px;line-height:1.4}.centerNav button:hover,.centerNav a:hover{background:#f1f7fa}.centerNav button:focus-visible,.centerNav a:focus-visible{position:relative;z-index:1;outline:3px solid #48a9c9;outline-offset:-3px}.centerNav .centerNavActive{box-shadow:inset 0 -4px #1685a7;background:#eaf5f9;color:#0b3e5c}
 .center[data-center-section="overview"] .applicationTracker,.center[data-center-section="overview"] .advisor,.center[data-center-section="overview"] .history{display:none}.center[data-center-section="academic"] .applicationTracker,.center[data-center-section="academic"] .advisor,.center[data-center-section="academic"] .records{display:none}.center[data-center-section="applications"] .standingGrid,.center[data-center-section="applications"] .advisor,.center[data-center-section="applications"] .records,.center[data-center-section="applications"] .history{display:none}.center[data-center-section="enrollment"] .standingGrid,.center[data-center-section="enrollment"] .applicationTracker,.center[data-center-section="enrollment"] .advisor{display:none}.center[data-center-section="advising"] .standingGrid,.center[data-center-section="advising"] .applicationTracker,.center[data-center-section="advising"] .records,.center[data-center-section="advising"] .history{display:none}
-:global([data-university-theme="dark"]) .centerNav{border-color:#294654}:global([data-university-theme="dark"]) .centerNav button,:global([data-university-theme="dark"]) .centerNav a{border-color:#294654}:global([data-university-theme="dark"]) .centerNav .centerNavActive{background:linear-gradient(#173849,transparent)}:global([data-university-theme="dark"]) .centerNav span{color:#9aadb5}
-@media(max-width:900px){.centerNav{display:flex;overflow-x:auto}.centerNav button,.centerNav a{min-width:180px}}@media(max-width:650px){.centerNav{margin-top:18px}.centerNav button,.centerNav a{min-width:155px;padding:15px 12px}}
+:global([data-university-theme="dark"]) .centerNav{border-color:#315264;background:#102635;box-shadow:0 12px 30px #0003}:global([data-university-theme="dark"]) .centerNav button,:global([data-university-theme="dark"]) .centerNav a{border-color:#315264;color:#e8f0f4}:global([data-university-theme="dark"]) .centerNav button:hover,:global([data-university-theme="dark"]) .centerNav a:hover{background:#183747}:global([data-university-theme="dark"]) .centerNav .centerNavActive{background:#174256;color:#fff}:global([data-university-theme="dark"]) .centerNav span{color:#a9bcc5}
+@media(max-width:900px){.centerNav button,.centerNav a{flex-basis:172px}}@media(max-width:650px){.centerNav{margin-top:16px}.centerNav button,.centerNav a{flex-basis:158px;padding:15px 13px}}
 
 /* Editorial academic-service records */
-.standingGrid{display:block;overflow:visible;border-block:1px solid #b9cdd4;border-radius:0;background:transparent;box-shadow:none}.standingGrid article{display:grid;grid-template-columns:minmax(190px,.65fr) minmax(160px,.45fr) minmax(280px,1fr);align-items:center;min-height:0;padding:22px 6px;border:0;border-bottom:1px solid #d1dfe4;border-radius:0;background:transparent;box-shadow:none}.standingGrid article:last-child{border:0}.standingGrid small{font:600 9px var(--font-plex-mono,monospace);letter-spacing:.8px}.standingGrid b{margin:0;font:500 26px var(--font-plex-serif,serif)}.standingGrid span{font-size:12px;line-height:1.6}.applicationTracker,.records>section,.records>aside,.history{border:1px solid #bfd0d6;border-radius:0;background:transparent;box-shadow:none}.applicationTracker>header,.records>section,.records>aside,.history{padding:32px}.applicationTracker>div>article{padding-inline:32px}.advisor{border-radius:4px;background:radial-gradient(circle at 92% 10%,#348bc646,transparent 24%),linear-gradient(135deg,#08283d,#124c67);box-shadow:0 28px 75px #0c304026}.options button{border-radius:3px}.records{gap:22px}.enrollment>button,.interview footer button,.results article>button{border-radius:3px}
-:global([data-university-theme="dark"]) .standingGrid{border-color:#31505e}:global([data-university-theme="dark"]) .standingGrid article{border-color:#294654;background:transparent}
-@media(max-width:760px){.standingGrid article{grid-template-columns:1fr}.standingGrid b{margin:7px 0}.applicationTracker>header,.records>section,.records>aside,.history{padding:24px}}
+.applicationTracker,.records>section,.records>aside,.history{border:1px solid #c7d9e3;border-radius:12px;background:#fff;box-shadow:0 12px 34px #21485f0d}.applicationTracker>header,.records>section,.records>aside,.history{padding:clamp(24px,3vw,34px)}.applicationTracker>div>article{padding-inline:clamp(24px,3vw,34px)}.advisor{border-radius:16px;background:radial-gradient(circle at 92% 10%,#348bc646,transparent 24%),linear-gradient(135deg,#08283d,#124c67);box-shadow:0 24px 64px #0c304026}.records{gap:22px}.enrollment>button,.interview footer button,.results article>button{border-radius:8px}
+:global([data-university-theme="dark"]) .hero{border-color:#315264;background:radial-gradient(circle at 82% 5%,#2b829d30,transparent 34%),linear-gradient(135deg,#102737,#0c202e);color:#edf4f7;box-shadow:0 18px 50px #0003}:global([data-university-theme="dark"]) .hero>div>span{color:#aec0c8}:global([data-university-theme="dark"]) .hero aside{border-color:#36596b;background:#132f40}:global([data-university-theme="dark"]) .hero aside span{color:#9dc4b2}:global([data-university-theme="dark"]) .standingGrid article,:global([data-university-theme="dark"]) .applicationTracker,:global([data-university-theme="dark"]) .records>section,:global([data-university-theme="dark"]) .records>aside,:global([data-university-theme="dark"]) .history{border-color:#315264;background:#102635;color:#e8f0f4;box-shadow:0 12px 34px #0003}:global([data-university-theme="dark"]) .standingGrid span,:global([data-university-theme="dark"]) .applicationTracker p,:global([data-university-theme="dark"]) .records span,:global([data-university-theme="dark"]) .records li span{color:#adc0c9}
+@media(max-width:1050px){.hero{grid-template-columns:minmax(0,1fr) 270px}.standingGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.records{grid-template-columns:1fr}}
+@media(max-width:700px){.center{padding-inline:14px}.hero{grid-template-columns:1fr;padding:24px}.hero:after{display:none}.hero aside{width:100%}.standingGrid{grid-template-columns:1fr}.standingGrid article{min-height:0}.applicationTracker>header,.records>section,.records>aside,.history{padding:22px}.enrollment{grid-template-columns:1fr}.enrollment>button{justify-self:start}.advisor>header{grid-template-columns:1fr}.bot{justify-self:start;margin-top:20px}.interview{padding:28px 24px}.options{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.centerNav button,.centerNav a,.options button{transition:none}.options button:hover,.options button.selected{transform:none}}

@@ -622,7 +622,7 @@ export function UniversityLearning({
                 <small>DAYS</small>
               </div>
               <button
-                className={styles.titleButton}
+                className={styles.courseTitleButton}
                 onClick={() => preview(course.id)}
               >
                 <h2>{course.title}</h2>

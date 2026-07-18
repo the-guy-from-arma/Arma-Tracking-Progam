@@ -579,3 +579,123 @@
 @media (max-width: 520px) {
   .universityLogo { width: 155px; }
 }
+
+.policyBanner {
+  position: relative;
+  z-index: 44;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  min-height: 38px;
+  padding: 8px 24px;
+  border-bottom: 1px solid #d3a550;
+  background: #fff3d7;
+  color: #3c321f;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.policyBanner a {
+  flex: 0 0 auto;
+  color: #164e72;
+  font: 700 10px var(--font-plex-mono, monospace);
+  text-decoration: none;
+}
+.policyNoticeBack {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #02080dc2;
+  backdrop-filter: blur(9px);
+}
+.policyNotice {
+  position: relative;
+  width: min(620px, 94vw);
+  padding: clamp(28px, 5vw, 46px);
+  border: 1px solid #5d7c91;
+  border-top: 5px solid #d7b264;
+  border-radius: 12px;
+  background: var(--campus-panel);
+  color: var(--campus-text);
+  box-shadow: 0 35px 100px #0009;
+}
+.policyNotice > span {
+  color: #69bfdf;
+  font: 700 9px var(--font-plex-mono, monospace);
+  letter-spacing: .15em;
+}
+.policyNotice h2 {
+  margin: 12px 0;
+  font: 600 clamp(30px, 5vw, 43px)/1.08 var(--font-plex-serif, serif);
+  letter-spacing: -.025em;
+}
+.policyNotice > p {
+  color: var(--campus-muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.policyNotice ul {
+  display: grid;
+  gap: 1px;
+  margin: 24px 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--campus-border);
+  border-radius: 8px;
+  list-style: none;
+}
+.policyNotice li {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 13px 15px;
+  background: var(--campus-surface);
+  font-size: 12px;
+}
+.policyNotice li span { color: var(--campus-muted); }
+.policyNotice > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.policyNotice > div button,
+.policyNotice > div a {
+  padding: 12px 15px;
+  border: 1px solid var(--campus-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--campus-text);
+  font: 700 10px var(--font-plex-mono, monospace);
+  text-decoration: none;
+  cursor: pointer;
+}
+.policyNotice > div a {
+  border-color: #64c4df;
+  background: #186b91;
+  color: white;
+}
+.policyNoticeClose {
+  position: absolute;
+  top: 17px;
+  right: 17px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--campus-border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--campus-text);
+  font-size: 23px;
+  cursor: pointer;
+}
+@media (max-width: 650px) {
+  .policyBanner { align-items: flex-start; justify-content: space-between; padding-inline: 15px; }
+  .policyNotice > div { align-items: stretch; flex-direction: column-reverse; }
+  .policyNotice > div button,
+  .policyNotice > div a { text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .policyNoticeBack { backdrop-filter: none; }
+}

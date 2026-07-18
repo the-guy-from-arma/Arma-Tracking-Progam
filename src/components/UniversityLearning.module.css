@@ -3095,6 +3095,88 @@
 :global([data-university-theme="dark"]) .programCard .programValue b{color:#75ddb4}
 :global([data-university-theme="dark"]) .programCard>button:last-child{border-color:#4d8399!important;color:#8fd5e5!important;background:#10293a!important}
 
+/* Discover course cards use the same editorial hierarchy as Programs. */
+.courseCard{
+  min-width:0;
+  min-height:0;
+  padding:28px;
+  border-radius:12px;
+}
+.courseCard>.courseTitleButton{
+  position:relative;
+  z-index:2;
+  display:block;
+  width:100%;
+  min-width:0;
+  min-height:0;
+  margin:0 0 16px;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:#12354d;
+  box-shadow:none;
+  text-align:left;
+}
+.courseCard>.courseTitleButton:hover,
+.courseCard>.courseTitleButton:active{
+  transform:none;
+  background:transparent;
+  color:#176d94;
+  box-shadow:none;
+}
+.courseCard>.courseTitleButton:focus-visible{
+  outline:3px solid #3aa3c1;
+  outline-offset:7px;
+  background:transparent;
+}
+.courseCard>.courseTitleButton h2{
+  max-width:100%;
+  margin:0;
+  color:inherit;
+  font:600 clamp(25px,1.75vw,32px)/1.08 var(--font-plex-serif,"IBM Plex Serif",serif);
+  letter-spacing:-.7px;
+  white-space:normal;
+  overflow-wrap:break-word;
+  word-break:normal;
+  hyphens:auto;
+}
+.courseCard>.courseTitleButton span{
+  display:inline-flex;
+  margin-top:11px;
+  color:#277691;
+  font:600 9px var(--font-plex-mono,"IBM Plex Mono",monospace);
+  letter-spacing:.65px;
+}
+.courseCard>.courseTitleButton:hover span{color:#125d7e}
+.courseCard>.courseTitleButton:focus-visible h2{text-decoration:underline;text-decoration-color:#55b8d1;text-underline-offset:5px}
+.courseCard>.courseTitleButton+p{
+  min-height:0;
+  margin:0 0 22px;
+  color:#5f7683;
+  font:13px/1.65 var(--font-plex-sans,"IBM Plex Sans",sans-serif);
+}
+.courseCard>.courseTitleButton~.courseFacts{margin-top:auto}
+.courseCard>button:not(.courseTitleButton){
+  border-radius:6px;
+  font-family:var(--font-plex-mono,"IBM Plex Mono",monospace);
+}
+:global([data-university-theme="dark"]) .courseCard{
+  border-color:#34546a;
+  background:linear-gradient(145deg,#132b3c,#0e2232);
+  color:#eef5f7;
+  box-shadow:0 18px 45px #02091055;
+}
+:global([data-university-theme="dark"]) .courseCard>.courseTitleButton{
+  background:transparent;
+  color:#f2f6f7;
+}
+:global([data-university-theme="dark"]) .courseCard>.courseTitleButton:hover{color:#84d9e8}
+:global([data-university-theme="dark"]) .courseCard>.courseTitleButton span{color:#70cde2}
+:global([data-university-theme="dark"]) .courseCard>.courseTitleButton+p{color:#b2c4cc}
+:global([data-university-theme="dark"]) .courseCard>button:not(.courseTitleButton){border-color:#4d8399;color:#8fd5e5;background:#10293a}
+@media(max-width:720px){.courseCard{padding:22px}.courseCard>.courseTitleButton h2{font-size:28px}}
+
 .programDetail{width:min(1260px,100%);background:#f5f2ea}
 .programDetail>header{min-height:360px;grid-template-columns:minmax(0,1fr) 170px;padding:58px 64px 46px;background:radial-gradient(circle at 84% 14%,#4cc7cf42,transparent 25rem),linear-gradient(125deg,#092c4a,#14597b 62%,#187c88)}
 .detailInstitution{margin-bottom:22px;color:#b9d6df;font:600 8px var(--font-plex-mono,"IBM Plex Mono",monospace);letter-spacing:1.6px}

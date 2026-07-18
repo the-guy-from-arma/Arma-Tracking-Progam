@@ -1,31 +1,368 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { policyCompliance, policyChecksum, POLICY_SETTING_ID } from "@/lib/policies";
+import {
+  policyCompliance,
+  policyChecksum,
+  POLICY_SETTING_ID,
+} from "@/lib/policies";
 import { text } from "@/lib/input";
 
-async function owner(){const user=await currentUser();return user?.role==="OWNER"?user:null}
-export async function GET(){const user=await owner();if(!user)return NextResponse.json({error:"Owner authority required."},{status:403});const [setting,documents,inquiries,students,compliant]=await Promise.all([db.institutionPolicySetting.upsert({where:{id:POLICY_SETTING_ID},update:{},create:{id:POLICY_SETTING_ID}}),db.policyDocument.findMany({orderBy:{sortOrder:"asc"},include:{versions:{orderBy:{version:"desc"}}}}),db.policyInquiry.findMany({orderBy:{createdAt:"desc"},take:100,include:{messages:{orderBy:{createdAt:"asc"}}}}),db.user.findMany({where:{isStudent:true,suspended:false},select:{id:true,name:true,studentNumber:true,academicEmail:true}}),db.policyAcceptance.groupBy({by:["userId"]})]);const audits=setting.gateActive?await Promise.all(students.map(async student=>({student,compliance:await policyCompliance(student.id)}))):[];const outstanding=audits.filter(item=>!item.compliance.compliant).map(item=>({...item.student,missing:item.compliance.missing.map(policy=>({title:policy.title,version:policy.currentVersion.version}))}));return NextResponse.json({setting,documents,students:students.length,studentsWithAnyAcceptance:compliant.length,outstanding,inquiries});}
-export async function POST(request:Request){const user=await owner();if(!user)return NextResponse.json({error:"Owner authority required."},{status:403});const body=await request.json().catch(()=>({}));const action=String(body.action||"");
-  if(action==="activate_initial"){
-    if(body.legalReviewed!==true||body.trademarkReviewed!==true)return NextResponse.json({error:"Confirm qualified legal review and separate Enfusion University trademark review before publication."},{status:400});
-    const now=new Date();const drafts=await db.policyVersion.findMany({where:{status:"DRAFT",version:1},include:{document:true}});if(drafts.length!==8)return NextResponse.json({error:"All eight version-one policy drafts must exist before activation."},{status:409});
-    await db.$transaction(async tx=>{for(const draft of drafts)await tx.policyVersion.update({where:{id:draft.id},data:{status:"PUBLISHED",publishedAt:now,effectiveAt:now,legalReviewedAt:now,trademarkReviewedAt:now}});await tx.institutionPolicySetting.upsert({where:{id:POLICY_SETTING_ID},update:{gateActive:true,legalReviewConfirmedAt:now,trademarkReviewConfirmedAt:now},create:{id:POLICY_SETTING_ID,gateActive:true,legalReviewConfirmedAt:now,trademarkReviewConfirmedAt:now}});await tx.auditLog.create({data:{actorId:user.id,action:"INITIAL_POLICY_BUNDLE_PUBLISHED",entity:"InstitutionPolicySetting",entityId:POLICY_SETTING_ID,detail:{documents:drafts.map(item=>({slug:item.document.slug,version:item.version,checksum:item.checksum})),legalReviewConfirmed:true,trademarkReviewConfirmed:true}}});});return NextResponse.json({published:true});
+async function owner() {
+  const user = await currentUser();
+  return user?.role === "OWNER" ? user : null;
+}
+export async function GET() {
+  const user = await owner();
+  if (!user)
+    return NextResponse.json(
+      { error: "Owner authority required." },
+      { status: 403 },
+    );
+  const [setting, documents, inquiries, students, compliant] =
+    await Promise.all([
+      db.institutionPolicySetting.upsert({
+        where: { id: POLICY_SETTING_ID },
+        update: {},
+        create: { id: POLICY_SETTING_ID },
+      }),
+      db.policyDocument.findMany({
+        orderBy: { sortOrder: "asc" },
+        include: { versions: { orderBy: { version: "desc" } } },
+      }),
+      db.policyInquiry.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 100,
+        include: { messages: { orderBy: { createdAt: "asc" } } },
+      }),
+      db.user.findMany({
+        where: { isStudent: true, suspended: false },
+        select: {
+          id: true,
+          name: true,
+          studentNumber: true,
+          academicEmail: true,
+        },
+      }),
+      db.policyAcceptance.groupBy({ by: ["userId"] }),
+    ]);
+  const audits = setting.gateActive
+    ? await Promise.all(
+        students.map(async (student) => ({
+          student,
+          compliance: await policyCompliance(student.id),
+        })),
+      )
+    : [];
+  const outstanding = audits
+    .filter((item) => !item.compliance.compliant)
+    .map((item) => ({
+      ...item.student,
+      missing: item.compliance.missing.map((policy) => ({
+        title: policy.title,
+        version: policy.currentVersion.version,
+      })),
+    }));
+  return NextResponse.json({
+    setting,
+    documents,
+    students: students.length,
+    studentsWithAnyAcceptance: compliant.length,
+    outstanding,
+    inquiries,
+  });
+}
+export async function POST(request: Request) {
+  const user = await owner();
+  if (!user)
+    return NextResponse.json(
+      { error: "Owner authority required." },
+      { status: 403 },
+    );
+  const body = await request.json().catch(() => ({}));
+  const action = String(body.action || "");
+  if (action === "activate_initial") {
+    if (body.legalReviewed !== true || body.trademarkReviewed !== true)
+      return NextResponse.json(
+        {
+          error:
+            "Confirm qualified legal review and separate Enfusion University trademark review before publication.",
+        },
+        { status: 400 },
+      );
+    const now = new Date();
+    const drafts = await db.policyVersion.findMany({
+      where: { status: "DRAFT", version: 1 },
+      include: { document: true },
+    });
+    if (drafts.length !== 8)
+      return NextResponse.json(
+        {
+          error:
+            "All eight version-one policy drafts must exist before activation.",
+        },
+        { status: 409 },
+      );
+    await db.$transaction(async (tx) => {
+      for (const draft of drafts)
+        await tx.policyVersion.update({
+          where: { id: draft.id },
+          data: {
+            status: "PUBLISHED",
+            publishedAt: now,
+            effectiveAt: now,
+            legalReviewedAt: now,
+            trademarkReviewedAt: now,
+          },
+        });
+      await tx.institutionPolicySetting.upsert({
+        where: { id: POLICY_SETTING_ID },
+        update: {
+          gateActive: true,
+          legalReviewConfirmedAt: now,
+          trademarkReviewConfirmedAt: now,
+        },
+        create: {
+          id: POLICY_SETTING_ID,
+          gateActive: true,
+          legalReviewConfirmedAt: now,
+          trademarkReviewConfirmedAt: now,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: user.id,
+          action: "INITIAL_POLICY_BUNDLE_PUBLISHED",
+          entity: "InstitutionPolicySetting",
+          entityId: POLICY_SETTING_ID,
+          detail: {
+            documents: drafts.map((item) => ({
+              slug: item.document.slug,
+              version: item.version,
+              checksum: item.checksum,
+            })),
+            legalReviewConfirmed: true,
+            trademarkReviewConfirmed: true,
+          },
+        },
+      });
+    });
+    return NextResponse.json({ published: true });
   }
-  if(action==="create_version"){
-    const document=await db.policyDocument.findUnique({where:{id:String(body.documentId)},include:{versions:{orderBy:{version:"desc"},take:1}}});if(!document||!document.versions[0])return NextResponse.json({error:"Policy document not found."},{status:404});const latest=document.versions[0];const version=await db.policyVersion.create({data:{documentId:document.id,version:latest.version+1,content:latest.content as never,checksum:latest.checksum,revisionNote:text(body.revisionNote,300)||"Policy revision draft",materialChange:body.materialChange!==false,status:"DRAFT"}});return NextResponse.json({version},{status:201});
+  if (action === "create_version") {
+    const document = await db.policyDocument.findUnique({
+      where: { id: String(body.documentId) },
+      include: { versions: { orderBy: { version: "desc" }, take: 1 } },
+    });
+    if (!document || !document.versions[0])
+      return NextResponse.json(
+        { error: "Policy document not found." },
+        { status: 404 },
+      );
+    const latest = document.versions[0];
+    const version = await db.policyVersion.create({
+      data: {
+        documentId: document.id,
+        version: latest.version + 1,
+        content: latest.content as never,
+        checksum: latest.checksum,
+        revisionNote: text(body.revisionNote, 300) || "Policy revision draft",
+        materialChange: body.materialChange !== false,
+        status: "DRAFT",
+      },
+    });
+    return NextResponse.json({ version }, { status: 201 });
   }
-  if(action==="update_draft"){
-    const draft=await db.policyVersion.findFirst({where:{id:String(body.versionId),status:"DRAFT"}});if(!draft)return NextResponse.json({error:"Editable draft not found. Published versions are immutable."},{status:404});const content=body.content;const updated=await db.policyVersion.update({where:{id:draft.id},data:{content,checksum:policyChecksum(content),revisionNote:text(body.revisionNote,300),materialChange:body.materialChange!==false}});return NextResponse.json({version:updated});
+  if (action === "update_draft") {
+    const draft = await db.policyVersion.findFirst({
+      where: { id: String(body.versionId), status: "DRAFT" },
+    });
+    if (!draft)
+      return NextResponse.json(
+        {
+          error: "Editable draft not found. Published versions are immutable.",
+        },
+        { status: 404 },
+      );
+    const content = body.content;
+    const updated = await db.policyVersion.update({
+      where: { id: draft.id },
+      data: {
+        content,
+        checksum: policyChecksum(content),
+        revisionNote: text(body.revisionNote, 300),
+        materialChange: body.materialChange !== false,
+      },
+    });
+    return NextResponse.json({ version: updated });
   }
-  if(action==="publish_version"){
-    if(body.legalReviewed!==true)return NextResponse.json({error:"Qualified legal review confirmation is required."},{status:400});const draft=await db.policyVersion.findFirst({where:{id:String(body.versionId),status:"DRAFT"},include:{document:true}});if(!draft)return NextResponse.json({error:"Draft not found."},{status:404});const now=new Date(body.effectiveAt||Date.now());const published=await db.policyVersion.update({where:{id:draft.id},data:{status:"PUBLISHED",publishedAt:new Date(),effectiveAt:now,legalReviewedAt:new Date(),trademarkReviewedAt:body.trademarkReviewed===true?new Date():null}});await db.auditLog.create({data:{actorId:user.id,action:"POLICY_VERSION_PUBLISHED",entity:"PolicyVersion",entityId:draft.id,detail:{slug:draft.document.slug,version:draft.version,checksum:draft.checksum,materialChange:draft.materialChange,effectiveAt:now}}});return NextResponse.json({version:published});
+  if (action === "publish_version") {
+    if (body.legalReviewed !== true)
+      return NextResponse.json(
+        { error: "Qualified legal review confirmation is required." },
+        { status: 400 },
+      );
+    const draft = await db.policyVersion.findFirst({
+      where: { id: String(body.versionId), status: "DRAFT" },
+      include: { document: true },
+    });
+    if (!draft)
+      return NextResponse.json({ error: "Draft not found." }, { status: 404 });
+    const now = new Date(body.effectiveAt || Date.now());
+    const students = draft.materialChange
+      ? await db.user.findMany({
+          where: { isStudent: true, suspended: false },
+          select: { id: true },
+        })
+      : [];
+    const published = await db.$transaction(async (tx) => {
+      const version = await tx.policyVersion.update({
+        where: { id: draft.id },
+        data: {
+          status: "PUBLISHED",
+          publishedAt: new Date(),
+          effectiveAt: now,
+          legalReviewedAt: new Date(),
+          trademarkReviewedAt:
+            body.trademarkReviewed === true ? new Date() : null,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: user.id,
+          action: "POLICY_VERSION_PUBLISHED",
+          entity: "PolicyVersion",
+          entityId: draft.id,
+          detail: {
+            slug: draft.document.slug,
+            version: draft.version,
+            checksum: draft.checksum,
+            materialChange: draft.materialChange,
+            effectiveAt: now,
+            notifiedStudents: students.length,
+          },
+        },
+      });
+      if (students.length) {
+        await tx.notification.createMany({
+          data: students.map((student) => ({
+            userId: student.id,
+            type: "SYSTEM",
+            title: "University policies have changed",
+            body: `${draft.document.title} version ${draft.version} is now published and requires your review and electronic signature.`,
+            actionUrl: "/policies/accept",
+            dedupeKey: `policy-change:${draft.id}:${student.id}`,
+          })),
+          skipDuplicates: true,
+        });
+      }
+      return version;
+    });
+    return NextResponse.json({ version: published });
   }
-  if(action==="set_ai_data_mode"){
-    const mode=String(body.aiDataMode);if(!["UNCONFIRMED_OR_UNPAID","PAID_SERVICE_CONFIRMED","AI_DISABLED"].includes(mode))return NextResponse.json({error:"Invalid AI data mode."},{status:400});const document=await db.policyDocument.findUnique({where:{slug:"ai-automated-systems"},include:{versions:{orderBy:{version:"desc"},take:1}}});if(!document?.versions[0])return NextResponse.json({error:"AI policy is unavailable."},{status:409});const latest=document.versions[0];const content=structuredClone(latest.content) as {sections?:{heading:string;paragraphs:string[]}[]};const provider=content.sections?.find(section=>section.heading==="Provider data mode");if(provider)provider.paragraphs=[`The university's recorded Gemini data mode is ${mode}. This classification controls the provider-data disclosure and whether automated academic processing is enabled.`,...(provider.paragraphs||[]).slice(1)];const draft=await db.policyVersion.create({data:{documentId:document.id,version:latest.version+1,content:content as never,checksum:policyChecksum(content),revisionNote:`Gemini data mode changed to ${mode}`,materialChange:true,status:"DRAFT"}});await db.institutionPolicySetting.update({where:{id:POLICY_SETTING_ID},data:{aiDataMode:mode as never}});await db.auditLog.create({data:{actorId:user.id,action:"AI_DATA_MODE_CHANGED",entity:"InstitutionPolicySetting",entityId:POLICY_SETTING_ID,detail:{mode,policyDraftId:draft.id,requiresPublication:true}}});return NextResponse.json({setting:{aiDataMode:mode},draft});
+  if (action === "set_ai_data_mode") {
+    const mode = String(body.aiDataMode);
+    if (
+      ![
+        "UNCONFIRMED_OR_UNPAID",
+        "PAID_SERVICE_CONFIRMED",
+        "AI_DISABLED",
+      ].includes(mode)
+    )
+      return NextResponse.json(
+        { error: "Invalid AI data mode." },
+        { status: 400 },
+      );
+    const document = await db.policyDocument.findUnique({
+      where: { slug: "ai-automated-systems" },
+      include: { versions: { orderBy: { version: "desc" }, take: 1 } },
+    });
+    if (!document?.versions[0])
+      return NextResponse.json(
+        { error: "AI policy is unavailable." },
+        { status: 409 },
+      );
+    const latest = document.versions[0];
+    const content = structuredClone(latest.content) as {
+      sections?: { heading: string; paragraphs: string[] }[];
+    };
+    const provider = content.sections?.find(
+      (section) => section.heading === "Provider data mode",
+    );
+    if (provider)
+      provider.paragraphs = [
+        `The university's recorded Gemini data mode is ${mode}. This classification controls the provider-data disclosure and whether automated academic processing is enabled.`,
+        ...(provider.paragraphs || []).slice(1),
+      ];
+    const draft = await db.policyVersion.create({
+      data: {
+        documentId: document.id,
+        version: latest.version + 1,
+        content: content as never,
+        checksum: policyChecksum(content),
+        revisionNote: `Gemini data mode changed to ${mode}`,
+        materialChange: true,
+        status: "DRAFT",
+      },
+    });
+    await db.institutionPolicySetting.update({
+      where: { id: POLICY_SETTING_ID },
+      data: { aiDataMode: mode as never },
+    });
+    await db.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: "AI_DATA_MODE_CHANGED",
+        entity: "InstitutionPolicySetting",
+        entityId: POLICY_SETTING_ID,
+        detail: { mode, policyDraftId: draft.id, requiresPublication: true },
+      },
+    });
+    return NextResponse.json({ setting: { aiDataMode: mode }, draft });
   }
-  if(action==="respond_inquiry"){
-    const inquiry=await db.policyInquiry.findUnique({where:{id:String(body.inquiryId)}});const message=text(body.message,5000);if(!inquiry||message.length<2)return NextResponse.json({error:"Inquiry and response are required."},{status:400});await db.$transaction([db.policyInquiryMessage.create({data:{inquiryId:inquiry.id,role:"OWNER",authorId:user.id,body:message}}),db.policyInquiry.update({where:{id:inquiry.id},data:{status:body.close===true?"RESOLVED":"AWAITING_REQUESTER",closedAt:body.close===true?new Date():null}}),db.auditLog.create({data:{actorId:user.id,action:"POLICY_INQUIRY_RESPONDED",entity:"PolicyInquiry",entityId:inquiry.id,detail:{trackingNumber:inquiry.trackingNumber,closed:body.close===true}}})]);return NextResponse.json({ok:true});
+  if (action === "respond_inquiry") {
+    const inquiry = await db.policyInquiry.findUnique({
+      where: { id: String(body.inquiryId) },
+    });
+    const message = text(body.message, 5000);
+    if (!inquiry || message.length < 2)
+      return NextResponse.json(
+        { error: "Inquiry and response are required." },
+        { status: 400 },
+      );
+    await db.$transaction([
+      db.policyInquiryMessage.create({
+        data: {
+          inquiryId: inquiry.id,
+          role: "OWNER",
+          authorId: user.id,
+          body: message,
+        },
+      }),
+      db.policyInquiry.update({
+        where: { id: inquiry.id },
+        data: {
+          status: body.close === true ? "RESOLVED" : "AWAITING_REQUESTER",
+          closedAt: body.close === true ? new Date() : null,
+        },
+      }),
+      db.auditLog.create({
+        data: {
+          actorId: user.id,
+          action: "POLICY_INQUIRY_RESPONDED",
+          entity: "PolicyInquiry",
+          entityId: inquiry.id,
+          detail: {
+            trackingNumber: inquiry.trackingNumber,
+            closed: body.close === true,
+          },
+        },
+      }),
+    ]);
+    return NextResponse.json({ ok: true });
   }
-  return NextResponse.json({error:"Unknown policy administration action."},{status:400});
+  return NextResponse.json(
+    { error: "Unknown policy administration action." },
+    { status: 400 },
+  );
 }
