@@ -13,6 +13,7 @@ import {
   StandardFonts,
 } from "pdf-lib";
 import { currentUser } from "@/lib/auth";
+import { DOCUMENT_RENDERER_VERSION } from "@/lib/build-info";
 import { db } from "@/lib/db";
 import { policyGateResponse } from "@/lib/policies";
 
@@ -628,6 +629,18 @@ export async function GET(
         color: rgb(0.62, 0.7, 0.73),
       },
     );
+    currentPage.drawText(DOCUMENT_RENDERER_VERSION.toUpperCase(), {
+      x:
+        564 -
+        regular.widthOfTextAtSize(
+          DOCUMENT_RENDERER_VERSION.toUpperCase(),
+          5.2,
+        ),
+      y: 16,
+      size: 5.2,
+      font: regular,
+      color: rgb(0.62, 0.7, 0.73),
+    });
   });
 
   const bytes = await pdf.save();
@@ -641,6 +654,7 @@ export async function GET(
         type,
         documentId,
         verificationCode,
+        rendererVersion: DOCUMENT_RENDERER_VERSION,
         authorities: documentAuthorities,
       },
     },
@@ -651,6 +665,7 @@ export async function GET(
       "content-disposition": `attachment; filename="enfusion-${type}-${record.studentNumber || "student"}.pdf"`,
       "cache-control": "private, no-store",
       "x-document-id": documentId,
+      "x-document-renderer-version": DOCUMENT_RENDERER_VERSION,
     },
   });
 }
