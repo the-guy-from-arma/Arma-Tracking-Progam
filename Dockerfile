@@ -27,6 +27,10 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/scripts ./scripts
+# The policy seeder intentionally reads the canonical policy source at startup.
+# Keep that single source file in the minimal runner image without shipping the
+# rest of the application source tree.
+COPY --from=builder /app/src/lib/policy-documents.ts ./src/lib/policy-documents.ts
 COPY --from=builder /app/next.config.mjs ./next.config.mjs
 COPY startup.sh ./startup.sh
 RUN chmod +x ./startup.sh
