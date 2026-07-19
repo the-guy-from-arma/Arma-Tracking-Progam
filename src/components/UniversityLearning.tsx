@@ -250,6 +250,7 @@ export function UniversityLearning({
   const [selected, setSelected] = useState<CourseDetail | null>(null);
   const [previewCourse, setPreviewCourse] = useState<CourseDetail | null>(null);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+  const [comparingProgram, setComparingProgram] = useState<Program | null>(null);
   const [activeAnnouncement, setActiveAnnouncement] =
     useState<NotificationItem | null>(null);
   const [search, setSearch] = useState("");
@@ -872,14 +873,28 @@ export function UniversityLearning({
         <AnimatePresence>
           {selectedProgram && (
             <ProgramDetail
+              key={selectedProgram.id}
               program={selectedProgram}
               close={() => setSelectedProgram(null)}
+              compare={() => setComparingProgram(selectedProgram)}
               apply={() => {
                 setSelectedProgram(null);
                 setApplying(selectedProgram);
               }}
             />
           )}{" "}
+          {comparingProgram && programs && (
+            <ProgramComparison
+              key={`compare-${comparingProgram.id}`}
+              program={comparingProgram}
+              programs={programs.programs}
+              close={() => setComparingProgram(null)}
+              openProgram={(nextProgram) => {
+                setComparingProgram(null);
+                setSelectedProgram(nextProgram);
+              }}
+            />
+          )}
           {applying && (
             <ProgramApplication
               program={applying}
@@ -1632,10 +1647,12 @@ function CoursePreview({
 function ProgramDetail({
   program,
   close,
+  compare,
   apply,
 }: {
   program: Program;
   close: () => void;
+  compare: () => void;
   apply: () => void;
 }) {
   const terms = [
@@ -1880,7 +1897,7 @@ function ProgramDetail({
             <small>SPONSORED BY</small>
             <b>{program.sponsoredBy}</b>
           </div>
-          <button onClick={close}>COMPARE OTHER PATHWAYS</button>
+          <button onClick={compare}>COMPARE OTHER PATHWAYS</button>
           {program.enrollments.length ? (
             <button className={styles.primary} onClick={close}>
               PROGRAM ACTIVE
@@ -1900,6 +1917,254 @@ function ProgramDetail({
           )}
         </footer>
       </motion.article>
+    </motion.div>
+  );
+}
+
+function programLevelLabel(level: string) {
+  if (level === "SHORT") return "Short credential";
+  if (level === "ASSOCIATE") return "Associate pathway";
+  if (level === "BACHELOR") return "Bachelor-level pathway";
+  return level.replaceAll("_", " ");
+}
+
+function programLevelRank(level: string) {
+  return level === "SHORT" ? 1 : level === "ASSOCIATE" ? 2 : 3;
+}
+
+function requirementCount(program: Program, type: string) {
+  return program.requirements.filter((item) => item.type === type).length;
+}
+
+function programReason(program: Program, other: Program) {
+  if (!program.audit.eligible) {
+    return program.audit.blocker
+      ? `Choose this pathway after resolving its prerequisite: ${program.audit.blocker}`
+      : "Choose this pathway after completing its required prior academic level.";
+  }
+  if (program.audit.creditsApplied > other.audit.creditsApplied) {
+    return `This pathway currently accepts ${program.audit.creditsApplied} of your completed credits, reducing repeated work and creating the more direct continuation from your record.`;
+  }
+  const levelDifference =
+    programLevelRank(program.level) - programLevelRank(other.level);
+  if (levelDifference < 0) {
+    return `Choose this pathway for a faster, focused entry into ${program.academy} before committing to a broader multi-term program.`;
+  }
+  if (levelDifference > 0) {
+    return `Choose this pathway for deeper ${program.academy} mastery, more advanced supporting study, and a larger culminating body of work.`;
+  }
+  if (program.academy !== other.academy) {
+    return `Choose this pathway when your primary goal is ${program.academy}; its required courses and culminating experience keep that discipline at the center of the plan.`;
+  }
+  return `Choose this pathway when its intended audience and culminating experience match the work you want to produce: ${program.culminatingExperience}`;
+}
+
+function ProgramComparison({
+  program,
+  programs,
+  close,
+  openProgram,
+}: {
+  program: Program;
+  programs: Program[];
+  close: () => void;
+  openProgram: (program: Program) => void;
+}) {
+  const choices = useMemo(
+    () =>
+      programs
+        .filter((item) => item.id !== program.id)
+        .sort((left, right) => {
+          const academyDifference =
+            Number(right.academy === program.academy) -
+            Number(left.academy === program.academy);
+          if (academyDifference) return academyDifference;
+          const levelDifference =
+            Math.abs(programLevelRank(left.level) - programLevelRank(program.level)) -
+            Math.abs(programLevelRank(right.level) - programLevelRank(program.level));
+          return levelDifference || left.title.localeCompare(right.title);
+        }),
+    [program, programs],
+  );
+  const [comparisonId, setComparisonId] = useState(choices[0]?.id || "");
+  const comparison =
+    choices.find((item) => item.id === comparisonId) || choices[0];
+
+  if (!comparison) return null;
+
+  const programCourseIds = new Set(
+    program.requirements.map((item) => item.course.id),
+  );
+  const comparisonCourseIds = new Set(
+    comparison.requirements.map((item) => item.course.id),
+  );
+  const sharedCourses = program.requirements.filter((item) =>
+    comparisonCourseIds.has(item.course.id),
+  ).length;
+  const uniqueProgramCourses = program.requirements.filter(
+    (item) => !comparisonCourseIds.has(item.course.id),
+  );
+  const uniqueComparisonCourses = comparison.requirements.filter(
+    (item) => !programCourseIds.has(item.course.id),
+  );
+  const totalHours = (item: Program) =>
+    item.requirements.reduce(
+      (total, requirement) => total + requirement.course.workloadHours,
+      0,
+    );
+  const facts = (item: Program) => [
+    ["Pathway", programLevelLabel(item.level)],
+    ["Required courses", String(item.requirements.length)],
+    ["Learning credits", String(item.creditsRequired)],
+    ["Planned terms", String(Math.ceil(item.durationDays / 120))],
+    ["Documented workload", `${totalHours(item)} hours`],
+    ["Your applied credit", `${item.audit.creditsApplied} credits`],
+    ["Current entry status", item.audit.eligible ? "Eligible" : "Prerequisite required"],
+    ["Sponsored value", money(item.estimatedValueCents)],
+  ];
+
+  return (
+    <motion.div
+      className={styles.comparisonBack}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) close();
+      }}
+    >
+      <motion.section
+        className={styles.comparisonDialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="program-comparison-title"
+        initial={{ y: 28, opacity: 0, scale: 0.98 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        exit={{ y: 20, opacity: 0, scale: 0.98 }}
+      >
+        <header className={styles.comparisonHeader}>
+          <div>
+            <small>ACADEMIC PATHWAY COMPARISON</small>
+            <h2 id="program-comparison-title">See what truly changes.</h2>
+            <p>
+              Compare curriculum depth, time, transferred credit, outcomes,
+              and the central reason to choose one pathway over another.
+            </p>
+          </div>
+          <button type="button" onClick={close} aria-label="Close program comparison">
+            ×
+          </button>
+        </header>
+
+        <div className={styles.comparisonSelector}>
+          <div>
+            <small>YOUR STARTING PATHWAY</small>
+            <b>{program.title}</b>
+            <span>{program.code} · {program.academy}</span>
+          </div>
+          <label>
+            COMPARE WITH
+            <select
+              value={comparison.id}
+              onChange={(event) => setComparisonId(event.target.value)}
+            >
+              {choices.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title} · {programLevelLabel(item.level)} · {item.academy}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className={styles.comparisonShared}>
+          <span>{sharedCourses} SHARED COURSES</span>
+          <i />
+          <p>
+            Shared courses transfer directly when completed. The differences
+            below represent the additional academic direction each pathway
+            provides.
+          </p>
+        </div>
+
+        <div className={styles.comparisonColumns}>
+          {[
+            { item: program, other: comparison, unique: uniqueProgramCourses },
+            { item: comparison, other: program, unique: uniqueComparisonCourses },
+          ].map(({ item, other, unique }, columnIndex) => (
+            <article key={item.id} className={styles.comparisonProgram}>
+              <header>
+                <small>{columnIndex === 0 ? "CURRENT SELECTION" : "COMPARISON PATHWAY"}</small>
+                <span>{item.code}</span>
+                <h3>{item.title}</h3>
+                <p>{item.summary}</p>
+              </header>
+
+              <section className={styles.comparisonReason}>
+                <small>CORE REASON TO CHOOSE THIS PATHWAY</small>
+                <p>{programReason(item, other)}</p>
+              </section>
+
+              <dl className={styles.comparisonFacts}>
+                {facts(item).map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+
+              <section className={styles.comparisonCurriculum}>
+                <small>CURRICULUM COMPOSITION</small>
+                <div>
+                  {['CORE', 'SUPPORTING', 'ELECTIVE', 'CAPSTONE'].map((type) => (
+                    <span key={type}>
+                      <b>{requirementCount(item, type)}</b>
+                      {type}
+                    </span>
+                  ))}
+                </div>
+              </section>
+
+              <section className={styles.comparisonDistinct}>
+                <small>DISTINCT REQUIRED STUDY</small>
+                <h4>{unique.length} courses unique to this pathway</h4>
+                <ul>
+                  {unique.slice(0, 4).map((requirement) => (
+                    <li key={requirement.id}>
+                      <b>{requirement.course.title}</b>
+                      <span>{requirement.course.academy} · {requirement.course.workloadHours} hours</span>
+                    </li>
+                  ))}
+                  {!unique.length && <li>This pathway contains no additional unique courses.</li>}
+                </ul>
+              </section>
+
+              <section className={styles.comparisonOutcome}>
+                <small>WHO IT SERVES</small>
+                <p>{item.audience}</p>
+                <small>CULMINATING EXPERIENCE</small>
+                <p>{item.culminatingExperience}</p>
+              </section>
+            </article>
+          ))}
+        </div>
+
+        <footer className={styles.comparisonFooter}>
+          <p>
+            This comparison uses the live published curriculum and your current
+            completed-credit audit.
+          </p>
+          <button type="button" onClick={close}>RETURN TO CURRENT PATHWAY</button>
+          <button
+            type="button"
+            className={styles.primary}
+            onClick={() => openProgram(comparison)}
+          >
+            OPEN {comparison.code} →
+          </button>
+        </footer>
+      </motion.section>
     </motion.div>
   );
 }
