@@ -3069,8 +3069,10 @@
 }
 .termMap > article {
   overflow: hidden;
+  border: 1px solid #d8e5ec;
   border-radius: 24px 24px 8px 24px;
   background: white;
+  color: #17364a;
   box-shadow: 0 14px 40px #28516e10;
 }
 .termMap > article > header {
@@ -3095,6 +3097,10 @@
     normal 700 9px "Bahnschrift",
     sans-serif;
   color: #397aa7;
+}
+.termMap > article > div span b {
+  color: #17364a;
+  font-weight: 700;
 }
 .termMap b,
 .termMap small {
@@ -3174,13 +3180,63 @@
 }
 :global([data-university-theme="dark"])
   .termMap
+  > article {
+  border-color: #315064;
+  background: #102738;
+  color: #edf5f7;
+  box-shadow: 0 18px 48px #0003;
+}
+:global([data-university-theme="dark"])
+  .termMap
+  > article
+  > header {
+  background: #17384c;
+  color: #90d9ed;
+}
+:global([data-university-theme="dark"])
+  .termMap
+  > article
+  > div {
+  border-color: #315064;
+}
+:global([data-university-theme="dark"])
+  .termMap
+  > article
+  > div
+  span
+  b {
+  color: #f0f6f8;
+}
+:global([data-university-theme="dark"])
+  .termMap
+  > article
+  > div
+  span
+  small {
+  color: #afc3cd;
+}
+:global([data-university-theme="dark"])
+  .termMap
+  > article
+  > div
+  i {
+  color: #82d3e8;
+}
+:global([data-university-theme="dark"])
+  .termMap
   > article
   > div.requirementComplete {
   background: #12352f;
 }
+:global([data-university-theme="dark"])
+  .termMap
+  > article
+  > div.requirementNext {
+  background: #112f42;
+}
 .termMap small {
   margin-top: 4px;
-  color: #748a9b;
+  color: #526f83;
 }
 .courseDetail > footer {
   position: sticky;
