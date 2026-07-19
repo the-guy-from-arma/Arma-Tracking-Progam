@@ -1,11 +1,28 @@
 import bcrypt from "bcryptjs";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createSession, currentUser } from "@/lib/auth";
+import { processNextAdmissionReview } from "@/lib/admissions-automation";
 import { db } from "@/lib/db";
 import { email, publicUser, text } from "@/lib/input";
 import { createTrackingNumber, trackingEvent } from "@/lib/application-tracking";
 import { requestPolicyMetadata, recordPolicyAcceptance, validatePolicyBundle } from "@/lib/policies";
 import { campusRestrictionResponse } from "@/lib/campus-operations";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+function wakeAdmissionsQueue() {
+  after(async () => {
+    try {
+      await processNextAdmissionReview();
+    } catch (error) {
+      console.error(
+        "Admissions queue wake-up failed",
+        error instanceof Error ? error.message : "Unknown queue error",
+      );
+    }
+  });
+}
 
 const experienceLevels = new Set(["NEW", "BEGINNER", "INTERMEDIATE", "ADVANCED", "PROFESSIONAL"]);
 
@@ -115,6 +132,7 @@ export async function POST(request: Request) {
     return applicant;
   });
   if (!signedIn) await createSession(user.id);
+  wakeAdmissionsQueue();
   const slaMinutes = Math.max(2, Math.min(60, Number(process.env.ADMISSIONS_REVIEW_SLA_MINUTES || 10)));
   return NextResponse.json({
     user: publicUser(user),

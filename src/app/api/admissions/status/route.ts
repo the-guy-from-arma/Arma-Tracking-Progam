@@ -1,9 +1,27 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
-import { admissionAwardSummary } from "@/lib/admissions-automation";
+import {
+  admissionAwardSummary,
+  processNextAdmissionReview,
+} from "@/lib/admissions-automation";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+function wakeAdmissionsQueue() {
+  after(async () => {
+    try {
+      await processNextAdmissionReview();
+    } catch (error) {
+      console.error(
+        "Admissions status queue wake-up failed",
+        error instanceof Error ? error.message : "Unknown queue error",
+      );
+    }
+  });
+}
 
 export async function GET() {
   const user = await currentUser();
@@ -19,10 +37,19 @@ export async function GET() {
   if (!application) return NextResponse.json({ error: "No admissions application is attached to this account." }, { status: 404 });
   const tracker = application.trackingRecords[0];
   const latestJob = application.reviewJobs[0];
+  if (
+    latestJob?.status === "QUEUED" &&
+    latestJob.availableAt.getTime() <= Date.now()
+  )
+    wakeAdmissionsQueue();
   const currentClarification = [...application.clarifications].reverse().find((item) => !item.submittedAt) || null;
   const award = application.status === "ADMITTED" && user.academicEmail && user.studentNumber && tracker
     ? admissionAwardSummary(user.academicEmail, user.studentNumber, tracker.trackingNumber)
     : null;
+  const reviewSlaMinutes = Math.max(
+    2,
+    Math.min(60, Number(process.env.ADMISSIONS_REVIEW_SLA_MINUTES || 10)),
+  );
   return NextResponse.json({
     application: {
       status: application.status,
@@ -30,15 +57,39 @@ export async function GET() {
       reviewedAt: application.reviewedAt,
       trackingNumber: tracker?.trackingNumber,
       trackingStatus: tracker?.status,
-      history: tracker?.statusHistory || [],
+      history: Array.isArray(tracker?.statusHistory) ? tracker.statusHistory : [],
+      closedAt: tracker?.closedAt,
+      lastUpdatedAt: tracker?.updatedAt || application.submittedAt,
+      estimatedDecisionAt: new Date(
+        application.submittedAt.getTime() + reviewSlaMinutes * 60_000,
+      ),
+      profile: {
+        preferredName: application.preferredName,
+        country: application.country,
+        timeZone: application.timeZone,
+        experienceLevel: application.experienceLevel,
+        weeklyHours: application.weeklyHours,
+        learningGoals: application.learningGoals,
+        workbenchExperience: application.workbenchExperience,
+        enforceExperience: application.enforceExperience,
+        fundingStatement: application.fundingStatement,
+        portfolioUrl: application.portfolioUrl,
+        githubUrl: application.githubUrl,
+        concentration: user.specialty,
+      },
     },
     review: latestJob ? {
       status: latestJob.status,
       stage: latestJob.stage,
       attempt: latestJob.attempt,
+      maxAttempts: latestJob.maxAttempts,
       availableAt: latestJob.availableAt,
       updatedAt: latestJob.updatedAt,
-      decision: latestJob.decision ? { outcome: latestJob.decision.outcome, strengths: latestJob.decision.strengths, concerns: latestJob.decision.concerns } : null,
+      decision: latestJob.decision ? {
+        outcome: latestJob.decision.outcome,
+        strengths: Array.isArray(latestJob.decision.strengths) ? latestJob.decision.strengths : [],
+        concerns: Array.isArray(latestJob.decision.concerns) ? latestJob.decision.concerns : [],
+      } : null,
     } : null,
     clarification: currentClarification ? { id: currentClarification.id, round: currentClarification.round, questions: currentClarification.questions } : null,
     policyActionUrl: latestJob?.status === "WAITING_FOR_CONSENT" ? "/policies/accept" : null,

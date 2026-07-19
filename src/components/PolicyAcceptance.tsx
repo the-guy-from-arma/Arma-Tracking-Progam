@@ -26,7 +26,11 @@ export function PolicyAcceptance() {
       const requestedReturn = new URLSearchParams(window.location.search).get(
         "returnTo",
       );
-      if (requestedReturn?.startsWith("/university")) setReturnTo(requestedReturn);
+      if (
+        requestedReturn?.startsWith("/university") ||
+        requestedReturn === "/admissions/status"
+      )
+        setReturnTo(requestedReturn);
       void fetch("/api/policies")
         .then((response) => response.json())
         .then((payload) => setPolicies(payload.policies || []));
@@ -76,6 +80,8 @@ export function PolicyAcceptance() {
           <Link href={returnTo}>
             {returnTo.includes("view=messages")
               ? "Return to Campus Messages"
+              : returnTo === "/admissions/status"
+                ? "Return to Application Status"
               : "Enter Student Campus"}
           </Link>
         </div>
