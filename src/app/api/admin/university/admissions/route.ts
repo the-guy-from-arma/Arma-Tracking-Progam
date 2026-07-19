@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
-import { finalizeAdmission } from "@/lib/admissions-automation";
+import {
+  admissionReviewTiming,
+  finalizeAdmission,
+} from "@/lib/admissions-automation";
 import { trackingEvent } from "@/lib/application-tracking";
 import { db } from "@/lib/db";
 import { text } from "@/lib/input";
@@ -35,9 +38,7 @@ export async function GET() {
     applications,
     worker: {
       enabled: process.env.ADMISSIONS_AUTOMATION_ENABLED === "true",
-      mode: process.env.ADMISSIONS_AUTOMATION_MODE || "SHADOW",
-      model: process.env.ADMISSIONS_MODEL || process.env.GEMINI_MODEL || "gemini-3.1-pro-preview",
-      keyConfigured: Boolean(process.env.GEMINI_API_KEY),
+      engine: "DETERMINISTIC CHARACTER-DURATION",
       secretConfigured: Boolean(process.env.ADMISSIONS_WORKER_SECRET),
       queued, processing, exceptions, stale,
     },
@@ -63,9 +64,10 @@ export async function PATCH(request: Request) {
 
   if (action === "retry") {
     const round = await db.admissionClarification.count({ where: { applicationId: application.id, submittedAt: { not: null } } });
-    const job = await db.admissionReviewJob.create({ data: { applicationId: application.id, clarificationRound: round, idempotencyKey: `admission-review:${application.id}:owner:${Date.now()}`, maxAttempts: Number(process.env.ADMISSIONS_MAX_RETRIES || 3) } });
+    const reviewTiming = admissionReviewTiming(application);
+    const job = await db.admissionReviewJob.create({ data: { applicationId: application.id, clarificationRound: round, idempotencyKey: `admission-review:${application.id}:owner:${Date.now()}`, availableAt: reviewTiming.availableAt, maxAttempts: Number(process.env.ADMISSIONS_MAX_RETRIES || 3) } });
     await db.studentApplication.update({ where: { id: application.id }, data: { status: "UNDER_AUTOMATED_REVIEW" } });
-    await db.auditLog.create({ data: { actorId: user.id, action: "ADMISSION_REVIEW_RETRIED", entity: "AdmissionReviewJob", entityId: job.id, detail: { applicationId: application.id, note } } });
+    await db.auditLog.create({ data: { actorId: user.id, action: "ADMISSION_REVIEW_RETRIED", entity: "AdmissionReviewJob", entityId: job.id, detail: { applicationId: application.id, note, reviewMethod: "CHARACTER_COUNT_DURATION", characterCount: reviewTiming.characterCount, reviewAvailableAt: reviewTiming.availableAt } } });
     return NextResponse.json({ job }, { status: 202 });
   }
 

@@ -16,7 +16,6 @@ type StatusPayload = {
     reviewedAt: string | null;
     closedAt: string | null;
     lastUpdatedAt: string;
-    estimatedDecisionAt: string;
     history: ApplicationHistory[];
     profile: {
       preferredName: string | null;
@@ -38,7 +37,6 @@ type StatusPayload = {
     stage: string;
     attempt: number;
     maxAttempts: number;
-    availableAt: string;
     updatedAt: string;
     decision: {
       outcome: string;

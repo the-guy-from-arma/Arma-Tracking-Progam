@@ -27,9 +27,7 @@ type OperatingPeriod = OperationsData["periods"][number];
 type AdmissionsData = {
   worker: {
     enabled: boolean;
-    mode: string;
-    model: string;
-    keyConfigured: boolean;
+    engine: string;
     secretConfigured: boolean;
     queued: number;
     processing: number;
@@ -257,7 +255,7 @@ export function CampusOperationsPanel() {
         <article><small>LEARNING CAMPUS</small><strong>{operations?.status.learningMode.replaceAll("_", " ") || "LOADING"}</strong><span>{operations?.status.publicTitle}</span></article>
         <article><small>ADMISSIONS</small><strong>{operations?.status.admissionsMode || "—"}</strong><span>{operations?.impact.pendingApplications || 0} active application records</span></article>
         <article><small>NEW ENROLLMENT</small><strong>{operations?.status.enrollmentMode || "—"}</strong><span>{operations?.impact.activeEnrollments || 0} active course enrollments</span></article>
-        <article><small>AUTOMATION WORKER</small><strong>{admissions?.worker.enabled ? admissions.worker.mode : "DISABLED"}</strong><span>{admissions?.worker.model || "Model not reported"}</span></article>
+        <article><small>ADMISSIONS ENGINE</small><strong>{admissions?.worker.enabled ? "ACTIVE" : "DISABLED"}</strong><span>{admissions?.worker.engine || "Deterministic review"}</span></article>
       </div>
 
       <div className={styles.operationsBody}>
@@ -330,7 +328,7 @@ export function CampusOperationsPanel() {
                 <div>
                   <small>{application.trackingRecords[0]?.trackingNumber || application.id}</small>
                   <strong>{application.user.name}</strong>
-                  <span>{application.status.replaceAll("_", " ")} · {job?.decision ? `${job.decision.outcome} / ${job.decision.score} / ${Math.round(job.decision.confidence * 100)}%` : job?.status || "QUEUED"}</span>
+                  <span>{application.status.replaceAll("_", " ")} · {job?.decision ? job.decision.outcome : job?.status || "QUEUED"}</span>
                   {job?.decision?.concerns?.length ? <p>{job.decision.concerns.join(" · ")}</p> : null}
                 </div>
                 <nav>

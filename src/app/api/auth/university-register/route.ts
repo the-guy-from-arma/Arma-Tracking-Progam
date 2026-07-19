@@ -1,7 +1,10 @@
 import bcrypt from "bcryptjs";
 import { after, NextResponse } from "next/server";
 import { createSession, currentUser } from "@/lib/auth";
-import { processNextAdmissionReview } from "@/lib/admissions-automation";
+import {
+  admissionReviewTiming,
+  processNextAdmissionReview,
+} from "@/lib/admissions-automation";
 import { db } from "@/lib/db";
 import { email, publicUser, text } from "@/lib/input";
 import { createTrackingNumber, trackingEvent } from "@/lib/application-tracking";
@@ -119,28 +122,27 @@ export async function POST(request: Request) {
 
   const applicationTrackingNumber = createTrackingNumber("ADMISSION");
   const applicationData = { preferredName: preferredName || null, country, timeZone, experienceLevel, workbenchExperience, enforceExperience, weeklyHours, learningGoals, portfolioUrl: portfolioUrl || null, githubUrl: githubUrl || null, fundingStatement, supportNeeds: supportNeeds || null, status: "UNDER_AUTOMATED_REVIEW" as const };
+  const reviewTiming = admissionReviewTiming(applicationData);
   const user = await db.$transaction(async (tx) => {
     const applicant = signedIn
       ? await tx.user.update({ where: { id: signedIn.id }, data: { name, specialty: specialty || signedIn.specialty } })
       : await tx.user.create({ data: { email: personalEmail, name, passwordHash: await bcrypt.hash(password, 12), specialty: specialty || null } });
     const application = await tx.studentApplication.create({ data: { userId: applicant.id, ...applicationData } });
     await tx.applicationTracking.create({ data: { trackingNumber: applicationTrackingNumber, userId: applicant.id, type: "ADMISSION", status: "IN_REVIEW", studentApplicationId: application.id, submittedAt: application.submittedAt, statusHistory: [trackingEvent("SUBMITTED", "University application received"), trackingEvent("UNDER_AUTOMATED_REVIEW", "Eligibility, readiness, policy, and integrity review queued")] } });
-    await tx.admissionReviewJob.create({ data: { applicationId: application.id, idempotencyKey: `admission-review:${application.id}:r0`, maxAttempts: Number(process.env.ADMISSIONS_MAX_RETRIES || 3) } });
+    await tx.admissionReviewJob.create({ data: { applicationId: application.id, idempotencyKey: `admission-review:${application.id}:r0`, availableAt: reviewTiming.availableAt, maxAttempts: Number(process.env.ADMISSIONS_MAX_RETRIES || 3) } });
     const signature = await recordPolicyAcceptance({ client: tx, userId: applicant.id, applicantEmail: personalEmail, signerName: text(body.signerName, 100), ageAttested: true, electronicConsent: true, policyVersionIds, ...signatureMetadata });
-    await tx.auditLog.create({ data: { actorId: applicant.id, action: "UNIVERSITY_APPLICATION_SUBMITTED", entity: "StudentApplication", entityId: application.id, detail: { trackingNumber: applicationTrackingNumber, reviewMode: process.env.ADMISSIONS_AUTOMATION_MODE || "SHADOW" } } });
+    await tx.auditLog.create({ data: { actorId: applicant.id, action: "UNIVERSITY_APPLICATION_SUBMITTED", entity: "StudentApplication", entityId: application.id, detail: { trackingNumber: applicationTrackingNumber, reviewMethod: "CHARACTER_COUNT_DURATION", characterCount: reviewTiming.characterCount, reviewAvailableAt: reviewTiming.availableAt } } });
     await tx.auditLog.create({ data: { actorId: applicant.id, action: "ADMISSIONS_POLICY_BUNDLE_SIGNED", entity: "PolicySignatureEvent", entityId: signature.id, detail: { receiptNumber: signature.receiptNumber, policyVersionIds } } });
     return applicant;
   });
   if (!signedIn) await createSession(user.id);
   wakeAdmissionsQueue();
-  const slaMinutes = Math.max(2, Math.min(60, Number(process.env.ADMISSIONS_REVIEW_SLA_MINUTES || 10)));
   return NextResponse.json({
     user: publicUser(user),
     application: {
       trackingNumber: applicationTrackingNumber,
       status: "UNDER_AUTOMATED_REVIEW",
       submittedAt: new Date(),
-      estimatedDecisionAt: new Date(Date.now() + slaMinutes * 60_000),
       statusUrl: "/admissions/status",
       stages: ["APPLICATION_RECEIVED", "IDENTITY_ELIGIBILITY", "ACADEMIC_READINESS", "POLICY_INTEGRITY", "DECISION_PREPARATION"],
     },

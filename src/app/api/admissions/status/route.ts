@@ -46,10 +46,6 @@ export async function GET() {
   const award = application.status === "ADMITTED" && user.academicEmail && user.studentNumber && tracker
     ? admissionAwardSummary(user.academicEmail, user.studentNumber, tracker.trackingNumber)
     : null;
-  const reviewSlaMinutes = Math.max(
-    2,
-    Math.min(60, Number(process.env.ADMISSIONS_REVIEW_SLA_MINUTES || 10)),
-  );
   return NextResponse.json({
     application: {
       status: application.status,
@@ -60,9 +56,6 @@ export async function GET() {
       history: Array.isArray(tracker?.statusHistory) ? tracker.statusHistory : [],
       closedAt: tracker?.closedAt,
       lastUpdatedAt: tracker?.updatedAt || application.submittedAt,
-      estimatedDecisionAt: new Date(
-        application.submittedAt.getTime() + reviewSlaMinutes * 60_000,
-      ),
       profile: {
         preferredName: application.preferredName,
         country: application.country,
@@ -83,7 +76,6 @@ export async function GET() {
       stage: latestJob.stage,
       attempt: latestJob.attempt,
       maxAttempts: latestJob.maxAttempts,
-      availableAt: latestJob.availableAt,
       updatedAt: latestJob.updatedAt,
       decision: latestJob.decision ? {
         outcome: latestJob.decision.outcome,
