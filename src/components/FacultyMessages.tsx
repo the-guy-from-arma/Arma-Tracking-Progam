@@ -1,7 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import styles from "./FacultyMessages.module.css";
 import { AcademicLoader } from "./AcademicLoader";
 
@@ -49,6 +56,14 @@ type MessagesData = {
     quietHoursEnd: number;
   };
 };
+type PolicyGate = {
+  policyGateUrl: string;
+  missingPolicyVersions: {
+    id: string;
+    title: string;
+    version: number;
+  }[];
+};
 
 export function FacultyMessages({
   initialConversationId,
@@ -58,54 +73,77 @@ export function FacultyMessages({
   const [message, setMessage] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [policyGate, setPolicyGate] = useState<PolicyGate | null>(null);
+  const hasLoaded = useRef(false);
 
   const acceptPayload = useCallback((result: MessagesData) => {
     setData(result);
+    setPolicyGate(null);
+    setLoadError("");
+    hasLoaded.current = true;
     setSelectedId((current) => current || result.conversations[0]?.id || "");
   }, []);
 
   const load = useCallback(async () => {
-    const response = await fetch("/api/university/messages", {
-      cache: "no-store",
-      signal: AbortSignal.timeout(15000),
-    });
-    const result = await response.json();
-    if (response.ok) acceptPayload(result);
-    else setNotice(result.error);
+    try {
+      const response = await fetch("/api/university/messages", {
+        cache: "no-store",
+        signal: AbortSignal.timeout(15000),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (
+        response.status === 428 &&
+        result.code === "POLICY_ACCEPTANCE_REQUIRED"
+      ) {
+        setPolicyGate({
+          policyGateUrl: result.policyGateUrl || "/policies/accept",
+          missingPolicyVersions: result.missingPolicyVersions || [],
+        });
+        setLoadError("");
+        return;
+      }
+      if (!response.ok)
+        throw new Error(result.error || "Campus Messages could not be opened.");
+      acceptPayload(result);
+    } catch (error) {
+      const detail =
+        error instanceof Error
+          ? error.message
+          : "Campus Messages could not be opened.";
+      if (hasLoaded.current) {
+        setNotice(
+          "Campus Messages is reconnecting. Your conversation is preserved.",
+        );
+      } else {
+        setLoadError(detail);
+      }
+    }
   }, [acceptPayload]);
 
   useEffect(() => {
-    let active = true;
     const timer = setTimeout(() => {
-      void load().catch(() => {
-        if (active)
-          setNotice(
-            "Campus Messages is reconnecting. Your conversation is preserved.",
-          );
-      });
+      void load();
     }, 0);
     return () => {
-      active = false;
       clearTimeout(timer);
     };
   }, [load]);
 
   useEffect(() => {
-    if (!data?.conversations.some((item) => item.replyJobs.length)) return;
-    const processing = data.conversations.some((item) =>
-      item.replyJobs.some((job) => job.status === "PROCESSING"),
+    const activeJobs = data?.conversations.flatMap((item) =>
+      item.replyJobs.filter((job) =>
+        ["QUEUED", "PROCESSING"].includes(job.status),
+      ),
     );
+    if (!activeJobs?.length || policyGate) return;
+    const processing = activeJobs.some((job) => job.status === "PROCESSING");
     const timer = setInterval(
-      () =>
-        void load().catch(() =>
-          setNotice(
-            "Campus Messages is reconnecting. Your conversation is preserved.",
-          ),
-        ),
+      () => void load(),
       processing ? 2000 : 5000,
     );
     return () => clearInterval(timer);
-  }, [data, load]);
+  }, [data, load, policyGate]);
 
   const selected = useMemo(
     () => data?.conversations.find((item) => item.id === selectedId) || null,
@@ -238,6 +276,49 @@ export function FacultyMessages({
     await load();
   }
 
+  if (policyGate) {
+    const returnTo = encodeURIComponent("/university?view=messages");
+    const gateUrl = `${policyGate.policyGateUrl}?returnTo=${returnTo}`;
+    return (
+      <section className={styles.consentGate} role="alert" aria-live="polite">
+        <small>CAMPUS MESSAGES / SIGNATURE REQUIRED</small>
+        <h1>Review the current policies to open your conversations.</h1>
+        <p>
+          Your messages and pending faculty replies are preserved. University
+          policy changed after your last signature, so Campus Messages is paused
+          until the current bundle is electronically signed.
+        </p>
+        {!!policyGate.missingPolicyVersions.length && (
+          <div>
+            <b>Updated documents awaiting your signature</b>
+            <ul>
+              {policyGate.missingPolicyVersions.map((policy) => (
+                <li key={policy.id}>
+                  {policy.title} <span>Version {policy.version}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <a href={gateUrl}>REVIEW AND SIGN POLICIES →</a>
+        <button type="button" onClick={() => void load()}>
+          I HAVE ALREADY SIGNED — CHECK AGAIN
+        </button>
+      </section>
+    );
+  }
+  if (!data && loadError)
+    return (
+      <section className={styles.loadFailure} role="alert">
+        <small>CAMPUS MESSAGES / CONNECTION NOTICE</small>
+        <h1>Messages did not finish opening.</h1>
+        <p>{loadError}</p>
+        <p>Your conversation record has not been changed.</p>
+        <button type="button" onClick={() => void load()}>
+          RETRY CAMPUS MESSAGES
+        </button>
+      </section>
+    );
   if (!data) return <AcademicLoader label="Opening campus messages" />;
   return (
     <section className={styles.messages}>

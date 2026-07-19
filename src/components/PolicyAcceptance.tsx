@@ -15,6 +15,7 @@ export function PolicyAcceptance() {
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [returnTo, setReturnTo] = useState("/university");
   const [receipt, setReceipt] = useState<{
     signatureEventId: string;
     receiptNumber: string;
@@ -22,6 +23,10 @@ export function PolicyAcceptance() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
+      const requestedReturn = new URLSearchParams(window.location.search).get(
+        "returnTo",
+      );
+      if (requestedReturn?.startsWith("/university")) setReturnTo(requestedReturn);
       void fetch("/api/policies")
         .then((response) => response.json())
         .then((payload) => setPolicies(payload.policies || []));
@@ -68,7 +73,11 @@ export function PolicyAcceptance() {
           <Link href={`/policies/receipts/${receipt.signatureEventId}`}>
             View signed receipt
           </Link>
-          <Link href="/university">Enter Student Campus</Link>
+          <Link href={returnTo}>
+            {returnTo.includes("view=messages")
+              ? "Return to Campus Messages"
+              : "Enter Student Campus"}
+          </Link>
         </div>
       </main>
     );
