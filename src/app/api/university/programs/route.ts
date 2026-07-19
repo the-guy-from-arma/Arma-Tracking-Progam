@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { currentUser, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { text } from "@/lib/input";
-import { createTrackingNumber, trackingEvent } from "@/lib/application-tracking";
+import { trackingEvent } from "@/lib/application-tracking";
 import { buildProgramAudits, getCompletedCourseIds, getProgramAudit } from "@/lib/academic-progress";
 import { policyGateResponse } from "@/lib/policies";
 import { campusRestrictionResponse } from "@/lib/campus-operations";
@@ -32,22 +32,25 @@ export async function POST(request: Request) {
   { const gate = await campusRestrictionResponse("ENROLLMENT"); if (gate) return gate; }
   const body = await request.json().catch(() => ({}));
   const programId = text(body.programId, 100);
-  const statement = text(body.statement, 2000);
-  const experience = text(body.experience, 500);
-  const weeklyHours = Number(body.weeklyHours);
-  if (statement.length < 80 || experience.length < 10 || !Number.isInteger(weeklyHours) || weeklyHours < 2 || weeklyHours > 80) return NextResponse.json({ error: "Add a detailed program statement, experience summary, and weekly availability." }, { status: 400 });
+  if (body.fundingAcknowledged !== true || body.refundPolicyAcknowledged !== true) return NextResponse.json({ error: "Review and acknowledge the sponsored-learning allocation and withdrawal policy before activating a program." }, { status: 400 });
   const program = await db.academicProgram.findFirst({ where: { id: programId, active: true } });
   if (!program) return NextResponse.json({ error: "Program not found" }, { status: 404 });
   const audit = await getProgramAudit(user.id, programId);
-  if (!audit?.eligible) return NextResponse.json({ error: audit?.blocker || "Complete the required prior academic pathway before applying.", audit }, { status: 409 });
-  const application = await db.programApplication.upsert({ where: { programId_userId: { programId, userId: user.id } }, update: { statement, experience, weeklyHours, status: "SUBMITTED", submittedAt: new Date(), decisionNote: null, decidedAt: null }, create: { programId, userId: user.id, statement, experience, weeklyHours } });
-  await db.$transaction(async (tx) => {
-    const open = await tx.applicationTracking.findMany({ where: { programApplicationId: application.id, status: { in: ["OPEN", "IN_REVIEW"] } } });
-    for (const record of open) await tx.applicationTracking.update({ where: { id: record.id }, data: { status: "CLOSED", outcome: "SUPERSEDED", closedAt: new Date(), statusHistory: [...(Array.isArray(record.statusHistory) ? record.statusHistory : []), trackingEvent("CLOSED", "A newer application submission replaced this tracking record")] } });
-    await tx.applicationTracking.create({ data: { trackingNumber: createTrackingNumber("PROGRAM"), userId: user.id, type: "PROGRAM", status: "OPEN", programApplicationId: application.id, submittedAt: application.submittedAt, statusHistory: [trackingEvent("SUBMITTED", `${program.code} application received`), trackingEvent("OPEN", "Awaiting academic decision")] } });
+  if (!audit?.eligible) return NextResponse.json({ error: audit?.blocker || "Complete the required prior academic pathway before enrollment.", audit }, { status: 409 });
+  const enrollment = await db.$transaction(async (tx) => {
+    const legacyApplication = await tx.programApplication.findUnique({ where: { programId_userId: { programId, userId: user.id } } });
+    if (legacyApplication && ["SUBMITTED", "WAITLISTED"].includes(legacyApplication.status)) {
+      await tx.programApplication.update({ where: { id: legacyApplication.id }, data: { status: "ADMITTED", decisionNote: "Superseded by direct student enrollment confirmation.", decidedAt: new Date() } });
+      const trackers = await tx.applicationTracking.findMany({ where: { programApplicationId: legacyApplication.id, status: { in: ["OPEN", "IN_REVIEW"] } } });
+      for (const tracker of trackers) await tx.applicationTracking.update({ where: { id: tracker.id }, data: { status: "CLOSED", outcome: "DIRECT_ENROLLMENT", closedAt: new Date(), statusHistory: [...(Array.isArray(tracker.statusHistory) ? tracker.statusHistory : []), trackingEvent("ADMITTED", "Program activated by direct student confirmation"), trackingEvent("CLOSED", "Program applications are no longer required")] } });
+    }
+    const record = await tx.programEnrollment.upsert({ where: { programId_userId: { programId, userId: user.id } }, update: { status: "ACTIVE", creditsEarned: audit.creditsApplied, programApplicationId: legacyApplication?.id }, create: { programId, userId: user.id, creditsEarned: audit.creditsApplied, programApplicationId: legacyApplication?.id } });
+    await tx.studentActivityEvent.create({ data: { studentId: user.id, actorId: user.id, type: "ENROLLMENT", title: "Academic pathway activated", detail: program.title, entity: "ProgramEnrollment", entityId: record.id, metadata: { programCode: program.code, creditsApplied: audit.creditsApplied } } });
+    await tx.notification.upsert({ where: { dedupeKey: `program-enrolled:${user.id}:${program.id}` }, update: { readAt: null, title: `${program.title} is now active`, body: "Your completed credits have been applied. Sponsored value will be allocated course by course only when you confirm each course." }, create: { userId: user.id, type: "ACADEMIC", title: `${program.title} is now active`, body: "Your completed credits have been applied. Sponsored value will be allocated course by course only when you confirm each course.", actionUrl: "/university?view=programs", dedupeKey: `program-enrolled:${user.id}:${program.id}` } });
+    await tx.auditLog.create({ data: { actorId: user.id, action: "PROGRAM_ENROLLED", entity: "AcademicProgram", entityId: programId, detail: { creditsApplied: audit.creditsApplied, allocationMethod: "COURSE_BY_COURSE", studentDueCents: 0, fundingDisclosureVersion: "SPONSORED_LEARNING_CONFIRMATION_V1", fundingAcknowledged: true, refundPolicyAcknowledged: true } } });
+    return record;
   });
-  await db.auditLog.create({ data: { actorId: user.id, action: "PROGRAM_APPLICATION_SUBMITTED", entity: "ProgramApplication", entityId: application.id, detail: { programId } } });
-  return NextResponse.json({ application }, { status: 201 });
+  return NextResponse.json({ enrollment }, { status: 201 });
 }
 
 export async function PATCH(request: Request) {

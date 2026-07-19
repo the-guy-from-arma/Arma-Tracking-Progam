@@ -154,6 +154,9 @@ type Program = {
   };
 };
 type ProgramsData = { programs: Program[]; degreeWordingEnabled: boolean };
+type EnrollmentConfirmation =
+  | { kind: "COURSE"; course: CourseDetail }
+  | { kind: "PROGRAM"; program: Program };
 type FundingData = {
   balanceCents: number;
   pendingCents: number;
@@ -256,7 +259,8 @@ export function UniversityLearning({
   const [search, setSearch] = useState("");
   const [academy, setAcademy] = useState("ALL");
   const [level, setLevel] = useState("ALL");
-  const [applying, setApplying] = useState<Program | null>(null);
+  const [enrollmentConfirmation, setEnrollmentConfirmation] =
+    useState<EnrollmentConfirmation | null>(null);
   const [error, setError] = useState("");
   const [renderedAt] = useState(() => Date.now());
 
@@ -737,6 +741,26 @@ export function UniversityLearning({
                 setPreviewCourse(null);
                 onNavigate("student-center");
               }}
+              enroll={() => {
+                setEnrollmentConfirmation({
+                  kind: "COURSE",
+                  course: previewCourse,
+                });
+                setPreviewCourse(null);
+              }}
+            />
+          )}
+          {enrollmentConfirmation?.kind === "COURSE" && (
+            <EnrollmentConfirmationModal
+              confirmation={enrollmentConfirmation}
+              availableBalanceCents={data.grantBalanceCents}
+              close={() => setEnrollmentConfirmation(null)}
+              confirmed={async () => {
+                const courseId = enrollmentConfirmation.course.id;
+                setEnrollmentConfirmation(null);
+                await load();
+                await openCourse(courseId);
+              }}
             />
           )}
         </AnimatePresence>
@@ -877,9 +901,12 @@ export function UniversityLearning({
               program={selectedProgram}
               close={() => setSelectedProgram(null)}
               compare={() => setComparingProgram(selectedProgram)}
-              apply={() => {
+              enroll={() => {
+                setEnrollmentConfirmation({
+                  kind: "PROGRAM",
+                  program: selectedProgram,
+                });
                 setSelectedProgram(null);
-                setApplying(selectedProgram);
               }}
             />
           )}{" "}
@@ -895,12 +922,13 @@ export function UniversityLearning({
               }}
             />
           )}
-          {applying && (
-            <ProgramApplication
-              program={applying}
-              close={() => setApplying(null)}
-              submitted={async () => {
-                setApplying(null);
+          {enrollmentConfirmation?.kind === "PROGRAM" && (
+            <EnrollmentConfirmationModal
+              confirmation={enrollmentConfirmation}
+              availableBalanceCents={data.grantBalanceCents}
+              close={() => setEnrollmentConfirmation(null)}
+              confirmed={async () => {
+                setEnrollmentConfirmation(null);
                 await load();
               }}
             />
@@ -1492,11 +1520,13 @@ function CoursePreview({
   close,
   open,
   advisor,
+  enroll,
 }: {
   course: CourseDetail;
   close: () => void;
   open: () => void;
   advisor: () => void;
+  enroll: () => void;
 }) {
   const active = course.enrollments.some(
     (item) => item.status === "ACTIVE" || item.status === "COMPLETED",
@@ -1635,8 +1665,9 @@ function CoursePreview({
             <b>Student responsibility remains $0.00</b>
           </div>
           <button onClick={close}>KEEP EXPLORING</button>
-          <button className={styles.primary} onClick={active ? open : advisor}>
-            {active ? "ENTER COURSE →" : "ASK ORBIT ABOUT THIS COURSE →"}
+          {!active && <button onClick={advisor}>ASK YOUR ADVISOR</button>}
+          <button className={styles.primary} onClick={active ? open : enroll}>
+            {active ? "ENTER COURSE →" : "REVIEW & CONFIRM ENROLLMENT →"}
           </button>
         </footer>
       </motion.article>
@@ -1648,12 +1679,12 @@ function ProgramDetail({
   program,
   close,
   compare,
-  apply,
+  enroll,
 }: {
   program: Program;
   close: () => void;
   compare: () => void;
-  apply: () => void;
+  enroll: () => void;
 }) {
   const terms = [
     ...new Set(program.requirements.map((item) => item.termNumber)),
@@ -1902,17 +1933,13 @@ function ProgramDetail({
             <button className={styles.primary} onClick={close}>
               PROGRAM ACTIVE
             </button>
-          ) : program.applications.length ? (
-            <button disabled>
-              APPLICATION {program.applications[0].status}
-            </button>
           ) : !program.audit.eligible ? (
             <button disabled title={program.audit.blocker || undefined}>
               PRIOR PATHWAY REQUIRED
             </button>
           ) : (
-            <button className={styles.primary} onClick={apply}>
-              BEGIN PROGRAM APPLICATION →
+            <button className={styles.primary} onClick={enroll}>
+              REVIEW & CONFIRM PROGRAM →
             </button>
           )}
         </footer>
@@ -2169,86 +2196,172 @@ function ProgramComparison({
   );
 }
 
-function ProgramApplication({
-  program,
+function EnrollmentConfirmationModal({
+  confirmation,
+  availableBalanceCents,
   close,
-  submitted,
+  confirmed,
 }: {
-  program: Program;
+  confirmation: EnrollmentConfirmation;
+  availableBalanceCents: number;
   close: () => void;
-  submitted: () => Promise<void>;
+  confirmed: () => Promise<void>;
 }) {
+  const [fundingAccepted, setFundingAccepted] = useState(false);
+  const [refundAccepted, setRefundAccepted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
+  const isCourse = confirmation.kind === "COURSE";
+  const title = isCourse
+    ? confirmation.course.title
+    : confirmation.program.title;
+  const valueCents = isCourse
+    ? confirmation.course.serviceValueCents
+    : confirmation.program.estimatedValueCents;
+  const continuityAwardCents = isCourse
+    ? Math.max(0, valueCents - availableBalanceCents)
+    : 0;
+  const projectedBalanceCents = isCourse
+    ? Math.max(0, availableBalanceCents - valueCents)
+    : availableBalanceCents;
+
   return (
     <motion.div
       className={styles.modalBack}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !submitting) close();
+      }}
     >
       <motion.form
-        className={styles.applicationModal}
-        initial={{ scale: 0.94, y: 18 }}
+        className={`${styles.applicationModal} ${styles.enrollmentConfirmation}`}
+        initial={{ scale: 0.96, y: 18 }}
         animate={{ scale: 1, y: 0 }}
         onSubmit={async (event) => {
           event.preventDefault();
-          const response = await fetch("/api/university/programs", {
+          if (!fundingAccepted || !refundAccepted) return;
+          setSubmitting(true);
+          setMessage("");
+          const response = await fetch("/api/academy", {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
-              programId: program.id,
-              ...Object.fromEntries(new FormData(event.currentTarget)),
+              action: isCourse ? "enroll_course" : "enroll_program",
+              ...(isCourse
+                ? { courseId: confirmation.course.id }
+                : { programId: confirmation.program.id }),
+              fundingAcknowledged: true,
+              refundPolicyAcknowledged: true,
             }),
           });
           const result = await response.json();
-          if (!response.ok) setMessage(result.error);
-          else await submitted();
+          if (!response.ok) {
+            setMessage(result.error || "Enrollment could not be completed.");
+            setSubmitting(false);
+          } else {
+            await confirmed();
+          }
         }}
       >
-        <button type="button" className={styles.modalClose} onClick={close}>
+        <button
+          type="button"
+          className={styles.modalClose}
+          onClick={close}
+          disabled={submitting}
+          aria-label="Close enrollment confirmation"
+        >
           ×
         </button>
-        <small>SPONSORED PROGRAM APPLICATION</small>
-        <h2>{program.title}</h2>
+        <small>FINAL ENROLLMENT CONFIRMATION</small>
+        <h2>{title}</h2>
         <p>
-          Tell the academic system how this pathway supports your development
-          goals. There is no application charge.
+          {isCourse
+            ? "This selection enrolls you immediately. Review the sponsored-learning allocation and withdrawal terms before confirming."
+            : "This selection activates your academic pathway immediately. There is no separate program application or approval queue."}
         </p>
-        <label>
-          EXPERIENCE SUMMARY
-          <textarea
-            name="experience"
-            required
-            minLength={10}
-            placeholder="Your Workbench, scripting, creative, or project experience"
-          />
-        </label>
-        <label>
-          WHY THIS PROGRAM
-          <textarea
-            name="statement"
-            required
-            minLength={80}
-            placeholder="Your goals, intended outcomes, and how you will use the learning"
-          />
-        </label>
-        <label>
-          WEEKLY STUDY HOURS
-          <input
-            name="weeklyHours"
-            type="number"
-            min="2"
-            max="80"
-            defaultValue="10"
-            required
-          />
-        </label>
         <div className={styles.modalValue}>
-          <span>PROGRAM SPONSORED VALUE</span>
-          <b>{money(program.estimatedValueCents)}</b>
+          <span>{isCourse ? "COURSE ALLOCATION" : "PLANNED PROGRAM VALUE"}</span>
+          <b>{money(valueCents)}</b>
           <small>STUDENT RESPONSIBILITY · $0.00</small>
         </div>
-        <button className={styles.primary}>SUBMIT APPLICATION →</button>
+        <dl className={styles.confirmationLedger}>
+          <div>
+            <dt>Available sponsored balance</dt>
+            <dd>{money(availableBalanceCents)}</dd>
+          </div>
+          {isCourse && continuityAwardCents > 0 && (
+            <div>
+              <dt>Automatic continuity award</dt>
+              <dd>+{money(continuityAwardCents)}</dd>
+            </div>
+          )}
+          <div>
+            <dt>{isCourse ? "Balance after enrollment" : "Allocation today"}</dt>
+            <dd>{isCourse ? money(projectedBalanceCents) : "$0.00"}</dd>
+          </div>
+        </dl>
+        {!isCourse && (
+          <p className={styles.programAllocationNote}>
+            The full program value is not deducted today. Your sponsored
+            balance is reduced course by course only after you separately
+            confirm each required course.
+          </p>
+        )}
+        <section className={styles.fundingDisclosure}>
+          <h3>What sponsored funding means</h3>
+          <p>
+            These are internal, noncash sponsored-learning credits used to
+            measure and allocate university services. They are not tuition,
+            payment, federal financial aid, a loan, cash, or student debt; they
+            cannot be withdrawn or exchanged. Your responsibility remains
+            $0.00.
+          </p>
+        </section>
+        <section className={styles.refundDisclosure}>
+          <h3>Withdrawal and restoration policy</h3>
+          <p>
+            A withdrawal within 24 hours restores 100% of the course allocation
+            with no renewal penalty, unless final work was submitted. After 24
+            hours, the lower of the time-based and progress-based return applies:
+            up to 80% through 72 hours, 60% through day 7, 40% through day 14,
+            20% after day 14, and 0% above 80% progress. Later withdrawals may
+            also reduce a future renewal rate under the published policy.
+          </p>
+        </section>
+        <label className={styles.confirmationCheck}>
+          <input
+            type="checkbox"
+            checked={fundingAccepted}
+            onChange={(event) => setFundingAccepted(event.target.checked)}
+          />
+          <span>
+            I understand the sponsored-learning value is an internal noncash
+            allocation and that {isCourse ? money(valueCents) : "course-level allocations"} will reduce my available sponsored balance.
+          </span>
+        </label>
+        <label className={styles.confirmationCheck}>
+          <input
+            type="checkbox"
+            checked={refundAccepted}
+            onChange={(event) => setRefundAccepted(event.target.checked)}
+          />
+          <span>
+            I understand that withdrawal restoration depends on elapsed time,
+            course progress, and final-work status under the published policy.
+          </span>
+        </label>
+        <button
+          className={styles.primary}
+          disabled={!fundingAccepted || !refundAccepted || submitting}
+        >
+          {submitting
+            ? "CONFIRMING ENROLLMENT…"
+            : isCourse
+              ? "CONFIRM & ENROLL NOW →"
+              : "CONFIRM & ACTIVATE PROGRAM →"}
+        </button>
         {message && <em>{message}</em>}
       </motion.form>
     </motion.div>

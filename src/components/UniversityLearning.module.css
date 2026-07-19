@@ -4700,3 +4700,154 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Final enrollment is a deliberate financial-record confirmation, not an application. */
+.enrollmentConfirmation {
+  width: min(760px, 100%);
+  padding: 38px;
+  border-radius: 18px;
+  font-family: var(--font-plex-sans, "IBM Plex Sans", sans-serif);
+}
+.enrollmentConfirmation h2 {
+  max-width: 17ch;
+  margin: 10px 0 12px;
+  color: #142b3d;
+  font: 500 clamp(28px, 4vw, 43px)/1.08 var(--font-plex-serif, "IBM Plex Serif", serif);
+}
+.enrollmentConfirmation > p {
+  max-width: 68ch;
+  color: #526b7b;
+  font: 400 13px/1.65 var(--font-plex-sans, "IBM Plex Sans", sans-serif);
+}
+.enrollmentConfirmation .modalValue {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 20px;
+  margin: 24px 0 0;
+  padding: 18px 20px;
+  border: 1px solid #bcd9cc;
+  border-radius: 12px 12px 0 0;
+  background: #e9f5ef;
+}
+.enrollmentConfirmation .modalValue span,
+.enrollmentConfirmation .modalValue small {
+  color: #315d4d;
+  font: 700 9px var(--font-plex-mono, "IBM Plex Mono", monospace);
+  letter-spacing: 0.08em;
+}
+.enrollmentConfirmation .modalValue small {
+  grid-column: 1;
+}
+.enrollmentConfirmation .modalValue b {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  margin: 0;
+  color: #176543;
+  font: 500 28px var(--font-plex-serif, "IBM Plex Serif", serif);
+}
+.confirmationLedger {
+  display: grid;
+  margin: 0 0 20px;
+  border: 1px solid #d5e0e6;
+  border-top: 0;
+}
+.confirmationLedger div {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 11px 18px;
+  border-top: 1px solid #e1e8ec;
+}
+.confirmationLedger div:first-child {
+  border-top: 0;
+}
+.confirmationLedger dt,
+.confirmationLedger dd {
+  margin: 0;
+  font-size: 12px;
+}
+.confirmationLedger dt {
+  color: #58707e;
+}
+.confirmationLedger dd {
+  color: #16364a;
+  font-weight: 700;
+}
+.programAllocationNote {
+  margin: -2px 0 20px !important;
+  padding: 12px 15px;
+  border-left: 3px solid #2784a4;
+  background: #edf6fa;
+  color: #244f62 !important;
+}
+.fundingDisclosure,
+.refundDisclosure {
+  margin-top: 14px;
+  padding: 17px 18px;
+  border: 1px solid #d4e0e5;
+  border-radius: 11px;
+  background: #f7fafb;
+}
+.fundingDisclosure {
+  border-left: 4px solid #1c8462;
+}
+.refundDisclosure {
+  border-left: 4px solid #b98233;
+}
+.fundingDisclosure h3,
+.refundDisclosure h3 {
+  margin: 0 0 6px;
+  color: #183548;
+  font: 600 15px var(--font-plex-serif, "IBM Plex Serif", serif);
+}
+.fundingDisclosure p,
+.refundDisclosure p {
+  margin: 0;
+  color: #516a79;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.enrollmentConfirmation .confirmationCheck {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 11px;
+  align-items: start;
+  margin-top: 15px;
+  color: #284756;
+  font: 500 11px/1.55 var(--font-plex-sans, "IBM Plex Sans", sans-serif);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.enrollmentConfirmation .confirmationCheck input {
+  width: 18px;
+  min-height: 18px;
+  margin: 1px 0 0;
+  accent-color: #176987;
+}
+.enrollmentConfirmation > .primary {
+  margin-top: 22px;
+  font-family: var(--font-plex-mono, "IBM Plex Mono", monospace);
+}
+.enrollmentConfirmation > .primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+@media (max-width: 620px) {
+  .enrollmentConfirmation {
+    padding: 30px 19px 22px;
+    border-radius: 14px;
+  }
+  .enrollmentConfirmation .modalValue {
+    grid-template-columns: 1fr;
+  }
+  .enrollmentConfirmation .modalValue b {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .confirmationLedger div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+}

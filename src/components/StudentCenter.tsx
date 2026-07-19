@@ -273,14 +273,19 @@ export function StudentCenter() {
   async function enroll(courseId: string) {
     if (
       !confirm(
-        "Final enrollment confirmation: apply internal noncash sponsored-service statistics and enroll in this course? This is not tuition, payment, financial aid, cash, or debt. Student responsibility remains $0.00.",
+        "Final enrollment confirmation: apply internal noncash sponsored-learning credits and enroll now? This is not tuition, payment, financial aid, cash, or debt. Student responsibility remains $0.00. Withdrawal within 24 hours restores 100% unless final work was submitted; after 24 hours the lower time-and-progress restoration tier applies and may affect future renewals.",
       )
     )
       return;
     const response = await fetch("/api/academy", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "enroll_course", courseId }),
+      body: JSON.stringify({
+        action: "enroll_course",
+        courseId,
+        fundingAcknowledged: true,
+        refundPolicyAcknowledged: true,
+      }),
     });
     const result = await response.json();
     setMessage(

@@ -28,8 +28,10 @@ export function Academy({ initialTab = "catalog", context = "valoris" }: { initi
   useEffect(() => { const timer = setTimeout(() => void load(), 0); return () => clearTimeout(timer); }, []);
 
   async function act(action: string, payload: Record<string, unknown>) {
+    const enrollmentAction = action === "enroll_course" || action === "enroll_program";
+    if (enrollmentAction && !confirm("Confirm enrollment now? Sponsored-learning values are internal noncash service allocations, not tuition, financial aid, cash, loans, or debt; student responsibility remains $0.00. Course withdrawals within 24 hours restore 100% unless final work was submitted. Later restoration uses the lower time-and-progress tier and may affect future renewal rates.")) return false;
     setBusy(`${action}:${String(payload.courseId || payload.programId || "new")}`); setError("");
-    const response = await fetch("/api/academy", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, ...payload }) });
+    const response = await fetch("/api/academy", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, ...payload, ...(enrollmentAction ? { fundingAcknowledged: true, refundPolicyAcknowledged: true } : {}) }) });
     const result = await response.json();
     if (!response.ok) { setError(result.error || "Unable to complete that request."); setBusy(""); return false; }
     await load(); setBusy(""); return true;

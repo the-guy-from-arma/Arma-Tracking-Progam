@@ -8,6 +8,7 @@ import { getCompletedCourseIds, getProgramAudit, getProgramSequenceBlockers } fr
 import { ensureStudentFacultyNetwork } from "@/lib/faculty-network";
 import { policyGateResponse } from "@/lib/policies";
 import { campusRestrictionResponse, campusStatus } from "@/lib/campus-operations";
+import { trackingEvent } from "@/lib/application-tracking";
 
 const courseLevels = new Set(["FOUNDATION", "INTERMEDIATE", "ADVANCED", "CAPSTONE"]);
 const studios = new Set(["Thunder Buddies Studios", "Black Ridge Studios", "Thunder Buddies Studios + Black Ridge Studios"]);
@@ -92,6 +93,7 @@ export async function POST(request: Request) {
 
   if (action === "enroll_course") {
     if (!user.isStudent && !isAdmin(user.role)) return NextResponse.json({ error: "Activate an Enfusion University student identity before enrolling." }, { status: 403 });
+    if (body.fundingAcknowledged !== true || body.refundPolicyAcknowledged !== true) return NextResponse.json({ error: "Review and acknowledge the sponsored-learning allocation and withdrawal policy before enrolling." }, { status: 400 });
     const courseId = text(body.courseId, 100);
     const course = await db.course.findFirst({ where: { id: courseId, status: "PUBLISHED" }, include: { prerequisites: true } });
     if (!course) return NextResponse.json({ error: "Course not found" }, { status: 404 });
@@ -119,7 +121,7 @@ export async function POST(request: Request) {
       if (required) throw new Error("Funding source reconciliation failed. Enrollment was not changed.");
       await tx.grantLedger.create({ data: { userId: user.id, fundingAwardId: primarySourceId, type: "COURSE_ALLOCATION", amountCents: -course.serviceValueCents, description: `${course.code} ${course.title} sponsored service allocation`, courseId, idempotencyKey: `allocation:${user.id}:${course.id}`, runningBalanceCents: grantBalanceCents, publicReason: "COURSE_ENROLLMENT", metadata: { studentResponsibilityCents: 0, nonCash: true, allocationMethod: "FIFO_EXPIRATION" } } });
       await tx.studentActivityEvent.create({ data: { studentId: user.id, actorId: user.id, type: "ENROLLMENT", title: `Enrolled in ${course.code}`, detail: course.title, entity: "CourseEnrollment", entityId: enrollment.id } });
-      await tx.auditLog.create({ data: { actorId: user.id, action: "COURSE_ENROLLED", entity: "Course", entityId: courseId, detail: { serviceValueCents: course.serviceValueCents, studentDueCents: 0, grantBalanceCents } } });
+      await tx.auditLog.create({ data: { actorId: user.id, action: "COURSE_ENROLLED", entity: "Course", entityId: courseId, detail: { serviceValueCents: course.serviceValueCents, studentDueCents: 0, grantBalanceCents, fundingDisclosureVersion: "SPONSORED_LEARNING_CONFIRMATION_V1", fundingAcknowledged: true, refundPolicyAcknowledged: true } } });
       return { enrollment, grantBalanceCents };
     });
     await ensureStudentFacultyNetwork(user.id);
@@ -150,13 +152,26 @@ export async function POST(request: Request) {
   }
 
   if (action === "enroll_program") {
+    if (body.fundingAcknowledged !== true || body.refundPolicyAcknowledged !== true) return NextResponse.json({ error: "Review and acknowledge the sponsored-learning allocation and withdrawal policy before activating a program." }, { status: 400 });
     const programId = text(body.programId, 100);
     const program = await db.academicProgram.findFirst({ where: { id: programId, active: true } });
     if (!program) return NextResponse.json({ error: "Academic path not found" }, { status: 404 });
     const audit = await getProgramAudit(user.id, programId);
     if (!audit?.eligible) return NextResponse.json({ error: audit?.blocker || "Complete the prerequisite academic pathway first.", audit }, { status: 409 });
     const creditsEarned = audit.creditsApplied;
-    const enrollment = await db.programEnrollment.upsert({ where: { programId_userId: { programId, userId: user.id } }, update: { status: "ACTIVE", creditsEarned }, create: { programId, userId: user.id, creditsEarned } });
+    const enrollment = await db.$transaction(async (tx) => {
+      const legacyApplication = await tx.programApplication.findUnique({ where: { programId_userId: { programId, userId: user.id } } });
+      if (legacyApplication && ["SUBMITTED", "WAITLISTED"].includes(legacyApplication.status)) {
+        await tx.programApplication.update({ where: { id: legacyApplication.id }, data: { status: "ADMITTED", decisionNote: "Superseded by direct student enrollment confirmation.", decidedAt: new Date() } });
+        const trackers = await tx.applicationTracking.findMany({ where: { programApplicationId: legacyApplication.id, status: { in: ["OPEN", "IN_REVIEW"] } } });
+        for (const tracker of trackers) await tx.applicationTracking.update({ where: { id: tracker.id }, data: { status: "CLOSED", outcome: "DIRECT_ENROLLMENT", closedAt: new Date(), statusHistory: [...(Array.isArray(tracker.statusHistory) ? tracker.statusHistory : []), trackingEvent("ADMITTED", "Program activated by direct student confirmation"), trackingEvent("CLOSED", "Program applications are no longer required")] } });
+      }
+      const record = await tx.programEnrollment.upsert({ where: { programId_userId: { programId, userId: user.id } }, update: { status: "ACTIVE", creditsEarned, programApplicationId: legacyApplication?.id }, create: { programId, userId: user.id, creditsEarned, programApplicationId: legacyApplication?.id } });
+      await tx.studentActivityEvent.create({ data: { studentId: user.id, actorId: user.id, type: "ENROLLMENT", title: `Academic pathway activated`, detail: program.title, entity: "ProgramEnrollment", entityId: record.id, metadata: { programCode: program.code, creditsApplied: creditsEarned } } });
+      await tx.notification.upsert({ where: { dedupeKey: `program-enrolled:${user.id}:${program.id}` }, update: { readAt: null, title: `${program.title} is now active`, body: "Your completed credits have been applied. Sponsored value will be allocated course by course only when you confirm each course." }, create: { userId: user.id, type: "ACADEMIC", title: `${program.title} is now active`, body: "Your completed credits have been applied. Sponsored value will be allocated course by course only when you confirm each course.", actionUrl: "/university?view=programs", dedupeKey: `program-enrolled:${user.id}:${program.id}` } });
+      await tx.auditLog.create({ data: { actorId: user.id, action: "PROGRAM_ENROLLED", entity: "AcademicProgram", entityId: programId, detail: { creditsApplied: creditsEarned, allocationMethod: "COURSE_BY_COURSE", studentDueCents: 0, fundingDisclosureVersion: "SPONSORED_LEARNING_CONFIRMATION_V1", fundingAcknowledged: true, refundPolicyAcknowledged: true } } });
+      return record;
+    });
     return NextResponse.json({ enrollment });
   }
 
