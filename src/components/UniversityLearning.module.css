@@ -1002,27 +1002,45 @@
 .notificationActions button {
   border: 0;
   background: none;
-  color: #3979b7;
+  color: #246b9b;
   font:
-    800 8px ui-monospace,
-    monospace;
+    700 9px var(--font-plex-mono, "IBM Plex Mono", monospace);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.notificationActions button:hover,
+.notificationActions button:focus-visible {
+  color: #0d4f7d;
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 .notificationList {
-  border: 1px solid #fff;
+  border: 1px solid #d2dee6;
   border-radius: 27px;
-  background: #ffffffbc;
+  background: #fff;
   padding: 8px 27px;
+  color: #153047;
+  box-shadow: 0 18px 48px #173b5512;
 }
 .notificationList > article {
   display: grid;
   grid-template-columns: 12px 1fr auto;
   gap: 15px;
   align-items: start;
-  padding: 23px 0;
+  margin: 8px 0;
+  padding: 23px 18px;
   border-top: 1px solid #dfe8f1;
+  border-radius: 17px;
+  transition:
+    background 0.18s ease,
+    box-shadow 0.18s ease;
 }
 .notificationList > article:first-child {
   border: 0;
+}
+.notificationList > article.newNotice {
+  background: linear-gradient(100deg, #eef7fd, #f8fbfd);
+  box-shadow: inset 3px 0 #2e89c7;
 }
 .notificationList > article > i {
   width: 7px;
@@ -1036,29 +1054,34 @@
   box-shadow: 0 0 0 5px #438ee118;
 }
 .notificationList small {
-  color: #6d86a1;
+  color: #557792;
   font:
-    800 7px ui-monospace,
-    monospace;
+    700 8px var(--font-plex-mono, "IBM Plex Mono", monospace);
+  letter-spacing: 0.04em;
 }
 .notificationList h2 {
   margin: 6px 0;
-  font:
-    500 18px Georgia,
-    serif;
+  color: #153047;
+  font: 600 20px/1.25 var(--font-plex-serif, "IBM Plex Serif", serif);
 }
 .notificationList p {
   margin: 0;
-  color: #718499;
-  font-size: 10px;
+  color: #526b7d;
+  font-size: 13px;
   line-height: 1.6;
 }
 .notificationList a {
-  color: #2f72b3;
+  color: #176796;
   font:
-    800 8px ui-monospace,
-    monospace;
+    700 9px var(--font-plex-mono, "IBM Plex Mono", monospace);
   text-decoration: none;
+  letter-spacing: 0.06em;
+}
+.notificationList a:hover,
+.notificationList a:focus-visible {
+  color: #0d4f7d;
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 .assessmentCard,
 .credentialCard {
@@ -3275,6 +3298,49 @@
 :global([data-university-theme="dark"]) .pageHead p,
 :global([data-university-theme="dark"]) .pageHead > div > span {
   color: #8fa5b5;
+}
+:global([data-university-theme="dark"]) .notificationActions button {
+  color: #79ccef;
+}
+:global([data-university-theme="dark"]) .notificationActions button:hover,
+:global([data-university-theme="dark"]) .notificationActions button:focus-visible {
+  color: #b7e9fb;
+}
+:global([data-university-theme="dark"]) .notificationList {
+  border-color: #315064;
+  background: linear-gradient(145deg, #102536, #0c1d2a);
+  color: #edf4f7;
+  box-shadow: 0 20px 54px #0004;
+}
+:global([data-university-theme="dark"]) .notificationList > article {
+  border-color: #294557;
+}
+:global([data-university-theme="dark"]) .notificationList > article.newNotice {
+  background: linear-gradient(100deg, #15364a, #102a3b);
+  box-shadow: inset 3px 0 #54b9e4;
+}
+:global([data-university-theme="dark"]) .notificationList > article > i {
+  background: #486779;
+}
+:global([data-university-theme="dark"]) .notificationList > article.newNotice > i {
+  background: #60c5ef;
+  box-shadow: 0 0 0 5px #60c5ef20;
+}
+:global([data-university-theme="dark"]) .notificationList small {
+  color: #86bdd7;
+}
+:global([data-university-theme="dark"]) .notificationList h2 {
+  color: #f1f6f8;
+}
+:global([data-university-theme="dark"]) .notificationList p {
+  color: #adc0ca;
+}
+:global([data-university-theme="dark"]) .notificationList a {
+  color: #78d2f5;
+}
+:global([data-university-theme="dark"]) .notificationList a:hover,
+:global([data-university-theme="dark"]) .notificationList a:focus-visible {
+  color: #c1edfc;
 }
 :global([data-university-theme="dark"]) .filters,
 :global([data-university-theme="dark"]) .lmsPanel,
