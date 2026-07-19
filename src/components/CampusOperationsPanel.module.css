@@ -59,10 +59,137 @@
   margin-top: 24px;
 }
 .scheduler,
+.settings,
 .queue {
   border: 1px solid #2d4a5f;
   background: #081926;
   padding: 24px;
+}
+.settings {
+  display: grid;
+  gap: 22px;
+}
+.controlIntro span,
+.modeFieldset legend {
+  font: 700 10px var(--font-plex-mono, monospace);
+  letter-spacing: 0.15em;
+  color: #58cce5;
+}
+.controlIntro h3 {
+  margin: 7px 0 8px;
+  font: 400 30px var(--font-plex-serif, serif);
+}
+.controlIntro p {
+  margin: 0;
+  color: #91aabb;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.toggleGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.toggleCard,
+.modeCard,
+.activeMode {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 13px;
+  align-items: start;
+  border: 1px solid #315166;
+  padding: 16px;
+  background: #0d2535;
+  cursor: pointer;
+}
+.toggleCard:has(input:checked),
+.activeMode {
+  border-color: #63d8be;
+  background: linear-gradient(135deg, #12394a, #10342f);
+  box-shadow: inset 3px 0 #63d8be;
+}
+.toggleCard input,
+.modeCard input,
+.activeMode input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: #63d8be;
+}
+.toggleCard b,
+.toggleCard small,
+.modeCard b,
+.modeCard small,
+.activeMode b,
+.activeMode small {
+  display: block;
+}
+.toggleCard b,
+.modeCard b,
+.activeMode b {
+  color: #eef8fc;
+  font-size: 13px;
+}
+.toggleCard small,
+.modeCard small,
+.activeMode small {
+  margin-top: 6px;
+  color: #8fa9b8;
+  font: 400 11px/1.45 var(--font-plex-sans, sans-serif);
+}
+.modeFieldset {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+.modeFieldset legend {
+  margin-bottom: 11px;
+}
+.modeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.messageFields {
+  display: grid;
+  gap: 13px;
+}
+.messageFields label {
+  display: grid;
+  gap: 7px;
+  color: #9fb8c9;
+  font: 700 9px var(--font-plex-mono, monospace);
+  letter-spacing: .08em;
+}
+.messageFields input,
+.messageFields textarea {
+  width: 100%;
+  border: 1px solid #3b5c70;
+  background: #0d2535;
+  color: #edf7fc;
+  padding: 12px;
+  font: 14px var(--font-plex-sans, sans-serif);
+}
+.messageFields textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+.controlSummary {
+  display: grid;
+  gap: 6px;
+  border-left: 3px solid #63d8be;
+  padding: 12px 15px;
+  background: #102b3a;
+}
+.controlSummary b {
+  color: #7ce5ca;
+  font: 700 10px var(--font-plex-mono, monospace);
+  letter-spacing: .1em;
+}
+.controlSummary span {
+  color: #a8bfcc;
+  font-size: 12px;
 }
 .scheduler {
   display: grid;
@@ -170,6 +297,16 @@
   border-top: 1px solid #294457;
   padding-top: 12px;
 }
+.periods > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 0 12px;
+  color: #dceaf1;
+}
+.periods > header span {
+  color: #7895a6;
+}
 .periods div {
   display: grid;
   grid-template-columns: 1fr auto auto;
@@ -198,7 +335,9 @@
     flex-direction: column;
   }
   .statusGrid,
-  .scheduler {
+  .scheduler,
+  .toggleGrid,
+  .modeGrid {
     grid-template-columns: 1fr;
   }
   .scheduler label,

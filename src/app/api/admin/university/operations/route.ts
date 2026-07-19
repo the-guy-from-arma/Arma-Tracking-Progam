@@ -1,13 +1,15 @@
 import { after, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
-import { campusStatus, refreshOperationalStatus } from "@/lib/campus-operations";
+import {
+  campusStatus,
+  manualOperationEnd,
+  MANUAL_OPERATION_NOTE,
+  refreshOperationalStatus,
+} from "@/lib/campus-operations";
 import { db } from "@/lib/db";
 import { text } from "@/lib/input";
 
-const admissionsModes = new Set(["OPEN", "PAUSED"]);
-const enrollmentModes = new Set(["OPEN", "PAUSED"]);
 const learningModes = new Set(["ACTIVE", "ACADEMIC_BREAK", "MAINTENANCE", "EMERGENCY_CLOSURE"]);
-const seasons = new Set(["GENERAL", "SPRING_RECESS", "SUMMER_SESSION", "WINTER_RECESS", "SEMESTER_TRANSITION", "MAINTENANCE", "EMERGENCY"]);
 
 async function owner() {
   const user = await currentUser();
@@ -51,75 +53,116 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const action = text(body.action, 30);
 
-  if (action === "schedule" || action === "start_now") {
+  if (action === "set_controls") {
+    const admissionsMode = body.admissionsPaused === true ? "PAUSED" : "OPEN";
+    const enrollmentMode = body.enrollmentPaused === true ? "PAUSED" : "OPEN";
+    const learningMode = String(body.learningMode || "ACTIVE");
     const title = text(body.title, 120);
     const publicMessage = text(body.publicMessage, 600);
-    const ownerNote = text(body.ownerNote, 1000) || null;
-    const admissionsMode = String(body.admissionsMode || "OPEN");
-    const enrollmentMode = String(body.enrollmentMode || "PAUSED");
-    const learningMode = String(body.learningMode || "ACADEMIC_BREAK");
-    const season = String(body.season || "GENERAL");
-    const startsAt = action === "start_now" ? new Date() : new Date(String(body.startsAt || ""));
-    const endsAt = new Date(String(body.endsAt || ""));
-    if (title.length < 3 || publicMessage.length < 12 || Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt) {
-      return NextResponse.json({ error: "Add a public title, explanation, and a valid start and reopening time." }, { status: 400 });
+    const reason = text(body.reason, 500) || "Owner applied immediate campus operating settings.";
+    if (!learningModes.has(learningMode)) {
+      return NextResponse.json({ error: "Choose a valid campus learning state." }, { status: 400 });
     }
-    if (!admissionsModes.has(admissionsMode) || !enrollmentModes.has(enrollmentMode) || !learningModes.has(learningMode) || !seasons.has(season)) {
-      return NextResponse.json({ error: "Choose valid operating modes and a campus presentation." }, { status: 400 });
+    if (title.length < 3 || publicMessage.length < 12) {
+      return NextResponse.json({ error: "Add a public status title and explanation." }, { status: 400 });
     }
-    const activatesNow = action === "start_now" || startsAt <= new Date();
-    const period = await db.$transaction(async (tx) => {
-      const created = await tx.institutionOperationalPeriod.create({
-        data: {
-          title,
-          publicMessage,
-          ownerNote,
-          admissionsMode: admissionsMode as never,
-          enrollmentMode: enrollmentMode as never,
-          learningMode: learningMode as never,
-          season: season as never,
-          status: activatesNow ? "ACTIVE" : "SCHEDULED",
-          activatedAt: activatesNow ? new Date() : null,
-          startsAt,
-          endsAt,
-          createdById: user.id,
-        },
+
+    const now = new Date();
+    const allOpen = admissionsMode === "OPEN" && enrollmentMode === "OPEN" && learningMode === "ACTIVE";
+    const season = learningMode === "MAINTENANCE"
+      ? "MAINTENANCE"
+      : learningMode === "EMERGENCY_CLOSURE"
+        ? "EMERGENCY"
+        : "GENERAL";
+
+    const result = await db.$transaction(async (tx) => {
+      const existing = await tx.institutionOperationalPeriod.findMany({
+        where: { status: { in: ["SCHEDULED", "ACTIVE"] } },
+        select: { id: true, status: true },
       });
+      const activeIds = existing.filter((period) => period.status === "ACTIVE").map((period) => period.id);
+      const scheduledIds = existing.filter((period) => period.status === "SCHEDULED").map((period) => period.id);
+      if (activeIds.length) {
+        await tx.institutionOperationalPeriod.updateMany({
+          where: { id: { in: activeIds }, status: "ACTIVE" },
+          data: { endsAt: now },
+        });
+      }
+      if (scheduledIds.length) {
+        await tx.institutionOperationalPeriod.updateMany({
+          where: { id: { in: scheduledIds }, status: "SCHEDULED" },
+          data: { status: "CANCELLED" },
+        });
+      }
+      const manualPeriod = allOpen
+        ? null
+        : await tx.institutionOperationalPeriod.create({
+            data: {
+              title,
+              publicMessage,
+              ownerNote: MANUAL_OPERATION_NOTE,
+              admissionsMode,
+              enrollmentMode,
+              learningMode: learningMode as never,
+              season: season as never,
+              status: "ACTIVE",
+              startsAt: now,
+              endsAt: manualOperationEnd(),
+              activatedAt: now,
+              createdById: user.id,
+            },
+          });
       await tx.auditLog.create({
         data: {
           actorId: user.id,
-          action: activatesNow ? "CAMPUS_PERIOD_STARTED" : "CAMPUS_PERIOD_SCHEDULED",
-          entity: "InstitutionOperationalPeriod",
-          entityId: created.id,
-          detail: { admissionsMode, enrollmentMode, learningMode, season, startsAt, endsAt, ownerNote, activatesNow },
+          action: "CAMPUS_CONTROLS_APPLIED",
+          entity: "InstitutionOperationalSetting",
+          entityId: manualPeriod?.id || "institution-operations",
+          detail: {
+            reason,
+            admissionsMode,
+            enrollmentMode,
+            learningMode,
+            title,
+            publicMessage,
+            allOpen,
+            endedActivePeriods: activeIds,
+            cancelledScheduledPeriods: scheduledIds,
+          },
         },
       });
-      return created;
+      return { manualPeriod, ended: activeIds.length, cancelled: scheduledIds.length };
     });
+
     await refreshOperationalStatus();
     const status = await campusStatus();
+    const notificationKey = result.manualPeriod?.id || `open-${now.getTime()}`;
     after(async () => {
       try {
-        const students = await db.user.findMany({ where: { isStudent: true, accountClosedAt: null }, select: { id: true } });
+        const students = await db.user.findMany({
+          where: { isStudent: true, accountClosedAt: null },
+          select: { id: true },
+        });
         if (students.length) {
           await db.notification.createMany({
             data: students.map((student) => ({
               userId: student.id,
               type: "SYSTEM" as const,
-              title: activatesNow ? title : `Scheduled: ${title}`,
-              body: `${publicMessage} Reopening is scheduled for ${endsAt.toLocaleString()}.`,
-              actionUrl: "/university?view=notifications",
-              dedupeKey: `campus-period-scheduled:${period.id}:${student.id}`,
+              title: allOpen ? "Campus services restored" : title,
+              body: allOpen
+                ? "Admissions, enrollment, and learning services are available."
+                : `${publicMessage} These settings remain active until changed by the owner.`,
+              actionUrl: "/campus-status",
+              dedupeKey: `campus-controls:${notificationKey}:${student.id}`,
             })),
             skipDuplicates: true,
           });
         }
       } catch {
-        // The operating change is authoritative even when a notification must
-        // be retried later.
+        // Campus state is authoritative even if a notice must be retried.
       }
     });
-    return NextResponse.json({ period, status, activatesNow }, { status: 201 });
+    return NextResponse.json({ status, allOpen, ...result });
   }
 
   if (action === "reopen") {

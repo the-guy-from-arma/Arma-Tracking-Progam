@@ -11,6 +11,9 @@ export type CampusCapability =
   | "WITHDRAWAL"
   | "CREDENTIAL";
 
+export const MANUAL_OPERATION_NOTE = "MANUAL_OWNER_CONTROL";
+export const manualOperationEnd = () => new Date("9999-12-31T23:59:59.999Z");
+
 const OPEN_STATUS = {
   admissionsMode: "OPEN" as const,
   enrollmentMode: "OPEN" as const,
@@ -113,6 +116,7 @@ export async function refreshOperationalStatus() {
   });
 
   if (active) {
+    const manualControl = active.ownerNote === MANUAL_OPERATION_NOTE;
     if (active.status === "SCHEDULED") {
       const claimed = await db.institutionOperationalPeriod.updateMany({
         where: { id: active.id, status: "SCHEDULED" },
@@ -130,7 +134,7 @@ export async function refreshOperationalStatus() {
         learningMode: active.learningMode,
         publicTitle: active.title,
         publicMessage: active.publicMessage,
-        reopensAt: active.endsAt,
+        reopensAt: manualControl ? null : active.endsAt,
         season: active.season,
         activePeriodId: active.id,
       },
@@ -141,7 +145,7 @@ export async function refreshOperationalStatus() {
         learningMode: active.learningMode,
         publicTitle: active.title,
         publicMessage: active.publicMessage,
-        reopensAt: active.endsAt,
+        reopensAt: manualControl ? null : active.endsAt,
         season: active.season,
         activePeriodId: active.id,
       },
