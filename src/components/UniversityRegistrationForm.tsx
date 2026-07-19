@@ -215,15 +215,17 @@ export function UniversityRegistrationForm({
       if (!response.ok) {
         const failureMessage =
           result.error || "Application could not be completed.";
-        const failureStep =
-          result.code === "POLICY_VERSION_CHANGED" ||
-          /polic|sign|acknowledge/i.test(failureMessage)
+        const reportedSection = Number(result.section);
+        const failureStep = Number.isInteger(reportedSection)
+          ? Math.max(0, Math.min(5, reportedSection))
+          : result.code === "POLICY_VERSION_CHANGED" ||
+              /polic|sign|acknowledge/i.test(failureMessage)
             ? 5
             : /sponsor|funding/i.test(failureMessage)
               ? 3
               : /goal/i.test(failureMessage)
                 ? 2
-                : /experience|location|time zone|availability|portfolio|github/i.test(
+                : /experience|availability|portfolio|github/i.test(
                       failureMessage,
                     )
                   ? 1
@@ -243,7 +245,7 @@ export function UniversityRegistrationForm({
           title: "Application not sent",
           message: failureMessage,
           detail:
-            "No student account or application record was created. Your completed entries remain saved in this browser tab so you can correct the issue without starting over.",
+            `${result.field ? `Check the “${result.field}” field. ` : ""}No student account or application record was created. Your completed entries remain saved in this browser tab so you can correct the issue without starting over.`,
           step: failureStep,
         });
         return;
@@ -412,12 +414,12 @@ export function UniversityRegistrationForm({
               <span
                 style={
                   {
-                    "--application-progress": `${(step + 1) * 20}%`,
+                    "--application-progress": `${Math.round(((step + 1) / steps.length) * 100)}%`,
                   } as React.CSSProperties
                 }
               />
-              <small>SECTION {step + 1} OF 5</small>
-              <b>{(step + 1) * 20}% COMPLETE</b>
+              <small>SECTION {step + 1} OF {steps.length}</small>
+              <b>{Math.round(((step + 1) / steps.length) * 100)}% COMPLETE</b>
             </div>
           </header>
           {error && (
@@ -428,7 +430,6 @@ export function UniversityRegistrationForm({
           )}
           <AnimatePresence mode="wait">
             <motion.div
-              key={step}
               initial={{ opacity: 0, x: 18, filter: "blur(5px)" }}
               animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
               exit={{ opacity: 0, x: -12, filter: "blur(4px)" }}
@@ -499,21 +500,32 @@ export function UniversityRegistrationForm({
                       placeholder="America/New_York"
                     />
                   </label>
-                  <label className="wide">
-                    CREATE A SECURE PASSWORD
-                    <input
-                      name="password"
-                      required
-                      type="password"
-                      minLength={12}
-                      autoComplete="new-password"
-                      placeholder="At least 12 characters"
-                    />
-                    <small>
-                      Use 12 or more characters. Never reuse another account
-                      password.
-                    </small>
-                  </label>
+                  {existingEmail ? (
+                    <div className="existingIdentity wide">
+                      <small>SIGNED-IN ACCOUNT VERIFIED</small>
+                      <b>{existingEmail}</b>
+                      <p>
+                        Your existing account credentials will be retained. A
+                        second password is not required for this application.
+                      </p>
+                    </div>
+                  ) : (
+                    <label className="wide">
+                      CREATE A SECURE PASSWORD
+                      <input
+                        name="password"
+                        required
+                        type="password"
+                        minLength={12}
+                        autoComplete="new-password"
+                        placeholder="At least 12 characters"
+                      />
+                      <small>
+                        Use 12 or more characters. Never reuse another account
+                        password.
+                      </small>
+                    </label>
+                  )}
                 </div>
                 <StepActions
                   first

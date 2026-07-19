@@ -14,6 +14,18 @@ function optionalUrl(value: unknown) {
   return cleaned && /^https?:\/\//i.test(cleaned) ? cleaned : cleaned ? "INVALID" : "";
 }
 
+function validationError(
+  error: string,
+  code: string,
+  section: number,
+  field: string,
+) {
+  return NextResponse.json(
+    { error, code, section, field },
+    { status: 400 },
+  );
+}
+
 export async function POST(request: Request) {
   const campusGate = await campusRestrictionResponse("ADMISSIONS_SUBMIT");
   if (campusGate) return campusGate;
@@ -34,12 +46,37 @@ export async function POST(request: Request) {
   const supportNeeds = text(body.supportNeeds, 1200);
   const portfolioUrl = optionalUrl(body.portfolioUrl);
   const githubUrl = optionalUrl(body.githubUrl);
-  if (!personalEmail.includes("@") || name.length < 2 || password.length < 12) return NextResponse.json({ error: "Complete your name, recovery email, and a password of at least 12 characters." }, { status: 400 });
-  if (!country || !timeZone || !experienceLevels.has(experienceLevel) || !Number.isInteger(weeklyHours) || weeklyHours < 1 || weeklyHours > 60) return NextResponse.json({ error: "Complete your location, time zone, experience level, and weekly availability." }, { status: 400 });
-  if (workbenchExperience.length < 20 || enforceExperience.length < 20 || learningGoals.length < 80 || fundingStatement.length < 40) return NextResponse.json({ error: "Provide detailed experience, learning goals, and sponsorship statements." }, { status: 400 });
-  if (portfolioUrl === "INVALID" || githubUrl === "INVALID") return NextResponse.json({ error: "Portfolio and GitHub links must be complete http or https URLs." }, { status: 400 });
-  if (body.acceptPolicies !== true) return NextResponse.json({ error: "Certify that your application is accurate to continue." }, { status: 400 });
-  if (body.bundleAccepted !== true) return NextResponse.json({ error: "Accept the complete listed policy bundle before signing." }, { status: 400 });
+  const signedIn = await currentUser();
+  if (name.length < 2)
+    return validationError("Enter your full legal or public name.", "IDENTITY_NAME_REQUIRED", 0, "Full legal or public name");
+  if (!personalEmail.includes("@"))
+    return validationError("Enter a valid recovery email address.", "RECOVERY_EMAIL_INVALID", 0, "Recovery email");
+  if (!signedIn && password.length < 12)
+    return validationError("Create a password containing at least 12 characters.", "PASSWORD_TOO_SHORT", 0, "Create a secure password");
+  if (!country)
+    return validationError("Enter your country or region.", "COUNTRY_REQUIRED", 0, "Country or region");
+  if (!timeZone)
+    return validationError("Enter your time zone.", "TIME_ZONE_REQUIRED", 0, "Time zone");
+  if (!experienceLevels.has(experienceLevel))
+    return validationError("Choose your current experience level.", "EXPERIENCE_LEVEL_REQUIRED", 1, "Experience level");
+  if (!Number.isInteger(weeklyHours) || weeklyHours < 1 || weeklyHours > 60)
+    return validationError("Weekly study availability must be between 1 and 60 hours.", "WEEKLY_HOURS_INVALID", 1, "Weekly study availability");
+  if (workbenchExperience.length < 20)
+    return validationError("Describe your Workbench experience in at least 20 characters.", "WORKBENCH_EXPERIENCE_REQUIRED", 1, "Arma Reforger Workbench experience");
+  if (enforceExperience.length < 20)
+    return validationError("Describe your programming experience or explain what you want to learn in at least 20 characters.", "PROGRAMMING_EXPERIENCE_REQUIRED", 1, "Enforce Script or programming experience");
+  if (learningGoals.length < 80)
+    return validationError("Describe your learning goals in at least 80 characters.", "LEARNING_GOALS_REQUIRED", 2, "Learning goals and professional direction");
+  if (fundingStatement.length < 40)
+    return validationError("Describe how sponsored access will support your studies in at least 40 characters.", "FUNDING_STATEMENT_REQUIRED", 3, "Sponsored access statement");
+  if (portfolioUrl === "INVALID")
+    return validationError("The portfolio or Workshop link must be a complete http or https URL.", "PORTFOLIO_URL_INVALID", 1, "Portfolio or Workshop page");
+  if (githubUrl === "INVALID")
+    return validationError("The GitHub link must be a complete http or https URL.", "GITHUB_URL_INVALID", 1, "GitHub profile");
+  if (body.acceptPolicies !== true)
+    return validationError("Certify that your application is accurate to continue.", "APPLICATION_CERTIFICATION_REQUIRED", 4, "Application certification");
+  if (body.bundleAccepted !== true)
+    return validationError("Accept the complete listed policy bundle before signing.", "POLICY_BUNDLE_REQUIRED", 5, "Policy bundle acceptance");
   const policyValidation = await validatePolicyBundle({
     policyVersionIds: Array.isArray(body.policyVersionIds) ? body.policyVersionIds.map(String) : [],
     signerName: text(body.signerName, 100),
@@ -47,11 +84,10 @@ export async function POST(request: Request) {
     ageAttested: body.ageAttested === true,
     electronicConsent: body.electronicConsent === true,
   });
-  if (!policyValidation.ok) return NextResponse.json({ error: policyValidation.error, code: policyValidation.code }, { status: policyValidation.status });
+  if (!policyValidation.ok) return NextResponse.json({ error: policyValidation.error, code: policyValidation.code, section: 5, field: "Electronic signature" }, { status: policyValidation.status });
   const policyVersionIds = policyValidation.policies.map((policy) => policy.currentVersion.id);
   const signatureMetadata = requestPolicyMetadata(request);
 
-  const signedIn = await currentUser();
   if (signedIn?.isStudent) return NextResponse.json({ error: "This account is already enrolled at Enfusion University." }, { status: 409 });
   if (signedIn && signedIn.email !== personalEmail) return NextResponse.json({ error: "Use the recovery email attached to your signed-in university account." }, { status: 409 });
   if (!signedIn && await db.user.findFirst({ where: { OR: [{ email: personalEmail }, { academicEmail: personalEmail }] } })) return NextResponse.json({ error: "An account already exists for that email. Sign in to resume its application." }, { status: 409 });
