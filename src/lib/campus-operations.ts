@@ -240,3 +240,20 @@ export async function campusRestrictionResponse(capability: CampusCapability) {
     { status: 423 },
   );
 }
+
+export async function studentAcademicRestrictionResponse(userId: string, capability: CampusCapability) {
+  const student = await db.user.findUnique({ where: { id: userId }, select: { isStudent: true, studentAccountStatus: true, studentStatusReason: true } });
+  if (!student?.isStudent || student.studentAccountStatus === "ACTIVE") return null;
+  const writeCapabilities: CampusCapability[] = ["ENROLLMENT", "LEARNING_WRITE", "SUBMISSION", "WITHDRAWAL", "CREDENTIAL"];
+  const blocked =
+    (student.studentAccountStatus === "CURRICULUM_PAUSED" && writeCapabilities.includes(capability)) ||
+    (student.studentAccountStatus === "NOT_GOOD_STANDING" && ["ENROLLMENT", "CREDENTIAL"].includes(capability));
+  if (!blocked) return null;
+  return NextResponse.json({
+    error: student.studentStatusReason || "This academic action is paused. Open Student Center or contact academic support for the recorded next step.",
+    code: "STUDENT_ACADEMIC_STATUS_RESTRICTED",
+    capability,
+    studentStatus: student.studentAccountStatus,
+    statusUrl: "/university?view=student-center",
+  }, { status: 423 });
+}

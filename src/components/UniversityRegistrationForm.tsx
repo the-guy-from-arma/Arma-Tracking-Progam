@@ -48,6 +48,25 @@ const steps = [
   { title: "Policies + signature", copy: "Review, acknowledge, and e-sign" },
 ];
 
+function ageFromDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const birth = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  if (
+    today.getMonth() < birth.getMonth() ||
+    (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())
+  ) age -= 1;
+  return age;
+}
+
+function latestEligibleBirthDate() {
+  const value = new Date();
+  value.setFullYear(value.getFullYear() - 16);
+  return value.toISOString().slice(0, 10);
+}
+
 export function UniversityRegistrationForm({
   existingEmail = "",
   existingName = "",
@@ -65,6 +84,7 @@ export function UniversityRegistrationForm({
   const [furthest, setFurthest] = useState(0);
   const [policies, setPolicies] = useState<PublicPolicy[]>([]);
   const [reviewedPolicies, setReviewedPolicies] = useState<string[]>([]);
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [pendingApplication, setPendingApplication] = useState<Record<
     string,
     unknown
@@ -94,6 +114,7 @@ export function UniversityRegistrationForm({
             control instanceof HTMLSelectElement
           )
             control.value = value;
+          if (name === "dateOfBirth") setDateOfBirth(value);
         }
         setStep(Math.max(0, Math.min(5, saved.step || 0)));
         setFurthest(Math.max(0, Math.min(5, saved.furthest || 0)));
@@ -197,6 +218,7 @@ export function UniversityRegistrationForm({
       bundleAccepted: Boolean(entries.bundleAccepted),
       policyVersionIds: policies.map((policy) => policy.version.id),
       ageAttested: Boolean(entries.ageAttested),
+      guardianContactAuthorized: Boolean(entries.guardianContactAuthorized),
       electronicConsent: Boolean(entries.electronicConsent),
     });
   }
@@ -255,9 +277,12 @@ export function UniversityRegistrationForm({
       setSubmissionStatus({
         outcome: "success",
         title: "Application received",
-        message:
-          "Your signed application is now moving through automated admissions review.",
-        detail: `Tracking number ${result.application.trackingNumber}. Follow the live review and answer any focused clarification request there.`,
+        message: result.application.guardianConsentRequired
+          ? "Your application is recorded and is waiting for separate parent or guardian consent."
+          : "Your signed application is now moving through automated admissions review.",
+        detail: result.application.guardianConsentRequired
+          ? `Tracking number ${result.application.trackingNumber}. Open the status record to create the secure guardian verification invitation.`
+          : `Tracking number ${result.application.trackingNumber}. Follow the live review and answer any focused clarification request there.`,
         step: 5,
       });
     } catch (reason) {
@@ -490,6 +515,22 @@ export function UniversityRegistrationForm({
                     />
                   </label>
                   <label>
+                    DATE OF BIRTH
+                    <input
+                      name="dateOfBirth"
+                      required
+                      type="date"
+                      max={latestEligibleBirthDate()}
+                      value={dateOfBirth}
+                      onChange={(event) => setDateOfBirth(event.target.value)}
+                      autoComplete="bday"
+                    />
+                    <small>
+                      Applicants must be 16 or older. Ages 16–17 require
+                      verified guardian consent.
+                    </small>
+                  </label>
+                  <label>
                     TIME ZONE
                     <input
                       name="timeZone"
@@ -500,6 +541,98 @@ export function UniversityRegistrationForm({
                       placeholder="America/New_York"
                     />
                   </label>
+                  {dateOfBirth &&
+                    ageFromDate(dateOfBirth) !== null &&
+                    ageFromDate(dateOfBirth)! < 16 && (
+                      <div
+                        className="guardianNotice wide"
+                        data-tone="error"
+                        role="alert"
+                      >
+                        <small>AGE ELIGIBILITY</small>
+                        <b>Online admission begins at age 16.</b>
+                        <p>
+                          This application cannot be submitted until the
+                          applicant is eligible.
+                        </p>
+                      </div>
+                    )}
+                  {[16, 17].includes(ageFromDate(dateOfBirth) ?? -1) && (
+                    <section
+                      className="guardianPanel wide"
+                      aria-labelledby="guardian-section-title"
+                    >
+                      <header>
+                        <small>APPLICANTS AGE 16–17</small>
+                        <h3 id="guardian-section-title">
+                          Parent or guardian authorization
+                        </h3>
+                        <p>
+                          The adult completes a separate, one-time verification.
+                          Enfusion University records the consent and verification
+                          result; it does not retain the ID image, ID number, or
+                          selfie.
+                        </p>
+                      </header>
+                      <div className="fieldGrid">
+                        <label>
+                          PARENT OR GUARDIAN LEGAL NAME
+                          <input
+                            name="guardianName"
+                            required
+                            minLength={2}
+                            autoComplete="name"
+                            placeholder="Jordan Morgan"
+                          />
+                        </label>
+                        <label>
+                          PARENT OR GUARDIAN EMAIL
+                          <input
+                            name="guardianEmail"
+                            required
+                            type="email"
+                            autoComplete="email"
+                            placeholder="guardian@example.com"
+                          />
+                        </label>
+                        <label className="wide">
+                          RELATIONSHIP
+                          <select
+                            name="guardianRelationship"
+                            required
+                            defaultValue=""
+                          >
+                            <option value="" disabled>
+                              Choose relationship
+                            </option>
+                            <option value="PARENT">Parent</option>
+                            <option value="LEGAL_GUARDIAN">Legal guardian</option>
+                            <option value="OTHER_GUARDIAN">
+                              Other adult with parental responsibility
+                            </option>
+                          </select>
+                        </label>
+                      </div>
+                      <label className="checkField">
+                        <input
+                          name="guardianContactAuthorized"
+                          type="checkbox"
+                          required
+                        />
+                        <span>
+                          <b>Guardian contact authorization</b>I confirm that
+                          this adult may be contacted about my application and
+                          that admission remains pending until their separate
+                          consent and identity verification are complete.
+                        </span>
+                      </label>
+                      <p className="guardianPrivacy">
+                        Verification uses a hosted government-ID and live-selfie
+                        check with an approved identity provider. The guardian
+                        may request a privacy-preserving alternative review.
+                      </p>
+                    </section>
+                  )}
                   {existingEmail ? (
                     <div className="existingIdentity wide">
                       <small>SIGNED-IN ACCOUNT VERIFIED</small>
@@ -837,9 +970,11 @@ export function UniversityRegistrationForm({
                 <label className="checkField">
                   <input name="ageAttested" type="checkbox" required />
                   <span>
-                    <b>Adult eligibility and application accuracy</b>I attest
-                    that I am at least 18, that this application is accurate,
-                    and that admissions may request focused clarification.
+                    <b>Age eligibility and application accuracy</b>I attest
+                    that my date of birth and this application are accurate,
+                    and understand that applicants age 16 or 17 require
+                    separate verified parent or guardian authorization before
+                    admission.
                   </span>
                 </label>
                 <label className="checkField">
@@ -1032,7 +1167,7 @@ export function UniversityRegistrationForm({
                   >
                     {confirmedAward
                       ? "VIEW ADMISSIONS DECISION →"
-                      : "ENTER STUDENT CAMPUS →"}
+                      : "VIEW APPLICATION STATUS →"}
                   </button>
                 ) : (
                   <button

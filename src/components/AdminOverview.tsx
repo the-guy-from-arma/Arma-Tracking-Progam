@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import styles from "./OperationsWorkspace.module.css";
 
 type Application = {
@@ -13,6 +13,9 @@ type Application = {
     academicEmail: string | null;
     email: string;
     studentNumber: string | null;
+    id: string;
+    studentAccountStatus: string;
+    studentStatusReason: string | null;
   };
 };
 type Faculty = {
@@ -51,6 +54,7 @@ export function AdminOverview() {
   } | null>(null);
   const [message, setMessage] = useState("");
   const [creating, setCreating] = useState(false);
+  const [studentSearch, setStudentSearch] = useState("");
   const load = useCallback(async () => {
     const response = await fetch("/api/admin/university", {
       cache: "no-store",
@@ -104,6 +108,30 @@ export function AdminOverview() {
     form.reset();
     await load();
   }
+
+  async function changeStudentStatus(application: Application, status: string) {
+    if (["SUSPENDED", "EXPELLED"].includes(status) && !window.confirm(`${status === "EXPELLED" ? "Expulsion" : "Suspension"} immediately ends active sign-in sessions. The academic record remains preserved. Continue?`)) return;
+    const reason = window.prompt(`Record the reason for ${status.replaceAll("_", " ").toLowerCase()}:`);
+    if (!reason) return;
+    const response = await fetch("/api/admin/university", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "set_student_status", studentId: application.user.id, status, note: reason }),
+    });
+    const result = await response.json().catch(() => ({}));
+    setMessage(response.ok ? `${application.user.name} moved to ${status.replaceAll("_", " ")}.` : result.error || "Student status could not be changed.");
+    if (response.ok) await load();
+  }
+
+  const visibleApplications = useMemo(() => {
+    const query = studentSearch.trim().toLocaleLowerCase();
+    if (!query) return data?.applications || [];
+    return (data?.applications || []).filter((application) =>
+      [application.user.name, application.user.studentNumber, application.user.academicEmail, application.user.email, application.status, application.user.studentAccountStatus]
+        .filter(Boolean)
+        .some((value) => String(value).toLocaleLowerCase().includes(query)),
+    );
+  }, [data?.applications, studentSearch]);
 
   return (
     <section className={styles.workspace}>
@@ -223,6 +251,13 @@ export function AdminOverview() {
         </header>
       </section>
       <div className={styles.table}>
+        <div className={styles.studentToolbar}>
+          <label>
+            <span>SEARCH STUDENTS</span>
+            <input value={studentSearch} onChange={(event) => setStudentSearch(event.target.value)} placeholder="Name, student ID, campus login, or status" />
+          </label>
+          <b>{visibleApplications.length} RECORDS</b>
+        </div>
         <div className={`${styles.tableHead} ${styles.fundingHead}`}>
           <span>STUDENT</span>
           <span>STATUS</span>
@@ -230,7 +265,7 @@ export function AdminOverview() {
           <span>SUBMITTED</span>
           <span>DECISION</span>
         </div>
-        {data?.applications.map((application) => (
+        {visibleApplications.map((application) => (
           <article
             className={`${styles.row} ${styles.fundingRow}`}
             key={application.id}
@@ -244,19 +279,31 @@ export function AdminOverview() {
               </small>
             </span>
             <strong data-status={application.status}>
-              {application.status}
+              {application.status === "ADMITTED" ? application.user.studentAccountStatus.replaceAll("_", " ") : application.status}
             </strong>
             <span>{application.learningGoals}</span>
             <span>
               {new Date(application.submittedAt).toLocaleDateString()}
             </span>
             <span>
-              <button onClick={() => void decide(application.id, "ADMITTED")}>
-                ADMIT
-              </button>{" "}
-              <button onClick={() => void decide(application.id, "WAITLISTED")}>
-                WAITLIST
-              </button>
+              {application.status === "ADMITTED" ? (
+                <select
+                  aria-label={`Change status for ${application.user.name}`}
+                  value={application.user.studentAccountStatus}
+                  onChange={(event) => void changeStudentStatus(application, event.target.value)}
+                >
+                  <option value="ACTIVE">Active student</option>
+                  <option value="CURRICULUM_PAUSED">Pause curriculum</option>
+                  <option value="NOT_GOOD_STANDING">Not in good academic standing</option>
+                  <option value="SUSPENDED">Suspend account</option>
+                  <option value="EXPELLED">Expel student</option>
+                </select>
+              ) : (
+                <>
+                  <button onClick={() => void decide(application.id, "ADMITTED")}>ADMIT</button>{" "}
+                  <button onClick={() => void decide(application.id, "WAITLISTED")}>WAITLIST</button>
+                </>
+              )}
             </span>
           </article>
         ))}

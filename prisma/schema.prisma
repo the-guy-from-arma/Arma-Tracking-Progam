@@ -76,6 +76,7 @@ enum ProgramLevel {
 
 enum AdmissionStatus {
   SUBMITTED
+  GUARDIAN_CONSENT_REQUIRED
   UNDER_AUTOMATED_REVIEW
   CLARIFICATION_REQUIRED
   AUTOMATION_EXCEPTION
@@ -88,9 +89,41 @@ enum AdmissionReviewStatus {
   QUEUED
   PROCESSING
   WAITING_FOR_CONSENT
+  WAITING_FOR_GUARDIAN
   COMPLETED
   CLARIFICATION_REQUIRED
   EXCEPTION
+}
+
+enum GuardianConsentStatus {
+  INVITED
+  CONSENTED
+  IDENTITY_PENDING
+  PROCESSING
+  VERIFIED
+  REQUIRES_INPUT
+  ALTERNATIVE_REVIEW
+  REVOKED
+  EXPIRED
+}
+
+enum GuardianRelationship {
+  PARENT
+  LEGAL_GUARDIAN
+  OTHER_GUARDIAN
+}
+
+enum GuardianVerificationMethod {
+  STRIPE_IDENTITY
+  ALTERNATIVE_REVIEW
+}
+
+enum StudentAccountStatus {
+  ACTIVE
+  CURRICULUM_PAUSED
+  NOT_GOOD_STANDING
+  SUSPENDED
+  EXPELLED
 }
 
 enum AdmissionDecisionOutcome {
@@ -419,6 +452,9 @@ model User {
   role                      UserRole                       @default(TRAINEE)
   specialty                 String?
   suspended                 Boolean                        @default(false)
+  studentAccountStatus      StudentAccountStatus           @default(ACTIVE)
+  studentStatusReason       String?
+  studentStatusChangedAt    DateTime?
   accountClosedAt           DateTime?
   createdAt                 DateTime                       @default(now())
   updatedAt                 DateTime                       @updatedAt
@@ -474,6 +510,7 @@ model User {
   admissionClarifications   AdmissionClarification[]       @relation("AdmissionClarificationApplicant")
   admissionReviewOverrides  AdmissionReviewDecision[]      @relation("AdmissionDecisionOwner")
   operationalPeriods        InstitutionOperationalPeriod[] @relation("OperationalPeriodOwner")
+  guardianConsentReviews    GuardianConsent[]              @relation("GuardianConsentReviewer")
 
   @@index([role])
 }
@@ -658,12 +695,54 @@ model StudentApplication {
   githubUrl           String?
   fundingStatement    String
   supportNeeds        String?
+  dateOfBirth         DateTime?
+  ageAtSubmission     Int?
   status              AdmissionStatus          @default(ADMITTED)
   submittedAt         DateTime                 @default(now())
   reviewedAt          DateTime?
   trackingRecords     ApplicationTracking[]
   reviewJobs          AdmissionReviewJob[]
   clarifications      AdmissionClarification[]
+  guardianConsent     GuardianConsent?
+}
+
+model GuardianConsent {
+  id                             String                      @id @default(cuid())
+  applicationId                  String                      @unique
+  application                    StudentApplication          @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  guardianName                   String
+  guardianEmail                  String
+  relationship                   GuardianRelationship
+  status                         GuardianConsentStatus       @default(INVITED)
+  verificationMethod             GuardianVerificationMethod?
+  accessTokenHash                String                      @unique
+  tokenExpiresAt                 DateTime
+  consentedName                  String?
+  parentalResponsibilityAttested Boolean                     @default(false)
+  studentParticipationAuthorized Boolean                     @default(false)
+  privacyAcknowledged            Boolean                     @default(false)
+  consentedAt                    DateTime?
+  revokedAt                      DateTime?
+  provider                       String?
+  providerSessionId              String?                     @unique
+  providerStatus                 String?
+  providerFailureCode            String?
+  adultVerified                  Boolean                     @default(false)
+  nameMatched                    Boolean                     @default(false)
+  verifiedAt                     DateTime?
+  verificationCountry            String?
+  alternativeRequestedAt         DateTime?
+  alternativeReason              String?
+  reviewedById                   String?
+  reviewedBy                     User?                       @relation("GuardianConsentReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt                     DateTime?
+  userAgent                      String?
+  ipHash                         String?
+  createdAt                      DateTime                    @default(now())
+  updatedAt                      DateTime                    @updatedAt
+
+  @@index([status, createdAt])
+  @@index([guardianEmail])
 }
 
 model AdmissionReviewJob {

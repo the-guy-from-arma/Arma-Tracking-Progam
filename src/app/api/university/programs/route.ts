@@ -5,7 +5,7 @@ import { text } from "@/lib/input";
 import { trackingEvent } from "@/lib/application-tracking";
 import { buildProgramAudits, getCompletedCourseIds, getProgramAudit } from "@/lib/academic-progress";
 import { policyGateResponse } from "@/lib/policies";
-import { campusRestrictionResponse } from "@/lib/campus-operations";
+import { campusRestrictionResponse, studentAcademicRestrictionResponse } from "@/lib/campus-operations";
 
 export async function GET() {
   const user = await currentUser();
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   if (user.isStudent) { const gate = await policyGateResponse(user.id); if (gate) return gate; }
-  { const gate = await campusRestrictionResponse("ENROLLMENT"); if (gate) return gate; }
+  { const gate = await campusRestrictionResponse("ENROLLMENT") || await studentAcademicRestrictionResponse(user.id, "ENROLLMENT"); if (gate) return gate; }
   const body = await request.json().catch(() => ({}));
   const programId = text(body.programId, 100);
   if (body.fundingAcknowledged !== true || body.refundPolicyAcknowledged !== true) return NextResponse.json({ error: "Review and acknowledge the sponsored-learning allocation and withdrawal policy before activating a program." }, { status: 400 });

@@ -3,7 +3,7 @@ import { currentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { text } from "@/lib/input";
 import { policyGateResponse } from "@/lib/policies";
-import { campusRestrictionResponse, campusStatus } from "@/lib/campus-operations";
+import { campusRestrictionResponse, campusStatus, studentAcademicRestrictionResponse } from "@/lib/campus-operations";
 
 export async function GET(_: Request, { params }: { params: Promise<{ courseId: string }> }) {
   const user = await currentUser(); if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
@@ -18,7 +18,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ courseId: 
 export async function PATCH(request: Request, { params }: { params: Promise<{ courseId: string }> }) {
   const user = await currentUser(); if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   if (user.isStudent) { const gate = await policyGateResponse(user.id); if (gate) return gate; }
-  { const gate = await campusRestrictionResponse("LEARNING_WRITE"); if (gate) return gate; }
+  { const gate = await campusRestrictionResponse("LEARNING_WRITE") || await studentAcademicRestrictionResponse(user.id, "LEARNING_WRITE"); if (gate) return gate; }
   const { courseId } = await params; const body = await request.json().catch(() => ({}));
   const dayId = text(body.dayId, 100); const answer = text(body.answer, 1000); const reflection = text(body.reflection, 1800);
   const day = await db.courseDay.findFirst({ where: { id: dayId, courseId } });

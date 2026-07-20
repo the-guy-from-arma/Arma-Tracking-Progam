@@ -51,6 +51,11 @@ type AdmissionsData = {
         concerns: string[];
       };
     }[];
+    guardianConsent?: {
+      status: string;
+      guardianName: string;
+      alternativeReason?: string | null;
+    } | null;
   }[];
 };
 
@@ -236,6 +241,22 @@ export function CampusOperationsPanel() {
     if (response.ok) await load();
   }
 
+  async function verifyAlternativeGuardian(applicationId: string) {
+    const note = window.prompt(
+      "Record the adult identity and parental-authority evidence reviewed. Do not enter ID numbers or copy document images into this note.",
+    );
+    if (!note || note.length < 20) return;
+    if (!window.confirm("Confirm that the reviewed adult is at least 18, matches the named guardian, and has parental responsibility for this applicant.")) return;
+    const response = await fetch("/api/admin/university/admissions", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ applicationId, action: "verify_guardian_alternative", note }),
+    });
+    const result = await response.json().catch(() => ({}));
+    setMessage(response.ok ? "ALTERNATIVE GUARDIAN VERIFICATION RECORDED" : result.error || "GUARDIAN VERIFICATION COULD NOT BE RECORDED");
+    if (response.ok) await load();
+  }
+
   const allOpen =
     learningMode === "ACTIVE" && !admissionsPaused && !enrollmentPaused;
 
@@ -328,11 +349,22 @@ export function CampusOperationsPanel() {
                 <div>
                   <small>{application.trackingRecords[0]?.trackingNumber || application.id}</small>
                   <strong>{application.user.name}</strong>
+                  {application.guardianConsent && (
+                    <p>
+                      Guardian: {application.guardianConsent.guardianName} ·{" "}
+                      {application.guardianConsent.status.replaceAll("_", " ")}
+                    </p>
+                  )}
                   <span>{application.status.replaceAll("_", " ")} · {job?.decision ? job.decision.outcome : job?.status || "QUEUED"}</span>
                   {job?.decision?.concerns?.length ? <p>{job.decision.concerns.join(" · ")}</p> : null}
                 </div>
                 <nav>
                   <button onClick={() => void admissionAction(application.id, "retry")}>RETRY</button>
+                  {application.guardianConsent?.status === "ALTERNATIVE_REVIEW" && (
+                    <button onClick={() => void verifyAlternativeGuardian(application.id)}>
+                      VERIFY GUARDIAN
+                    </button>
+                  )}
                   <button onClick={() => void admissionAction(application.id, "admit")}>ADMIT</button>
                   <button onClick={() => void admissionAction(application.id, "decline")}>DECLINE</button>
                 </nav>

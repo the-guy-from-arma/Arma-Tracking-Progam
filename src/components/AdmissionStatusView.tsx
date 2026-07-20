@@ -47,6 +47,17 @@ type StatusPayload = {
   clarification: { id: string; round: number; questions: string[] } | null;
   award: { academicIdentity: string; studentNumber: string } | null;
   policyActionUrl: string | null;
+  guardian: {
+    required: boolean;
+    status: string;
+    guardianName: string;
+    relationship: string;
+    expiresAt: string;
+    verifiedAt: string | null;
+    failureCode: string | null;
+    alternativeRequestedAt: string | null;
+    canCreateInvitation: boolean;
+  } | null;
 };
 
 const stages = [
@@ -57,10 +68,16 @@ const stages = [
       "Your signed application, tracking record, and submitted responses are safely recorded.",
   },
   {
+    code: "GUARDIAN_PERMISSION",
+    label: "Guardian authorization",
+    detail:
+      "For applicants age 16 or 17, a parent or legal guardian signs separately and completes adult identity verification before academic review begins.",
+  },
+  {
     code: "IDENTITY_ELIGIBILITY",
     label: "Identity and eligibility",
     detail:
-      "Admissions checks the required contact information, adult attestation, and application completeness.",
+      "Admissions checks the required contact information, age eligibility, and application completeness.",
   },
   {
     code: "ACADEMIC_READINESS",
@@ -85,6 +102,7 @@ const stages = [
 const pendingStatuses = new Set([
   "SUBMITTED",
   "UNDER_AUTOMATED_REVIEW",
+  "GUARDIAN_CONSENT_REQUIRED",
   "CLARIFICATION_REQUIRED",
   "AUTOMATION_EXCEPTION",
 ]);
@@ -104,6 +122,8 @@ function statusCopy(status: string) {
     return "Your application is safe. Answer the focused questions below so admissions can continue.";
   if (status === "AUTOMATION_EXCEPTION")
     return "Your application is preserved for protected exception review. No automatic denial has been made.";
+  if (status === "GUARDIAN_CONSENT_REQUIRED")
+    return "Your application is safely recorded. A parent or legal guardian must complete the separate consent and adult identity check before academic review begins.";
   if (status === "DECLINED")
     return "A final admissions decision has been recorded. The status history below preserves the decision path.";
   return "Your application is moving through eligibility, readiness, policy, and decision review.";
@@ -116,6 +136,7 @@ export function AdmissionStatusView({ applicantName }: { applicantName: string }
   const [refreshing, setRefreshing] = useState(false);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [selectedStage, setSelectedStage] = useState<string | null>(null);
+  const [guardianInvitation, setGuardianInvitation] = useState("");
 
   const load = useCallback(async (showProgress = false) => {
     if (showProgress) setRefreshing(true);
@@ -191,15 +212,42 @@ export function AdmissionStatusView({ applicantName }: { applicantName: string }
     window.location.assign("/");
   }
 
+  async function createGuardianInvitation() {
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admissions/guardian-invitation", {
+        method: "POST",
+        signal: AbortSignal.timeout(12_000),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Guardian invitation could not be created.");
+      setGuardianInvitation(result.invitationUrl);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Guardian invitation could not be created.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyGuardianInvitation() {
+    if (!guardianInvitation) return;
+    await navigator.clipboard.writeText(guardianInvitation);
+  }
+
   const status = data?.application.status || "UNDER_AUTOMATED_REVIEW";
+  const visibleStages = useMemo(
+    () => data?.guardian ? stages : stages.filter((stage) => stage.code !== "GUARDIAN_PERMISSION"),
+    [data?.guardian],
+  );
   const currentStageIndex = useMemo(() => {
-    if (status === "ADMITTED" || status === "DECLINED") return stages.length;
-    const index = stages.findIndex((stage) => stage.code === data?.review?.stage);
+    if (status === "ADMITTED" || status === "DECLINED") return visibleStages.length;
+    const index = visibleStages.findIndex((stage) => stage.code === data?.review?.stage);
     return Math.max(0, index);
-  }, [data?.review?.stage, status]);
+  }, [data?.review?.stage, status, visibleStages]);
   const selectedStageRecord =
-    stages.find((stage) => stage.code === selectedStage) ||
-    stages[Math.min(currentStageIndex, stages.length - 1)];
+    visibleStages.find((stage) => stage.code === selectedStage) ||
+    visibleStages[Math.min(currentStageIndex, visibleStages.length - 1)];
 
   return (
     <main className={styles.page}>
@@ -274,13 +322,13 @@ export function AdmissionStatusView({ applicantName }: { applicantName: string }
                 <h2>Where your application is now</h2>
               </div>
               <span>
-                {currentStageIndex >= stages.length
+                {currentStageIndex >= visibleStages.length
                   ? "REVIEW COMPLETE"
-                  : `STAGE ${currentStageIndex + 1} OF ${stages.length}`}
+                  : `STAGE ${currentStageIndex + 1} OF ${visibleStages.length}`}
               </span>
             </header>
             <div className={styles.timeline} aria-label="Admissions review stages">
-              {stages.map((stage, index) => (
+              {visibleStages.map((stage, index) => (
                 <motion.button
                   type="button"
                   key={stage.code}
@@ -423,6 +471,34 @@ export function AdmissionStatusView({ applicantName }: { applicantName: string }
       )}
 
       <AnimatePresence mode="wait">
+        {data?.guardian && data.guardian.status !== "VERIFIED" && (
+          <motion.section
+            key="guardian"
+            className={styles.guardianPanel}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <span>REQUIRED BEFORE ADMISSION</span>
+            <h2>Parent or guardian authorization</h2>
+            <p>
+              {data.guardian.status === "ALTERNATIVE_REVIEW"
+                ? "An alternative verification request is open. The application remains pending while Admissions arranges the next step."
+                : `Create a private one-time link for ${data.guardian.guardianName}. The adult signs separately and completes hosted identity verification.`}
+            </p>
+            {guardianInvitation ? (
+              <div className={styles.invitationBox}>
+                <label>ONE-TIME GUARDIAN LINK<input readOnly value={guardianInvitation} /></label>
+                <button type="button" onClick={() => void copyGuardianInvitation()}>COPY SECURE LINK</button>
+              </div>
+            ) : data.guardian.status !== "ALTERNATIVE_REVIEW" ? (
+              <button type="button" disabled={busy} onClick={() => void createGuardianInvitation()}>
+                {busy ? "CREATING LINK…" : "CREATE GUARDIAN INVITATION →"}
+              </button>
+            ) : null}
+            <small>Share the link only with the named adult. Creating a new link invalidates the previous one.</small>
+          </motion.section>
+        )}
+
         {data?.policyActionUrl && (
           <motion.section
             key="policy"

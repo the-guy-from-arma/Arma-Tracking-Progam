@@ -149,6 +149,7 @@
   border: 1px solid #d2dee6;
   background: #fff;
 }
+.studentToolbar{display:flex;align-items:end;justify-content:space-between;gap:20px;padding:16px;border-bottom:1px solid #d2dee6;background:#f4f8fa}.studentToolbar label{display:grid;min-width:min(520px,70%);gap:6px}.studentToolbar label span,.studentToolbar>b{color:#547080;font:650 9px var(--font-plex-mono,monospace);letter-spacing:.08em}.studentToolbar input{min-height:42px;padding:0 13px;border:1px solid #b9cbd5;background:#fff;color:#102e49;font:14px var(--font-plex-sans,sans-serif)}.studentToolbar input:focus{outline:3px solid #2c8eaf44;border-color:#2c8eaf}.fundingRow select{width:100%;min-height:36px;padding:0 8px;border:1px solid #9fb6c4;background:#fff;color:#123a55;font:650 9px var(--font-plex-sans,sans-serif)}
 .tableHead,
 .row {
   display: grid;

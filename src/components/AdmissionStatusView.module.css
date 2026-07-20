@@ -186,7 +186,7 @@
 }
 .timeline {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   border: 1px solid #315368;
   background: #081a27a8;
 }
@@ -423,7 +423,8 @@
 }
 
 .clarification,
-.actionPanel {
+.actionPanel,
+.guardianPanel {
   max-width: 980px;
   margin: 38px auto 60px;
   padding: clamp(30px, 5vw, 68px);
@@ -431,6 +432,7 @@
   color: #10283d;
   box-shadow: 0 30px 80px #0005;
 }
+.guardianPanel>span{color:#247596;font:700 10px var(--font-plex-mono,"IBM Plex Mono",monospace);letter-spacing:.14em}.guardianPanel h2{margin:13px 0 18px;font:500 clamp(34px,4vw,54px)/1.05 var(--font-plex-serif,"IBM Plex Serif",serif)}.guardianPanel>p{max-width:760px;color:#506b78;line-height:1.65}.guardianPanel>button,.invitationBox button{min-height:46px;padding:0 18px;border:1px solid #0d5e83;background:#0b567c;color:#fff;font:700 9px var(--font-plex-mono,"IBM Plex Mono",monospace);letter-spacing:.07em;cursor:pointer}.guardianPanel>small{display:block;margin-top:16px;color:#6f838c}.invitationBox{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end;margin-top:25px}.invitationBox label{display:flex;min-width:0;flex-direction:column;gap:8px;color:#496978;font:700 8px var(--font-plex-mono,monospace)}.invitationBox input{min-width:0;height:46px;padding:0 12px;border:1px solid #afbec3;background:#fff;color:#16394b;font:12px var(--font-plex-mono,monospace)}
 .clarification h2,
 .actionPanel h2 {
   margin: 14px 0 30px;
@@ -571,7 +573,8 @@
   }
   .currentReview dl,
   .applicationFacts > dl,
-  .actionPanel dl {
+  .actionPanel dl,
+  .invitationBox {
     grid-template-columns: 1fr;
   }
   .applicationFacts > dl div {

@@ -34,6 +34,9 @@ export async function GET() {
             specialty: true,
             grantBalanceCents: true,
             suspended: true,
+            studentAccountStatus: true,
+            studentStatusReason: true,
+            studentStatusChangedAt: true,
             createdAt: true,
             _count: { select: { courseEnrollments: true, certificates: true } },
           },
@@ -179,6 +182,28 @@ export async function PATCH(request: Request) {
   const applicationId = text(body.applicationId, 80);
   const action = text(body.action, 40);
   const note = text(body.note, 500);
+  if (action === "set_student_status") {
+    const studentId = text(body.studentId, 80);
+    const status = text(body.status, 40).toUpperCase();
+    const allowed = new Set(["ACTIVE", "CURRICULUM_PAUSED", "NOT_GOOD_STANDING", "SUSPENDED", "EXPELLED"]);
+    if (!allowed.has(status)) return NextResponse.json({ error: "Choose a valid student standing." }, { status: 400 });
+    if (note.length < 10) return NextResponse.json({ error: "Record a specific reason of at least 10 characters." }, { status: 400 });
+    const student = await db.user.findFirst({ where: { id: studentId, isStudent: true } });
+    if (!student) return NextResponse.json({ error: "Student record not found." }, { status: 404 });
+    const locked = status === "SUSPENDED" || status === "EXPELLED";
+    const updated = await db.$transaction(async (tx) => {
+      const record = await tx.user.update({
+        where: { id: student.id },
+        data: { studentAccountStatus: status as "ACTIVE" | "CURRICULUM_PAUSED" | "NOT_GOOD_STANDING" | "SUSPENDED" | "EXPELLED", studentStatusReason: note, studentStatusChangedAt: new Date(), suspended: locked },
+        select: { id: true, studentAccountStatus: true, studentStatusReason: true, suspended: true },
+      });
+      if (locked) await tx.session.deleteMany({ where: { userId: student.id } });
+      await tx.notification.create({ data: { userId: student.id, type: "ACADEMIC", title: status === "ACTIVE" ? "Your student access has been restored" : `Student status: ${status.replaceAll("_", " ").toLowerCase()}`, body: note, actionUrl: "/university?view=student-center", dedupeKey: `owner-student-status:${student.id}:${status}:${Date.now()}` } });
+      await tx.auditLog.create({ data: { actorId: owner.id, action: "STUDENT_ACCOUNT_STATUS_CHANGED", entity: "User", entityId: student.id, detail: { previousStatus: student.studentAccountStatus, status, note, loginLocked: locked } } });
+      return record;
+    });
+    return NextResponse.json({ student: updated });
+  }
   if (!applicationId)
     return NextResponse.json(
       { error: "Application is required." },
@@ -203,7 +228,9 @@ export async function PATCH(request: Request) {
         { status: 400 },
       );
     if (status === "ADMITTED") {
-      const admitted = await finalizeAdmission(application.id, owner.id);
+      let admitted;
+      try { admitted = await finalizeAdmission(application.id, owner.id); }
+      catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Admission could not be finalized." }, { status: 409 }); }
       await db.auditLog.create({ data: { actorId: owner.id, action: "ADMISSION_OWNER_ADMIT_OVERRIDE", entity: "StudentApplication", entityId: application.id, detail: { note } } });
       return NextResponse.json({ application: { ...application, status: "ADMITTED" }, admitted });
     }

@@ -32,6 +32,7 @@ export async function GET() {
       trackingRecords: { orderBy: { createdAt: "desc" }, take: 1 },
       reviewJobs: { include: { decision: true }, orderBy: { createdAt: "desc" } },
       clarifications: { orderBy: { round: "asc" } },
+      guardianConsent: true,
     },
   });
   if (!application) return NextResponse.json({ error: "No admissions application is attached to this account." }, { status: 404 });
@@ -85,6 +86,17 @@ export async function GET() {
     } : null,
     clarification: currentClarification ? { id: currentClarification.id, round: currentClarification.round, questions: currentClarification.questions } : null,
     policyActionUrl: latestJob?.status === "WAITING_FOR_CONSENT" ? "/policies/accept" : null,
+    guardian: application.guardianConsent ? {
+      required: true,
+      status: application.guardianConsent.status,
+      guardianName: application.guardianConsent.guardianName,
+      relationship: application.guardianConsent.relationship,
+      expiresAt: application.guardianConsent.tokenExpiresAt,
+      verifiedAt: application.guardianConsent.verifiedAt,
+      failureCode: application.guardianConsent.providerFailureCode,
+      alternativeRequestedAt: application.guardianConsent.alternativeRequestedAt,
+      canCreateInvitation: application.guardianConsent.status !== "VERIFIED",
+    } : null,
     award,
   });
 }

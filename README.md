@@ -49,7 +49,14 @@ FUNDING_TERM_DAYS=120
 FUNDING_RESERVE_PERCENT=15
 DEGREE_WORDING_ENABLED=false
 APP_ORIGIN=https://enfusion-edu.up.railway.app
+MINOR_ADMISSIONS_ENABLED=true
+GUARDIAN_VERIFICATION_ENABLED=true
+GUARDIAN_CONSENT_TOKEN_SECRET=<different random value of at least 32 characters>
+STRIPE_SECRET_KEY=<server-only Stripe secret key>
+STRIPE_IDENTITY_WEBHOOK_SECRET=<Stripe webhook signing secret beginning whsec_>
 ```
+
+For age-16/17 admissions, enable Stripe Identity in the Stripe account and add a webhook endpoint at `https://enfusion-edu.up.railway.app/api/webhooks/stripe-identity`. Subscribe it to `identity.verification_session.verified`, `identity.verification_session.processing`, `identity.verification_session.requires_input`, `identity.verification_session.canceled`, and `identity.verification_session.redacted`. Never use a `NEXT_PUBLIC_*` variable for these secrets. The university database stores consent and verification-result metadata, not guardian ID images, ID numbers, or selfies.
 
 Create three Railway scheduled services:
 

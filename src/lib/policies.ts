@@ -116,7 +116,7 @@ export async function validatePolicyBundle(input: {
     return { ok: false as const, status: 409, code: "POLICY_VERSION_CHANGED", error: "A policy changed while you were reviewing it. Review the current versions before signing." };
   }
   const normalize = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
-  if (!input.ageAttested) return { ok: false as const, status: 400, code: "AGE_ATTESTATION_REQUIRED", error: "You must attest that you are at least 18 years old." };
+  if (!input.ageAttested) return { ok: false as const, status: 400, code: "AGE_ATTESTATION_REQUIRED", error: "You must attest to your age eligibility and the accuracy of your application." };
   if (!input.electronicConsent) return { ok: false as const, status: 400, code: "ELECTRONIC_CONSENT_REQUIRED", error: "Electronic-record and signature consent is required for this online-only institution." };
   if (normalize(input.signerName) !== normalize(input.expectedName)) return { ok: false as const, status: 400, code: "SIGNATURE_NAME_MISMATCH", error: "Your typed signature must match the name on the application." };
   return { ok: true as const, policies: required };

@@ -7,7 +7,7 @@ import { queueSubmissionForAi } from "@/lib/ai-grading";
 import { getCompletedCourseIds, getProgramAudit, getProgramSequenceBlockers } from "@/lib/academic-progress";
 import { ensureStudentFacultyNetwork } from "@/lib/faculty-network";
 import { policyGateResponse } from "@/lib/policies";
-import { campusRestrictionResponse, campusStatus } from "@/lib/campus-operations";
+import { campusRestrictionResponse, campusStatus, studentAcademicRestrictionResponse } from "@/lib/campus-operations";
 import { trackingEvent } from "@/lib/application-tracking";
 
 const courseLevels = new Set(["FOUNDATION", "INTERMEDIATE", "ADVANCED", "CAPSTONE"]);
@@ -71,8 +71,8 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "");
 
-  if (["enroll_course", "enroll_program"].includes(action)) { const gate = await campusRestrictionResponse("ENROLLMENT"); if (gate) return gate; }
-  if (action === "submit_mod") { const gate = await campusRestrictionResponse("SUBMISSION"); if (gate) return gate; }
+  if (["enroll_course", "enroll_program"].includes(action)) { const gate = await campusRestrictionResponse("ENROLLMENT") || await studentAcademicRestrictionResponse(user.id, "ENROLLMENT"); if (gate) return gate; }
+  if (action === "submit_mod") { const gate = await campusRestrictionResponse("SUBMISSION") || await studentAcademicRestrictionResponse(user.id, "SUBMISSION"); if (gate) return gate; }
 
   if (action === "create_course") {
     if (!canTeach(user.role)) return NextResponse.json({ error: "Faculty authoring authority required" }, { status: 403 });

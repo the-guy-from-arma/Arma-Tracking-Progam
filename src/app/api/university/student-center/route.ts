@@ -3,7 +3,7 @@ import { currentUser, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { text } from "@/lib/input";
 import { activeWithdrawalPolicy, getOrCreateFundingStanding, quoteCourseWithdrawal, recalculateFundingStanding, withdrawFromCourse } from "@/lib/funding-standing";
-import { campusRestrictionResponse } from "@/lib/campus-operations";
+import { campusRestrictionResponse, studentAcademicRestrictionResponse } from "@/lib/campus-operations";
 
 export async function GET() {
   const user = await currentUser();
@@ -11,7 +11,7 @@ export async function GET() {
   await getOrCreateFundingStanding(user.id);
   const standing = await recalculateFundingStanding(user.id);
   const [account, enrollments, grades, applications, withdrawalPolicy] = await Promise.all([
-    db.user.findUniqueOrThrow({ where: { id: user.id }, select: { grantBalanceCents: true } }),
+    db.user.findUniqueOrThrow({ where: { id: user.id }, select: { grantBalanceCents: true, studentAccountStatus: true, studentStatusReason: true, studentStatusChangedAt: true } }),
     db.courseEnrollment.findMany({ where: { userId: user.id }, include: { course: { select: { id: true, code: true, title: true, academy: true, serviceValueCents: true, estimatedDays: true } } }, orderBy: { enrolledAt: "desc" } }),
     db.aiGradeDecision.findMany({
       where: { submission: { studentId: user.id } },
@@ -30,7 +30,7 @@ export async function GET() {
     db.applicationTracking.findMany({ where: { userId: user.id }, include: { programApplication: { select: { program: { select: { code: true, title: true } } } }, studentApplication: { select: { status: true } } }, orderBy: { createdAt: "desc" } }),
     activeWithdrawalPolicy(),
   ]);
-  return NextResponse.json({ balanceCents: account.grantBalanceCents, standing, enrollments, grades, applications, policy: { id: withdrawalPolicy.id, name: withdrawalPolicy.name, timeTiers: withdrawalPolicy.timeTiers, progressTiers: withdrawalPolicy.progressTiers, penaltyTiers: withdrawalPolicy.penaltyTiers, minimumRenewalPercent: 60, continuingGrade: 70, gradeReviewMinimum: 2 } });
+  return NextResponse.json({ balanceCents: account.grantBalanceCents, studentAccountStatus: account.studentAccountStatus, studentStatusReason: account.studentStatusReason, studentStatusChangedAt: account.studentStatusChangedAt, standing, enrollments, grades, applications, policy: { id: withdrawalPolicy.id, name: withdrawalPolicy.name, timeTiers: withdrawalPolicy.timeTiers, progressTiers: withdrawalPolicy.progressTiers, penaltyTiers: withdrawalPolicy.penaltyTiers, minimumRenewalPercent: 60, continuingGrade: 70, gradeReviewMinimum: 2 } });
 }
 
 export async function POST(request: Request) {
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   const body = await request.json().catch(() => ({}));
   if (!['withdraw', 'quote_withdrawal'].includes(body.action)) return NextResponse.json({ error: "Unknown Student Center action" }, { status: 400 });
-  { const gate = await campusRestrictionResponse("WITHDRAWAL"); if (gate) return gate; }
+  { const gate = await campusRestrictionResponse("WITHDRAWAL") || await studentAcademicRestrictionResponse(user.id, "WITHDRAWAL"); if (gate) return gate; }
   const enrollmentId = text(body.enrollmentId, 100);
   const reason = text(body.reason, 500);
   if (!enrollmentId || (body.action === 'withdraw' && reason.length < 10)) return NextResponse.json({ error: "Choose an enrollment and provide a brief withdrawal reason." }, { status: 400 });

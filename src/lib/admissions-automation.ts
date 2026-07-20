@@ -105,8 +105,13 @@ async function ensureOrientationCourse(tx: Prisma.TransactionClient) {
 
 export async function finalizeAdmission(applicationId: string, actorId?: string | null) {
   const result = await db.$transaction(async (tx) => {
-    const application = await tx.studentApplication.findUniqueOrThrow({ where: { id: applicationId }, include: { user: true } });
+    const application = await tx.studentApplication.findUniqueOrThrow({ where: { id: applicationId }, include: { user: true, guardianConsent: true } });
     if (application.status === "ADMITTED" && application.user.isStudent) return { user: application.user, admitted: false };
+    if ([16, 17].includes(application.ageAtSubmission || -1)) {
+      const guardian = application.guardianConsent;
+      if (!guardian || guardian.status !== "VERIFIED" || !guardian.adultVerified || !guardian.nameMatched)
+        throw new Error("Verified parent or guardian consent is required before this applicant can be admitted.");
+    }
     const studentNumber = `EFU-${new Date().getUTCFullYear()}-${crypto.randomInt(100000, 999999)}`;
     const academicEmail = `${aliasFor(application.user.name, studentNumber)}@${identityDomain()}`;
     const nextBalance = application.user.grantBalanceCents + INITIAL_GRANT_CENTS;
@@ -192,8 +197,18 @@ export async function processNextAdmissionReview() {
   if (!claimed.count) return { processed: false, reason: "claimed" };
   const record = await db.admissionReviewJob.findUniqueOrThrow({
     where: { id: job.id },
-    include: { application: { include: { clarifications: { where: { submittedAt: { not: null } }, orderBy: { round: "asc" } } } } },
+    include: { application: { include: { guardianConsent: true, clarifications: { where: { submittedAt: { not: null } }, orderBy: { round: "asc" } } } } },
   });
+  if ([16, 17].includes(record.application.ageAtSubmission || -1)) {
+    const guardian = record.application.guardianConsent;
+    if (!guardian || guardian.status !== "VERIFIED" || !guardian.adultVerified || !guardian.nameMatched) {
+      await db.$transaction([
+        db.admissionReviewJob.update({ where: { id: record.id }, data: { status: "WAITING_FOR_GUARDIAN", stage: "GUARDIAN_PERMISSION", lockedAt: null, heartbeatAt: null, lastError: "Verified guardian consent required before admissions review." } }),
+        db.studentApplication.update({ where: { id: record.applicationId }, data: { status: "GUARDIAN_CONSENT_REQUIRED" } }),
+      ]);
+      return { processed: false, reason: "waiting_for_guardian" };
+    }
+  }
   const consent = await policyCompliance(record.application.userId);
   if (!consent.compliant) {
     await db.admissionReviewJob.update({ where: { id: record.id }, data: { status: "WAITING_FOR_CONSENT", stage: "POLICY_INTEGRITY", lockedAt: null, heartbeatAt: null, lastError: "Current policy acceptance required" } });
