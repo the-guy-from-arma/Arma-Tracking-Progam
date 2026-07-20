@@ -1,0 +1,186 @@
+.alertRoot {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+
+.alertTrigger {
+  position: relative;
+  min-width: 62px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--campus-muted, #657887);
+  font: 500 8px var(--font-plex-sans, sans-serif);
+  cursor: pointer;
+}
+
+.alertTrigger:hover,
+.alertTrigger:focus-visible,
+.alertTrigger[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--campus-border, #d4e0e6) 28%, transparent);
+  color: var(--campus-text, #173247);
+}
+
+.alertTrigger em {
+  position: absolute;
+  top: 12px;
+  right: 8px;
+  min-width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0 4px;
+  border: 2px solid var(--campus-panel, white);
+  border-radius: 10px;
+  background: #df6b50;
+  color: white;
+  font: normal 700 8px var(--font-plex-mono, monospace);
+}
+
+.alertTray {
+  position: absolute;
+  z-index: 120;
+  top: calc(100% - 4px);
+  right: -78px;
+  width: min(460px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid var(--campus-border, #cad9e1);
+  border-radius: 5px 24px 5px 24px;
+  background: var(--campus-panel, #fff);
+  color: var(--campus-text, #173247);
+  box-shadow: 0 32px 90px #02090f52;
+  animation: tray-in 180ms ease-out;
+}
+
+.alertTray > header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--campus-border, #d4e0e6);
+  background: linear-gradient(130deg, color-mix(in srgb, var(--campus-surface, #f4f7f8) 94%, #58bdd5 6%), var(--campus-panel, #fff));
+}
+
+.alertTray > header span {
+  color: #3e91ac;
+  font: 600 8px var(--font-plex-mono, monospace);
+  letter-spacing: .13em;
+}
+
+.alertTray h2 {
+  margin: 5px 0 0;
+  font: 500 28px/1 var(--font-plex-serif, serif);
+}
+
+.alertTray > header button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: #3e7890;
+  font: 600 9px var(--font-plex-sans, sans-serif);
+  cursor: pointer;
+}
+
+.alertTray > header button:disabled { cursor: default; opacity: .45; }
+
+.alertStream {
+  max-height: min(560px, calc(100vh - 190px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.alertStream > a,
+.alertStream > button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 11px;
+  align-items: start;
+  padding: 16px 20px;
+  border: 0;
+  border-bottom: 1px solid var(--campus-border, #dbe4e9);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.alertStream > a:hover,
+.alertStream > a:focus-visible,
+.alertStream > button:hover,
+.alertStream > button:focus-visible {
+  background: color-mix(in srgb, var(--campus-surface, #eef4f6) 88%, #52b9d1 12%);
+  outline: none;
+}
+
+.alertStream > .unread {
+  background: color-mix(in srgb, var(--campus-surface, #eef4f6) 92%, #55c2da 8%);
+}
+
+.alertStream i {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  margin-top: 2px;
+  border: 1px solid #4e8195;
+  border-radius: 50%;
+  color: #4e8195;
+  font-style: normal;
+}
+
+.alertStream i[data-read="false"] {
+  border: 5px solid color-mix(in srgb, #55c7db 30%, transparent);
+  background: #41aec6;
+  box-shadow: 0 0 0 4px #48bdd327;
+}
+
+.alertStream span { min-width: 0; display: grid; gap: 4px; }
+.alertStream small { color: var(--campus-muted, #6b7f8c); font: 600 8px var(--font-plex-mono, monospace); letter-spacing: .04em; text-transform: uppercase; }
+.alertStream b { font: 600 12px/1.35 var(--font-plex-sans, sans-serif); }
+.alertStream p { margin: 0; overflow: hidden; color: var(--campus-muted, #627988); font-size: 10px; line-height: 1.45; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.alertStream > a > svg,
+.alertStream > button > svg { margin-top: 20px; color: #4f8ba2; }
+
+.emptyAlerts,
+.loadingAlerts {
+  min-height: 170px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 7px;
+  padding: 28px;
+  color: var(--campus-muted, #647b88);
+  text-align: center;
+}
+
+.emptyAlerts b { color: var(--campus-text, #173247); font: 500 18px var(--font-plex-serif, serif); }
+.emptyAlerts span { max-width: 290px; font-size: 10px; line-height: 1.5; }
+.loadingAlerts { font-size: 11px; }
+
+.alertTray footer { padding: 13px 20px; background: var(--campus-surface, #f3f7f8); }
+.alertTray footer a { display: flex; align-items: center; justify-content: space-between; color: #2c7894; font: 600 10px var(--font-plex-sans, sans-serif); text-decoration: none; }
+
+@keyframes tray-in {
+  from { opacity: 0; transform: translateY(-8px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 850px) {
+  .alertRoot { position: static; }
+  .alertTrigger span { display: none; }
+  .alertTray { position: fixed; top: 70px; right: 10px; left: 10px; width: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alertTray { animation: none; }
+}

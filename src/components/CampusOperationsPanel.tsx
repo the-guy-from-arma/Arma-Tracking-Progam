@@ -117,7 +117,7 @@ const navigationOptions = [
   ["student-center", "Student Center"], ["messages", "Campus Messages"],
   ["faculty", "Faculty Commons"], ["policies", "Policies & Agreements"],
   ["funding", "Funding"], ["submissions", "Assignments & Grades"],
-  ["notifications", "Announcements"], ["credentials", "Credentials"], ["profile", "Student Profile"],
+  ["notifications", "Campus Weekly"], ["credentials", "Credentials"], ["profile", "Student Profile"],
 ] as const;
 
 export function CampusOperationsPanel() {

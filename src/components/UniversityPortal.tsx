@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { UniversityLearning } from "@/components/UniversityLearning";
 import { AcademicBoot } from "@/components/AcademicBoot";
 import { universityFacultyLinks } from "@/lib/ai-faculty";
+import { AccountAlerts } from "@/components/AccountAlerts";
 import styles from "./UniversityPortal.module.css";
 
 export type UniversityView =
@@ -35,7 +36,7 @@ const studentViews: { id: UniversityView; label: string; short: string }[] = [
   { id: "policies", label: "Policies & Agreements", short: "Policies" },
   { id: "funding", label: "Funding", short: "Funding" },
   { id: "submissions", label: "Assignments & Grades", short: "Grades" },
-  { id: "notifications", label: "Announcements", short: "News" },
+  { id: "notifications", label: "Campus Weekly", short: "Weekly" },
   { id: "credentials", label: "Credentials", short: "Awards" },
   { id: "profile", label: "Student Profile", short: "Profile" },
 ];
@@ -252,16 +253,7 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
                 <span>Help</span>
               </button>
             )}
-            {!hiddenViews.has("notifications") && (
-              <button
-                onClick={() => choose("notifications")}
-                aria-label="Announcements"
-              >
-                <i>◌</i>
-                <span>Alerts</span>
-                <em />
-              </button>
-            )}
+            <AccountAlerts weeklyAvailable={!hiddenViews.has("notifications")} />
             {!hiddenViews.has("submissions") && (
               <button
                 onClick={() => choose("submissions")}
@@ -331,7 +323,7 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
           <span>ENSCRIPT UNIVERSITY · CAMPUS ANNOUNCEMENT</span>
           <div><b>{operations.campusBannerTitle}</b><p>{operations.campusBannerMessage}</p></div>
           {!hiddenViews.has("notifications") && (
-            <button onClick={() => choose("notifications")}>OPEN ANNOUNCEMENTS →</button>
+            <button onClick={() => choose("notifications")}>READ CAMPUS WEEKLY →</button>
           )}
         </motion.section>
       )}
@@ -446,7 +438,7 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
             </p>
             <div>
               <button onClick={() => setSelectionNoticeOpen(false)}>CONTINUE TO CAMPUS HOME</button>
-              {!hiddenViews.has("notifications") && <button onClick={() => { setSelectionNoticeOpen(false); choose("notifications"); }}>VIEW ANNOUNCEMENTS →</button>}
+              {!hiddenViews.has("notifications") && <button onClick={() => { setSelectionNoticeOpen(false); choose("notifications"); }}>READ CAMPUS WEEKLY →</button>}
             </div>
           </motion.section>
         </div>

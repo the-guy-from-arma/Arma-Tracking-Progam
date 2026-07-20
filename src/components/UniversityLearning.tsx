@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -259,6 +260,37 @@ type NotificationData = {
   notifications: NotificationItem[];
   unread: number;
 };
+type NewsletterArticle = {
+  id: string;
+  position: number;
+  desk: string;
+  headline: string;
+  summary: string;
+  sourceTitle: string;
+  sourceUrl: string;
+  revisionId: string | null;
+  sourceUpdatedAt: string | null;
+  image: {
+    url: string;
+    altText: string;
+    caption: string | null;
+    width: number | null;
+    height: number | null;
+    filePageUrl: string | null;
+  } | null;
+  relatedCourses: { id: string; code: string; title: string; academy: string }[];
+};
+type NewsletterData = {
+  publication: string;
+  edition: string;
+  publishedAt: string;
+  headline: string;
+  deck: string;
+  sourceCount: number;
+  desks: string[];
+  articles: NewsletterArticle[];
+  attribution: string;
+};
 const money = (cents: number) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -295,6 +327,7 @@ export function UniversityLearning({
   const [notifications, setNotifications] = useState<NotificationData | null>(
     null,
   );
+  const [newsletter, setNewsletter] = useState<NewsletterData | null>(null);
   const [selected, setSelected] = useState<CourseDetail | null>(null);
   const [previewCourse, setPreviewCourse] = useState<CourseDetail | null>(null);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
@@ -318,6 +351,7 @@ export function UniversityLearning({
       fetch("/api/university/programs"),
       fetch("/api/university/funding"),
       fetch("/api/university/notifications"),
+      fetch("/api/university/newsletter"),
     ]);
     const payloads = await Promise.all(
       responses.map((response) => response.json()),
@@ -331,6 +365,7 @@ export function UniversityLearning({
     if (responses[2].ok) setPrograms(payloads[2]);
     if (responses[3].ok) setFunding(payloads[3]);
     if (responses[4].ok) setNotifications(payloads[4]);
+    if (responses[5].ok) setNewsletter(payloads[5]);
   }, []);
   useEffect(() => {
     const timer = setTimeout(() => void load(), 0);
@@ -437,13 +472,10 @@ export function UniversityLearning({
         data={data}
         records={records}
         funding={funding}
-        notifications={notifications}
+        newsletter={newsletter}
         userName={userName}
         onNavigate={onNavigate}
         openCourse={openCourse}
-        openAnnouncement={openAnnouncement}
-        activeAnnouncement={activeAnnouncement}
-        closeAnnouncement={() => setActiveAnnouncement(null)}
       />
     );
 
@@ -1049,7 +1081,7 @@ export function UniversityLearning({
   if (view === "funding")
     return <FundingCenter data={funding} renderedAt={renderedAt} />;
   if (view === "notifications")
-    return <Notifications data={notifications} refresh={load} />;
+    return <WeeklyNewsletter data={newsletter} openCourse={openCourse} />;
   if (view === "submissions")
     return (
       <section className={styles.learning}>
@@ -1132,24 +1164,18 @@ function CampusHomeDashboard({
   data,
   records,
   funding,
-  notifications,
+  newsletter,
   userName,
   onNavigate,
   openCourse,
-  openAnnouncement,
-  activeAnnouncement,
-  closeAnnouncement,
 }: {
   data: Curriculum;
   records: AcademyData | null;
   funding: FundingData | null;
-  notifications: NotificationData | null;
+  newsletter: NewsletterData | null;
   userName: string;
   onNavigate: (view: UniversityView) => void;
   openCourse: (id: string) => Promise<void>;
-  openAnnouncement: (item: NotificationItem) => Promise<void>;
-  activeAnnouncement: NotificationItem | null;
-  closeAnnouncement: () => void;
 }) {
   const next = data.nextCourse;
   const activeTerm = funding?.terms.find((term) => term.status === "ACTIVE");
@@ -1372,38 +1398,33 @@ function CampusHomeDashboard({
         <aside className={styles.campusPulse}>
           <header className={styles.campusSectionHeading}>
             <div>
-              <p>Campus pulse</p>
-              <h2>What’s new</h2>
+              <p>Development weekly</p>
+              <h2>From the field</h2>
             </div>
-            <span>{notifications?.unread || 0} unread</span>
+            <span>EDITION {newsletter?.edition || "—"}</span>
           </header>
           <div className={styles.campusNewsStream}>
-            {notifications?.notifications.slice(0, 4).map((item, index) => (
+            {newsletter?.articles.slice(0, 4).map((item, index) => (
               <motion.button
                 key={item.id}
                 initial={{ opacity: 0, x: 12 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.18 + index * 0.06 }}
-                onClick={() => void openAnnouncement(item)}
+                onClick={() => onNavigate("notifications")}
               >
-                <i className={item.readAt ? styles.newsRead : styles.newsUnread} />
+                <i className={styles.newsRead}>{String(index + 1).padStart(2, "0")}</i>
                 <span>
-                  <small>
-                    {new Date(item.createdAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })} · {item.type}
-                  </small>
-                  <b>{item.title}</b>
-                  <p>{item.body}</p>
+                  <small>{item.desk}</small>
+                  <b>{item.headline}</b>
+                  <p>{item.summary}</p>
                 </span>
                 <ChevronRight size={17} />
               </motion.button>
             ))}
-            {!notifications?.notifications.length && (
+            {!newsletter?.articles.length && (
               <div className={styles.campusQuietState}>
                 <Sparkles size={21} />
-                <span><b>You’re all caught up.</b><small>New campus notices will appear here.</small></span>
+                <span><b>The next issue is in production.</b><small>Verified development reporting will appear here.</small></span>
               </div>
             )}
           </div>
@@ -1411,7 +1432,7 @@ function CampusHomeDashboard({
             className={styles.campusNewsLink}
             onClick={() => onNavigate("notifications")}
           >
-            All announcements <ArrowRight size={16} />
+            Read this week’s issue <ArrowRight size={16} />
           </button>
 
           <div className={styles.nextDateLine}>
@@ -1462,11 +1483,6 @@ function CampusHomeDashboard({
         </div>
       </section>
 
-      <AnimatePresence>
-        {activeAnnouncement && (
-          <AnnouncementReader item={activeAnnouncement} close={closeAnnouncement} />
-        )}
-      </AnimatePresence>
     </section>
   );
 }
@@ -1867,53 +1883,142 @@ function FundingCenter({
   );
 }
 
-function Notifications({
+function WeeklyNewsletter({
   data,
-  refresh,
+  openCourse,
 }: {
-  data: NotificationData | null;
-  refresh: () => Promise<void>;
+  data: NewsletterData | null;
+  openCourse: (id: string) => Promise<void>;
 }) {
-  async function markAll() {
-    await fetch("/api/university/notifications", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ all: true }),
-    });
-    await refresh();
-  }
+  const lead = data?.articles[0];
+  const briefing = data?.articles.slice(1, 7) || [];
   return (
-    <section className={styles.learning}>
-      <PageHead
-        eyebrow="CAMPUS SIGNALS"
-        title="Notifications"
-        copy="Funding renewals, feedback, deadlines, and academic activity in one quiet, actionable stream."
-        count={`${data?.unread || 0} UNREAD`}
-      />
-      <div className={styles.notificationActions}>
-        <button onClick={markAll}>MARK ALL AS READ</button>
+    <section className={`${styles.learning} ${styles.weeklyPublication}`}>
+      <header className={styles.weeklyMasthead}>
+        <div className={styles.weeklyIdentity}>
+          <span>ENSCRIPT UNIVERSITY · ACADEMIC EDITORIAL OFFICE</span>
+          <h1>Enscript Development Weekly</h1>
+          <p>Enfusion Workbench · Arma Reforger · Enforce Script · Studio Practice</p>
+        </div>
+        <div className={styles.weeklyEdition}>
+          <span>WEEKLY EDITION</span>
+          <b>{data?.edition || "PREPARING"}</b>
+          <time dateTime={data?.publishedAt}>
+            {data?.publishedAt
+              ? new Date(data.publishedAt).toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : "Publication date pending"}
+          </time>
+        </div>
+      </header>
+
+      <div className={styles.weeklyRule}>
+        <span>{data?.sourceCount || 0} VERIFIED SOURCE REPORTS</span>
+        <span>{data?.desks.join(" · ") || "ACADEMIC EDITION IN PRODUCTION"}</span>
       </div>
-      <div className={styles.notificationList}>
-        {data?.notifications.map((item) => (
-          <article
-            className={!item.readAt ? styles.newNotice : ""}
-            key={item.id}
-          >
-            <i />
-            <div>
-              <small>
-                {item.type} · {new Date(item.createdAt).toLocaleString()}
-              </small>
-              <h2>{item.title}</h2>
-              <p>{item.body}</p>
+
+      {lead ? (
+        <>
+          <article className={styles.weeklyLead}>
+            <div className={styles.weeklyLeadCopy}>
+              <span>{lead.desk}</span>
+              <h2>{lead.headline}</h2>
+              <p className={styles.weeklyDeck}>{data?.deck}</p>
+              <p>{lead.summary}</p>
+              <footer>
+                <a href={lead.sourceUrl} target="_blank" rel="noreferrer">
+                  Read the attributed source <ArrowRight size={16} />
+                </a>
+                <small>Revision {lead.revisionId || "record pending"}</small>
+              </footer>
             </div>
-            {item.actionUrl && <a href={item.actionUrl}>OPEN →</a>}
+            <figure className={styles.weeklyLeadVisual}>
+              {lead.image ? (
+                <Image
+                  src={lead.image.url}
+                  alt={lead.image.altText}
+                  width={lead.image.width || 1200}
+                  height={lead.image.height || 720}
+                />
+              ) : (
+                <div aria-hidden="true"><span>ES</span><b>FIELD<br />REPORT</b></div>
+              )}
+              <figcaption>{lead.image?.caption || `${lead.sourceTitle} · Bohemia Interactive Community Wiki`}</figcaption>
+            </figure>
           </article>
-        ))}
-        {!data?.notifications.length && (
-          <Empty text="You are completely caught up." />
-        )}
-      </div>
+
+          <div className={styles.weeklyBody}>
+            <main>
+              <header className={styles.weeklySectionTitle}>
+                <span>THE WEEK IN DEVELOPMENT</span>
+                <h2>Workbench briefings</h2>
+              </header>
+              <div className={styles.weeklyArticleGrid}>
+                {briefing.map((item, index) => (
+                  <article key={item.id}>
+                    {item.image && index < 2 && (
+                      <figure>
+                        <Image
+                          src={item.image.url}
+                          alt={item.image.altText}
+                          width={item.image.width || 900}
+                          height={item.image.height || 540}
+                        />
+                      </figure>
+                    )}
+                    <span>{item.desk}</span>
+                    <h3>{item.headline}</h3>
+                    <p>{item.summary}</p>
+                    <div>
+                      <a href={item.sourceUrl} target="_blank" rel="noreferrer">SOURCE ↗</a>
+                      <small>{item.revisionId ? `REV. ${item.revisionId}` : "CURRENT SOURCE"}</small>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </main>
+
+            <aside className={styles.weeklySidebar}>
+              <section>
+                <span>ACADEMIC CONNECTIONS</span>
+                <h2>Continue the subject</h2>
+                <p>Courses connected to this week’s verified reporting.</p>
+                {[...new Map(data?.articles.flatMap((article) => article.relatedCourses).map((course) => [course.id, course])).values()]
+                  .slice(0, 6)
+                  .map((course) => (
+                    <button key={course.id} onClick={() => void openCourse(course.id)}>
+                      <small>{course.code} · {course.academy}</small>
+                      <b>{course.title}</b>
+                      <ChevronRight size={16} />
+                    </button>
+                  ))}
+              </section>
+              <section className={styles.weeklySourceNote}>
+                <span>SOURCE STANDARD</span>
+                <h2>How this issue is built</h2>
+                <p>{data?.attribution}</p>
+                <p>Each report links to the exact external source record used by the university. Screenshots remain hosted by Bohemia and appear with source attribution.</p>
+              </section>
+            </aside>
+          </div>
+        </>
+      ) : (
+        <div className={styles.weeklyEmpty}>
+          <BookOpenCheck size={34} />
+          <span>THE NEXT EDITION IS IN PRODUCTION</span>
+          <h2>Source verification is underway.</h2>
+          <p>The newsletter will publish when approved Bohemia Wiki sources have a successful revision record. Account alerts remain available from the Alerts button above.</p>
+        </div>
+      )}
+
+      <footer className={styles.weeklyFooter}>
+        <b>ENSCRIPT DEVELOPMENT WEEKLY</b>
+        <span>CREATE · BUILD · INNOVATE</span>
+        <small>Published for the Enscript University student community.</small>
+      </footer>
     </section>
   );
 }
