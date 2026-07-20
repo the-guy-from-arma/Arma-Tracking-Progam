@@ -4,11 +4,11 @@ import { db } from "@/lib/db";
 import { text } from "@/lib/input";
 import { ensureCourseFunding } from "@/lib/funding";
 import { queueSubmissionForAi } from "@/lib/ai-grading";
-import { getCompletedCourseIds, getProgramAudit, getProgramSequenceBlockers } from "@/lib/academic-progress";
+import { getCompletedCourseIds, getProgramSequenceBlockers } from "@/lib/academic-progress";
 import { ensureStudentFacultyNetwork } from "@/lib/faculty-network";
 import { policyGateResponse } from "@/lib/policies";
 import { campusRestrictionResponse, campusStatus, studentAcademicRestrictionResponse } from "@/lib/campus-operations";
-import { trackingEvent } from "@/lib/application-tracking";
+import { activateAcademicProgram } from "@/lib/program-enrollment";
 
 const courseLevels = new Set(["FOUNDATION", "INTERMEDIATE", "ADVANCED", "CAPSTONE"]);
 const studios = new Set(["Thunder Buddies Studios", "Black Ridge Studios", "Thunder Buddies Studios + Black Ridge Studios"]);
@@ -136,7 +136,11 @@ export async function POST(request: Request) {
     const demoUrl = text(body.demoUrl, 300);
     if (title.length < 3 || summary.length < 30 || !approvedEvidenceUrl(referenceUrl) || !approvedEvidenceUrl(demoUrl)) return NextResponse.json({ error: "Add a detailed brief and use approved Bohemia, Workshop, Steam, YouTube, Vimeo, or GitHub issue evidence links." }, { status: 400 });
     const enrollment = await db.courseEnrollment.findUnique({ where: { courseId_userId: { courseId, userId: user.id } } });
-    if (!enrollment || enrollment.status === "WITHDRAWN") return NextResponse.json({ error: "Enroll in the course before submitting a mod." }, { status: 409 });
+    if (!enrollment || enrollment.status !== "ACTIVE") return NextResponse.json({ error: "Activate the course before submitting its culminating work." }, { status: 409 });
+    if (enrollment.progress < 100) return NextResponse.json({ error: "Complete every course day before submitting the culminating work.", progress: enrollment.progress }, { status: 409 });
+    const completedCourseIds = await getCompletedCourseIds(user.id);
+    const sequenceBlockers = await getProgramSequenceBlockers(user.id, courseId, completedCourseIds);
+    if (sequenceBlockers.length) return NextResponse.json({ error: `Complete the earlier program coursework first: ${sequenceBlockers.join(", ")}.`, sequenceBlockers }, { status: 409 });
     const existing = await db.courseSubmission.findUnique({ where: { courseId_studentId: { courseId, studentId: user.id } } });
     if (existing && ["SUBMITTED", "PENDING_AI_REVIEW", "AI_REVIEWING", "AI_EXCEPTION", "IN_REVIEW", "APPROVED", "APPEALED"].includes(existing.status)) return NextResponse.json({ error: "This course already has an active, exception, appealed, or approved submission." }, { status: 409 });
     const aiEnabled = process.env.AI_GRADING_ENABLED === "true";
@@ -154,25 +158,18 @@ export async function POST(request: Request) {
   if (action === "enroll_program") {
     if (body.fundingAcknowledged !== true || body.refundPolicyAcknowledged !== true) return NextResponse.json({ error: "Review and acknowledge the sponsored-learning allocation and withdrawal policy before activating a program." }, { status: 400 });
     const programId = text(body.programId, 100);
-    const program = await db.academicProgram.findFirst({ where: { id: programId, active: true } });
-    if (!program) return NextResponse.json({ error: "Academic path not found" }, { status: 404 });
-    const audit = await getProgramAudit(user.id, programId);
-    if (!audit?.eligible) return NextResponse.json({ error: audit?.blocker || "Complete the prerequisite academic pathway first.", audit }, { status: 409 });
-    const creditsEarned = audit.creditsApplied;
-    const enrollment = await db.$transaction(async (tx) => {
-      const legacyApplication = await tx.programApplication.findUnique({ where: { programId_userId: { programId, userId: user.id } } });
-      if (legacyApplication && ["SUBMITTED", "WAITLISTED"].includes(legacyApplication.status)) {
-        await tx.programApplication.update({ where: { id: legacyApplication.id }, data: { status: "ADMITTED", decisionNote: "Superseded by direct student enrollment confirmation.", decidedAt: new Date() } });
-        const trackers = await tx.applicationTracking.findMany({ where: { programApplicationId: legacyApplication.id, status: { in: ["OPEN", "IN_REVIEW"] } } });
-        for (const tracker of trackers) await tx.applicationTracking.update({ where: { id: tracker.id }, data: { status: "CLOSED", outcome: "DIRECT_ENROLLMENT", closedAt: new Date(), statusHistory: [...(Array.isArray(tracker.statusHistory) ? tracker.statusHistory : []), trackingEvent("ADMITTED", "Program activated by direct student confirmation"), trackingEvent("CLOSED", "Program applications are no longer required")] } });
-      }
-      const record = await tx.programEnrollment.upsert({ where: { programId_userId: { programId, userId: user.id } }, update: { status: "ACTIVE", creditsEarned, programApplicationId: legacyApplication?.id }, create: { programId, userId: user.id, creditsEarned, programApplicationId: legacyApplication?.id } });
-      await tx.studentActivityEvent.create({ data: { studentId: user.id, actorId: user.id, type: "ENROLLMENT", title: `Academic pathway activated`, detail: program.title, entity: "ProgramEnrollment", entityId: record.id, metadata: { programCode: program.code, creditsApplied: creditsEarned } } });
-      await tx.notification.upsert({ where: { dedupeKey: `program-enrolled:${user.id}:${program.id}` }, update: { readAt: null, title: `${program.title} is now active`, body: "Your completed credits have been applied. Sponsored value will be allocated course by course only when you confirm each course." }, create: { userId: user.id, type: "ACADEMIC", title: `${program.title} is now active`, body: "Your completed credits have been applied. Sponsored value will be allocated course by course only when you confirm each course.", actionUrl: "/university?view=programs", dedupeKey: `program-enrolled:${user.id}:${program.id}` } });
-      await tx.auditLog.create({ data: { actorId: user.id, action: "PROGRAM_ENROLLED", entity: "AcademicProgram", entityId: programId, detail: { creditsApplied: creditsEarned, allocationMethod: "COURSE_BY_COURSE", studentDueCents: 0, fundingDisclosureVersion: "SPONSORED_LEARNING_CONFIRMATION_V1", fundingAcknowledged: true, refundPolicyAcknowledged: true } } });
-      return record;
-    });
-    return NextResponse.json({ enrollment });
+    try {
+      const result = await activateAcademicProgram({
+        userId: user.id,
+        actorId: user.id,
+        programId,
+      });
+      return NextResponse.json(result, { status: 201 });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Program enrollment could not be completed.";
+      if (message === "PROGRAM_NOT_FOUND") return NextResponse.json({ error: "Academic path not found" }, { status: 404 });
+      return NextResponse.json({ error: message }, { status: 409 });
+    }
   }
 
   return NextResponse.json({ error: "Unknown academy action" }, { status: 400 });

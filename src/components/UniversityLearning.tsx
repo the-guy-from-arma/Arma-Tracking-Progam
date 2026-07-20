@@ -152,6 +152,15 @@ type Program = {
     prerequisiteProgramId: string | null;
     blocker: string | null;
   };
+  registrationSummary: {
+    required: number;
+    registered: number;
+    missing: number;
+    withdrawn: number;
+    missingCourseCodes: string[];
+    withdrawnCourseCodes: string[];
+    unregisteredValueCents: number;
+  };
 };
 type ProgramsData = { programs: Program[]; degreeWordingEnabled: boolean };
 type EnrollmentConfirmation =
@@ -887,9 +896,13 @@ export function UniversityLearning({
                 className={styles.editorialProgramAction}
                 onClick={() => setSelectedProgram(program)}
               >
-                {program.enrollments.length
-                  ? "VIEW ACTIVE PROGRAM →"
-                  : "READ PROGRAM DETAILS →"}
+                {program.enrollments.length && program.registrationSummary.withdrawn
+                  ? `RESOLVE ${program.registrationSummary.withdrawn} WITHDRAWN COURSE${program.registrationSummary.withdrawn === 1 ? "" : "S"} →`
+                  : program.enrollments.length && program.registrationSummary.missing
+                  ? `REGISTER ${program.registrationSummary.missing} REQUIRED COURSE${program.registrationSummary.missing === 1 ? "" : "S"} →`
+                  : program.enrollments.length
+                    ? "VIEW ACTIVE PROGRAM →"
+                    : "READ PROGRAM DETAILS →"}
               </button>
             </motion.article>
           ))}
@@ -901,6 +914,10 @@ export function UniversityLearning({
               program={selectedProgram}
               close={() => setSelectedProgram(null)}
               compare={() => setComparingProgram(selectedProgram)}
+              advising={() => {
+                setSelectedProgram(null);
+                onNavigate("student-center");
+              }}
               enroll={() => {
                 setEnrollmentConfirmation({
                   kind: "PROGRAM",
@@ -1679,11 +1696,13 @@ function ProgramDetail({
   program,
   close,
   compare,
+  advising,
   enroll,
 }: {
   program: Program;
   close: () => void;
   compare: () => void;
+  advising: () => void;
   enroll: () => void;
 }) {
   const terms = [
@@ -1768,6 +1787,13 @@ function ProgramDetail({
             COURSES FULFILLED
           </b>
           {!program.audit.eligible && <em>{program.audit.blocker}</em>}
+          {program.registrationSummary.withdrawn > 0 && (
+            <em>
+              {program.registrationSummary.withdrawnCourseCodes.join(", ")} was
+              previously withdrawn. Its funding history is preserved, and
+              Student Center advising must approve a future-term re-entry.
+            </em>
+          )}
         </section>
         <div className={styles.detailBody}>
           <main>
@@ -1929,7 +1955,15 @@ function ProgramDetail({
             <b>{program.sponsoredBy}</b>
           </div>
           <button onClick={compare}>COMPARE OTHER PATHWAYS</button>
-          {program.enrollments.length ? (
+          {program.enrollments.length && program.registrationSummary.withdrawn ? (
+            <button className={styles.primary} onClick={advising}>
+              OPEN COURSE RE-ENTRY SUPPORT →
+            </button>
+          ) : program.enrollments.length && program.registrationSummary.missing ? (
+            <button className={styles.primary} onClick={enroll}>
+              COMPLETE COURSE REGISTRATION →
+            </button>
+          ) : program.enrollments.length ? (
             <button className={styles.primary} onClick={close}>
               PROGRAM ACTIVE
             </button>
@@ -2217,13 +2251,15 @@ function EnrollmentConfirmationModal({
     : confirmation.program.title;
   const valueCents = isCourse
     ? confirmation.course.serviceValueCents
-    : confirmation.program.estimatedValueCents;
-  const continuityAwardCents = isCourse
-    ? Math.max(0, valueCents - availableBalanceCents)
-    : 0;
-  const projectedBalanceCents = isCourse
-    ? Math.max(0, availableBalanceCents - valueCents)
-    : availableBalanceCents;
+    : confirmation.program.registrationSummary.unregisteredValueCents;
+  const continuityAwardCents = Math.max(
+    0,
+    valueCents - availableBalanceCents,
+  );
+  const projectedBalanceCents = Math.max(
+    0,
+    availableBalanceCents - valueCents,
+  );
 
   return (
     <motion.div
@@ -2279,10 +2315,10 @@ function EnrollmentConfirmationModal({
         <p>
           {isCourse
             ? "This selection enrolls you immediately. Review the sponsored-learning allocation and withdrawal terms before confirming."
-            : "This selection activates your academic pathway immediately. There is no separate program application or approval queue."}
+            : `This selection activates your academic pathway and immediately registers ${confirmation.program.registrationSummary.missing} eligible required course${confirmation.program.registrationSummary.missing === 1 ? "" : "s"}. Completed courses transfer automatically and are never charged twice.`}
         </p>
         <div className={styles.modalValue}>
-          <span>{isCourse ? "COURSE ALLOCATION" : "PLANNED PROGRAM VALUE"}</span>
+          <span>{isCourse ? "COURSE ALLOCATION" : "CURRICULUM ALLOCATION TODAY"}</span>
           <b>{money(valueCents)}</b>
           <small>STUDENT RESPONSIBILITY · $0.00</small>
         </div>
@@ -2291,22 +2327,23 @@ function EnrollmentConfirmationModal({
             <dt>Available sponsored balance</dt>
             <dd>{money(availableBalanceCents)}</dd>
           </div>
-          {isCourse && continuityAwardCents > 0 && (
+          {continuityAwardCents > 0 && (
             <div>
               <dt>Automatic continuity award</dt>
               <dd>+{money(continuityAwardCents)}</dd>
             </div>
           )}
           <div>
-            <dt>{isCourse ? "Balance after enrollment" : "Allocation today"}</dt>
-            <dd>{isCourse ? money(projectedBalanceCents) : "$0.00"}</dd>
+            <dt>Balance after enrollment</dt>
+            <dd>{money(projectedBalanceCents)}</dd>
           </div>
         </dl>
         {!isCourse && (
           <p className={styles.programAllocationNote}>
-            The full program value is not deducted today. Your sponsored
-            balance is reduced course by course only after you separately
-            confirm each required course.
+            One confirmation registers the program curriculum. The ledger will
+            record one allocation for each newly registered required course;
+            existing enrollments and completed transfer credit create no new
+            charge. Coursework remains sequenced by its published prerequisites.
           </p>
         )}
         <section className={styles.fundingDisclosure}>
@@ -2338,7 +2375,8 @@ function EnrollmentConfirmationModal({
           />
           <span>
             I understand the sponsored-learning value is an internal noncash
-            allocation and that {isCourse ? money(valueCents) : "course-level allocations"} will reduce my available sponsored balance.
+            allocation and that {money(valueCents)} in eligible curriculum
+            allocations will reduce my available sponsored balance.
           </span>
         </label>
         <label className={styles.confirmationCheck}>

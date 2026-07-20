@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { text } from "@/lib/input";
 import { policyGateResponse } from "@/lib/policies";
 import { campusRestrictionResponse, campusStatus, studentAcademicRestrictionResponse } from "@/lib/campus-operations";
+import { getCompletedCourseIds, getProgramSequenceBlockers } from "@/lib/academic-progress";
 
 export async function GET(_: Request, { params }: { params: Promise<{ courseId: string }> }) {
   const user = await currentUser(); if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
@@ -21,10 +22,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ co
   { const gate = await campusRestrictionResponse("LEARNING_WRITE") || await studentAcademicRestrictionResponse(user.id, "LEARNING_WRITE"); if (gate) return gate; }
   const { courseId } = await params; const body = await request.json().catch(() => ({}));
   const dayId = text(body.dayId, 100); const answer = text(body.answer, 1000); const reflection = text(body.reflection, 1800);
-  const day = await db.courseDay.findFirst({ where: { id: dayId, courseId } });
+  const day = await db.courseDay.findFirst({ where: { id: dayId, courseId }, include: { course: { include: { prerequisites: true } } } });
   if (!day) return NextResponse.json({ error: "Course day not found." }, { status: 404 });
   const enrollment = await db.courseEnrollment.findUnique({ where: { courseId_userId: { courseId, userId: user.id } } });
   if (!enrollment) return NextResponse.json({ error: "Enroll before completing lessons." }, { status: 409 });
+  if (enrollment.status !== "ACTIVE") return NextResponse.json({ error: "This course is not currently active. Open Student Center for enrollment support." }, { status: 409 });
+  const completedCourseIds = await getCompletedCourseIds(user.id);
+  const missingPrerequisites = day.course.prerequisites.filter((item) => !completedCourseIds.has(item.prerequisiteId));
+  if (missingPrerequisites.length) return NextResponse.json({ error: "Complete the required prerequisite course before beginning this curriculum.", missingPrerequisiteIds: missingPrerequisites.map((item) => item.prerequisiteId) }, { status: 409 });
+  const sequenceBlockers = await getProgramSequenceBlockers(user.id, courseId, completedCourseIds);
+  if (sequenceBlockers.length) return NextResponse.json({ error: `Your program keeps this course in sequence. Complete ${sequenceBlockers.join(", ")} first.`, sequenceBlockers }, { status: 409 });
   if (answer.length < 25 || reflection.length < 25) return NextResponse.json({ error: "Complete the knowledge response and development reflection." }, { status: 400 });
   const result = await db.$transaction(async (tx) => {
     await tx.quizAttempt.create({ data: { userId: user.id, courseDayId: day.id, answer, correct: true, score: 100 } });
