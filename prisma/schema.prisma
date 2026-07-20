@@ -424,6 +424,24 @@ enum SourceSyncStatus {
   DISABLED
 }
 
+enum LessonContentStatus {
+  DRAFT
+  VALIDATED
+  PUBLISHED
+  REJECTED
+  SUPERSEDED
+}
+
+enum CurriculumCompileStatus {
+  QUEUED
+  PROCESSING
+  VALIDATED
+  PUBLISHED
+  EXCEPTION
+  FAILED
+  CANCELLED
+}
+
 enum GuideAudience {
   FACULTY
   ADMIN
@@ -547,6 +565,7 @@ model Course {
   facultyAssignments   FacultyAssignment[]
   facultyConversations FacultyConversation[]
   fundingTransactions  GrantLedger[]
+  compileJobs          CurriculumCompileJob[]
   createdAt            DateTime                   @default(now())
   updatedAt            DateTime                   @updatedAt
 
@@ -565,52 +584,65 @@ model CoursePrerequisite {
 }
 
 model CourseDay {
-  id                  String           @id @default(cuid())
-  courseId            String
-  course              Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  dayNumber           Int
-  title               String
-  objectives          Json             @default("[]")
-  instructionalText   String
-  sourceSection       String
-  workbenchSteps      Json             @default("[]")
-  practicalLab        String
-  completionChecklist Json             @default("[]")
-  knowledgeQuestion   String
-  knowledgeAnswer     String
-  reflectionPrompt    String
-  progress            LessonProgress[]
-  attempts            QuizAttempt[]
+  id                     String                 @id @default(cuid())
+  courseId               String
+  course                 Course                 @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  dayNumber              Int
+  title                  String
+  objectives             Json                   @default("[]")
+  instructionalText      String
+  sourceSection          String
+  workbenchSteps         Json                   @default("[]")
+  practicalLab           String
+  completionChecklist    Json                   @default("[]")
+  knowledgeQuestion      String
+  knowledgeAnswer        String
+  reflectionPrompt       String
+  activeContentVersionId String?                @unique
+  activeContentVersion   LessonContentVersion?  @relation("ActiveLessonContent", fields: [activeContentVersionId], references: [id], onDelete: SetNull)
+  contentVersions        LessonContentVersion[] @relation("LessonVersions")
+  progress               LessonProgress[]
+  attempts               QuizAttempt[]
 
   @@unique([courseId, dayNumber])
   @@index([courseId, dayNumber])
 }
 
 model LessonProgress {
-  id          String    @id @default(cuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  courseDayId String
-  courseDay   CourseDay @relation(fields: [courseDayId], references: [id], onDelete: Cascade)
-  completed   Boolean   @default(false)
-  reflection  String?
-  completedAt DateTime?
-  updatedAt   DateTime  @updatedAt
+  id                    String    @id @default(cuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseDayId           String
+  courseDay             CourseDay @relation(fields: [courseDayId], references: [id], onDelete: Cascade)
+  completed             Boolean   @default(false)
+  reflection            String?
+  developmentNotes      String?
+  stepState             Json      @default("{}")
+  answerDraft           Json      @default("{}")
+  readingPosition       Int       @default(0)
+  acknowledgedVersionId String?
+  materiallyChangedAt   DateTime?
+  completedAt           DateTime?
+  updatedAt             DateTime  @updatedAt
 
   @@unique([userId, courseDayId])
   @@index([userId, completed])
 }
 
 model QuizAttempt {
-  id          String    @id @default(cuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  courseDayId String
-  courseDay   CourseDay @relation(fields: [courseDayId], references: [id], onDelete: Cascade)
-  answer      String
-  correct     Boolean
-  score       Int
-  attemptedAt DateTime  @default(now())
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseDayId     String
+  courseDay       CourseDay @relation(fields: [courseDayId], references: [id], onDelete: Cascade)
+  answer          String
+  response        Json?
+  questionId      String?
+  questionType    String?
+  criteriaVersion String?
+  correct         Boolean
+  score           Int
+  attemptedAt     DateTime  @default(now())
 
   @@index([userId, courseDayId])
 }
@@ -642,10 +674,125 @@ model CurriculumSource {
   disabledAt          DateTime?
   mappings            CourseSourceMapping[]
   attempts            SourceSyncAttempt[]
+  snapshots           WikiSourceSnapshot[]
+  lessonLinks         LessonSourceLink[]
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
 
   @@index([syncStatus, lastAttemptAt])
+}
+
+model WikiSourceSnapshot {
+  id                String             @id @default(cuid())
+  sourceId          String
+  source            CurriculumSource   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  revisionId        String
+  revisionTimestamp DateTime?
+  title             String
+  url               String
+  categories        Json               @default("[]")
+  warnings          Json               @default("[]")
+  structuredContent Json
+  contentChecksum   String
+  media             WikiMediaAsset[]
+  lessonLinks       LessonSourceLink[]
+  capturedAt        DateTime           @default(now())
+
+  @@unique([sourceId, revisionId])
+  @@index([sourceId, capturedAt])
+}
+
+model WikiMediaAsset {
+  id            String             @id @default(cuid())
+  snapshotId    String
+  snapshot      WikiSourceSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  url           String
+  fileName      String
+  mimeType      String
+  width         Int?
+  height        Int?
+  caption       String?
+  altText       String
+  sourceSection String?
+  filePageUrl   String?
+  displayOrder  Int                @default(0)
+
+  @@unique([snapshotId, url])
+  @@index([snapshotId, displayOrder])
+}
+
+model LessonContentVersion {
+  id                String                @id @default(cuid())
+  courseDayId       String
+  courseDay         CourseDay             @relation("LessonVersions", fields: [courseDayId], references: [id], onDelete: Cascade)
+  activeForDay      CourseDay?            @relation("ActiveLessonContent")
+  compileJobId      String?
+  compileJob        CurriculumCompileJob? @relation(fields: [compileJobId], references: [id], onDelete: SetNull)
+  version           Int
+  status            LessonContentStatus   @default(DRAFT)
+  title             String
+  objectives        Json
+  structuredContent Json
+  quizDefinition    Json
+  reflectionPrompt  String
+  estimatedMinutes  Int                   @default(90)
+  contentChecksum   String
+  similarityScore   Float                 @default(0)
+  confidence        Float                 @default(0)
+  materiallyChanged Boolean               @default(false)
+  modelId           String?
+  promptVersion     String
+  validationResult  Json                  @default("{}")
+  sourceLinks       LessonSourceLink[]
+  createdAt         DateTime              @default(now())
+  publishedAt       DateTime?
+
+  @@unique([courseDayId, version])
+  @@index([courseDayId, status])
+  @@index([compileJobId])
+}
+
+model LessonSourceLink {
+  id                     String               @id @default(cuid())
+  lessonContentVersionId String
+  lessonContentVersion   LessonContentVersion @relation(fields: [lessonContentVersionId], references: [id], onDelete: Cascade)
+  sourceId               String
+  source                 CurriculumSource     @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  snapshotId             String
+  snapshot               WikiSourceSnapshot   @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+  sectionAnchor          String
+  claimRefs              Json                 @default("[]")
+
+  @@unique([lessonContentVersionId, snapshotId, sectionAnchor])
+  @@index([sourceId, snapshotId])
+}
+
+model CurriculumCompileJob {
+  id                String                  @id @default(cuid())
+  courseId          String
+  course            Course                  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  contentVersions   LessonContentVersion[]
+  status            CurriculumCompileStatus @default(QUEUED)
+  mode              String                  @default("NORMAL")
+  idempotencyKey    String                  @unique
+  attempt           Int                     @default(0)
+  maxAttempts       Int                     @default(3)
+  availableAt       DateTime                @default(now())
+  lockedAt          DateTime?
+  requestedById     String?
+  modelId           String?
+  promptVersion     String?
+  confidence        Float?
+  validationResult  Json                    @default("{}")
+  previewPayload    Json?
+  sourceRevisionIds Json                    @default("[]")
+  lastError         String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  completedAt       DateTime?
+
+  @@index([status, availableAt])
+  @@index([courseId, createdAt])
 }
 
 model CourseSourceMapping {

@@ -12,7 +12,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ sourceId: 
   const user = await currentUser();
   if (!user || !isAdmin(user.role)) return NextResponse.json({ error: "Administrative authority required." }, { status: 403 });
   const { sourceId } = await params;
-  const source = await db.curriculumSource.findUnique({ where: { id: sourceId }, include: { mappings: { include: { course: { select: { id: true, code: true, title: true } } } }, attempts: { orderBy: { startedAt: "desc" }, take: 25 } } });
+  const source = await db.curriculumSource.findUnique({ where: { id: sourceId }, include: { mappings: { include: { course: { select: { id: true, code: true, title: true } } } }, attempts: { orderBy: { startedAt: "desc" }, take: 25 }, snapshots: { orderBy: { capturedAt: "desc" }, take: 5, include: { _count: { select: { media: true } } } } } });
   return source ? NextResponse.json({ source }) : NextResponse.json({ error: "Source not found." }, { status: 404 });
 }
 

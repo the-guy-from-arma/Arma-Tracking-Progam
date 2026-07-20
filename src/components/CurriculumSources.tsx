@@ -31,6 +31,7 @@ type Source = {
   bypassReason: string | null;
   mappings: { course: { id: string; code: string; title: string } }[];
   attempts: Attempt[];
+  snapshots: { id: string; revisionId: string; capturedAt: string; contentChecksum: string; _count: { media: number } }[];
 };
 
 type Data = {
@@ -40,6 +41,14 @@ type Data = {
   pages: number;
   counts: { syncStatus: string; _count: number }[];
   courses: { id: string; code: string; title: string }[];
+};
+
+type CompileData = {
+  enabled: boolean;
+  autoPublish: boolean;
+  threshold: number;
+  courses: { id: string; code: string; title: string; academy: string; _count: { days: number } }[];
+  jobs: { id: string; status: string; confidence: number | null; lastError: string | null; createdAt: string; hasPreview: boolean; previewPayload?: { days?: { dayNumber: number; title: string; confidence: number; blocks: { type: string; title: string }[] }[] } | null; validationResult: { errors?: string[]; highestSimilarity?: number }; sourceRevisionIds: string[]; course: { code: string; title: string; academy: string } }[];
 };
 
 export function CurriculumSources() {
@@ -53,13 +62,18 @@ export function CurriculumSources() {
   const [open, setOpen] = useState<Source | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [compileData, setCompileData] = useState<CompileData | null>(null);
+  const [compileCourse, setCompileCourse] = useState("");
+  const [compileAcademy, setCompileAcademy] = useState("");
+  const [previewJob, setPreviewJob] = useState<CompileData["jobs"][number] | null>(null);
 
   const load = useCallback(async () => {
     const query = new URLSearchParams({ page: String(page), search, status, courseId });
-    const response = await fetch(`/api/admin/curriculum/sources?${query}`, { cache: "no-store" });
-    const result = await response.json();
+    const [response, compileResponse] = await Promise.all([fetch(`/api/admin/curriculum/sources?${query}`, { cache: "no-store" }), fetch("/api/admin/curriculum/compile", { cache: "no-store" })]);
+    const [result, compileResult] = await Promise.all([response.json(), compileResponse.json()]);
     if (response.ok) setData(result);
     else setMessage(result.error || "Curriculum sources could not be loaded.");
+    if (compileResponse.ok) setCompileData(compileResult);
   }, [page, search, status, courseId]);
 
   useEffect(() => {
@@ -74,11 +88,28 @@ export function CurriculumSources() {
   const issueCount = (count.FAILED || 0) + (count.WARNING || 0);
   const pageIds = data?.items.map((source) => source.id) || [];
   const pageSelected = pageIds.length > 0 && pageIds.every((id) => selected.includes(id));
+  const selectedMappedCourses = [...new Set((data?.items || []).filter((source) => selected.includes(source.id)).flatMap((source) => source.mappings.map((mapping) => mapping.course.id)))];
 
   function selectionPayload() {
     return allIssuesSelected
       ? { scope: "issues" }
       : { ids: selected };
+  }
+
+  async function compile(action: "queue" | "publish" | "reject" | "rollback", payload: Record<string, unknown>) {
+    setBusy(true); setMessage(action === "queue" ? "Adding complete courses to the Guided Studio compilation queue…" : "Applying the curriculum decision…");
+    try {
+      const response = await fetch("/api/admin/curriculum/compile", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, ...payload }) });
+      const result = await response.json().catch(() => ({}));
+      setMessage(response.ok ? action === "queue" ? `${result.queued} course${result.queued === 1 ? "" : "s"} queued for source-grounded compilation.` : `Curriculum ${action} completed.` : result.error || "The curriculum action could not be completed.");
+      if (response.ok) await load();
+    } finally { setBusy(false); }
+  }
+  async function openCompilePreview(jobId: string) {
+    const response = await fetch(`/api/admin/curriculum/compile?jobId=${encodeURIComponent(jobId)}`, { cache: "no-store" });
+    const result = await response.json().catch(() => ({}));
+    if (response.ok) setPreviewJob({ ...result.job, hasPreview: true });
+    else setMessage(result.error || "Compilation preview could not be loaded.");
   }
 
   async function bulkAction(
@@ -175,6 +206,19 @@ export function CurriculumSources() {
         </button>
       </header>
 
+      <section className={styles.compilerPanel}>
+        <header><div><small>GUIDED COURSE STUDIO / COMPILER</small><h2>Source-grounded course publishing</h2><p>Compile complete courses from verified Wiki snapshots. Student lessons change only after every day passes structure, citation, media, duplication, and confidence validation.</p></div><span data-enabled={compileData?.enabled}>{compileData?.enabled ? "WORKER ENABLED" : "WORKER DISABLED"}<b>{compileData?.autoPublish ? `AUTO-PUBLISH ≥ ${Math.round((compileData?.threshold || 0.9) * 100)}%` : "OWNER PUBLISH"}</b></span></header>
+        <div className={styles.compilerControls}>
+          <label>COURSE<select value={compileCourse} onChange={(event) => setCompileCourse(event.target.value)}><option value="">Select one course</option>{compileData?.courses.map((course) => <option key={course.id} value={course.id}>{course.code} · {course.title}</option>)}</select></label>
+          <button disabled={busy || !compileCourse} onClick={() => void compile("queue", { courseIds: [compileCourse] })}>COMPILE COURSE</button>
+          <label>ACADEMY<select value={compileAcademy} onChange={(event) => setCompileAcademy(event.target.value)}><option value="">Select academy</option>{[...new Set(compileData?.courses.map((course) => course.academy) || [])].map((academy) => <option key={academy}>{academy}</option>)}</select></label>
+          <button disabled={busy || !compileAcademy} onClick={() => void compile("queue", { academy: compileAcademy })}>COMPILE ACADEMY</button>
+          <button disabled={busy || !selectedMappedCourses.length} onClick={() => void compile("queue", { courseIds: selectedMappedCourses })}>COMPILE SELECTED ({selectedMappedCourses.length})</button>
+          <button disabled={busy} onClick={() => { if (confirm("Queue every published course for compilation? Existing lessons remain live until replacements validate.")) void compile("queue", { scope: "ALL" }); }}>COMPILE ALL 192</button>
+        </div>
+        <div className={styles.compilerJobs}>{compileData?.jobs.slice(0, 8).map((job) => <article key={job.id}><div><b>{job.course.code} · {job.course.title}</b><small>{job.course.academy} · {new Date(job.createdAt).toLocaleString()}</small></div><strong data-status={job.status}>{job.status}{job.confidence == null ? "" : ` · ${Math.round(job.confidence * 100)}%`}</strong>{job.lastError && <p>{job.lastError}</p>}<span>{job.hasPreview && <button onClick={() => void openCompilePreview(job.id)}>PREVIEW</button>}{job.status === "VALIDATED" && <><button onClick={() => void compile("publish", { jobId: job.id })}>PUBLISH</button><button onClick={() => { const reason = prompt("Why is this validated compilation being rejected?"); if (reason) void compile("reject", { jobId: job.id, reason }); }}>REJECT</button></>} {job.status === "PUBLISHED" && <button onClick={() => { const course = compileData.courses.find((item) => item.code === job.course.code); if (course && confirm(`Roll back every lesson in ${job.course.code} to its prior complete version?`)) void compile("rollback", { courseId: course.id }); }}>ROLL BACK</button>}</span></article>)}</div>
+      </section>
+
       <div className={styles.metrics}>
         <article><b>{data?.total || 0}</b><span>IN CURRENT VIEW</span></article>
         <article><b>{count.FAILED || 0}</b><span>FAILED</span></article>
@@ -265,6 +309,7 @@ export function CurriculumSources() {
               <span><small>LAST GOOD</small><b>{open.lastGoodRevisionId || "—"}</b></span>
             </div>
             <section><small>WHY THIS NEEDS ATTENTION</small><p>{open.lastErrorMessage || open.statusWarnings.join(" · ") || "This source has no active warning."}</p><code>{open.lastErrorCode || open.syncStatus}</code></section>
+            {open.snapshots[0] && <section><small>STRUCTURED SNAPSHOT · {open.snapshots[0]._count.media} WIKI MEDIA ASSETS</small><p>Revision {open.snapshots[0].revisionId} · captured {new Date(open.snapshots[0].capturedAt).toLocaleString()} · checksum {open.snapshots[0].contentChecksum.slice(0, 16)}…</p></section>}
             <section><small>LAST-GOOD EXCERPT</small><p>{open.sourceExcerpt || "No verified source excerpt is stored yet."}</p></section>
             <form onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); void sourceAction("correct", { wikiTitle: form.get("wikiTitle"), url: form.get("url"), courseIds: form.getAll("courseIds") }); }}>
               <label>WIKI TITLE<input name="wikiTitle" defaultValue={open.wikiTitle} /></label>
@@ -282,6 +327,7 @@ export function CurriculumSources() {
           </aside>
         </div>
       )}
+      {previewJob && <div className={styles.drawerBack} onClick={() => setPreviewJob(null)}><aside className={styles.drawer} onClick={(event) => event.stopPropagation()}><button className={styles.close} onClick={() => setPreviewJob(null)} aria-label="Close compilation preview">×</button><small>COMPILATION PREVIEW</small><h2>{previewJob.course.code} · {previewJob.course.title}</h2><p>{previewJob.status} · {previewJob.confidence == null ? "confidence pending" : `${Math.round(previewJob.confidence * 100)}% confidence`} · similarity {Math.round((previewJob.validationResult.highestSimilarity || 0) * 100)}%</p><section><small>SOURCE REVISIONS</small><p>{previewJob.sourceRevisionIds.join(" · ") || "No source revisions recorded."}</p></section>{previewJob.validationResult.errors?.length ? <section><small>VALIDATION EXCEPTIONS</small><ul>{previewJob.validationResult.errors.map((error) => <li key={error}>{error}</li>)}</ul></section> : null}<section><small>COMPLETE DAY-BY-DAY PREVIEW</small>{previewJob.previewPayload?.days?.map((day) => <article className={styles.previewDay} key={day.dayNumber}><b>DAY {day.dayNumber} · {day.title}</b><span>{Math.round(day.confidence * 100)}% confidence</span><p>{day.blocks.map((block) => block.type.replaceAll("_", " ")).join(" · ")}</p></article>)}</section>{previewJob.status === "VALIDATED" && <div className={styles.actions}><button onClick={() => void compile("publish", { jobId: previewJob.id })}>PUBLISH COMPLETE COURSE</button><button onClick={() => { const reason = prompt("Why is this compilation being rejected?"); if (reason) void compile("reject", { jobId: previewJob.id, reason }); }}>REJECT</button></div>}</aside></div>}
     </section>
   );
 }

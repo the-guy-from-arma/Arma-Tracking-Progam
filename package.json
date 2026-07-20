@@ -18,6 +18,7 @@
     "curriculum:seed": "node scripts/seed-curriculum.mjs",
     "curriculum:sync": "node scripts/sync-wiki.mjs",
     "curriculum:reconcile": "node scripts/reconcile-wiki-sources.mjs",
+    "curriculum:compiler": "node scripts/run-curriculum-compiler.mjs",
     "grading:worker": "node scripts/run-ai-worker.mjs",
     "funding:renew": "node scripts/run-funding-renewals.mjs",
     "faculty:seed": "node scripts/seed-faculty.mjs",

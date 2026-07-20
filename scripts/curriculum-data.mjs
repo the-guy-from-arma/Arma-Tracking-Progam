@@ -33,24 +33,39 @@ export function wikiTitle(subject) {
 
 export function sourceUrl(title) { return `https://community.bohemia.net/wiki/${encodeURIComponent(title.replaceAll(" ", "_"))}`; }
 
-const stages = ["Orient", "Inspect", "Reproduce", "Isolate", "Configure", "Implement", "Validate", "Debug", "Integrate", "Document", "Extend", "Test", "Review", "Polish", "Demonstrate", "Harden", "Benchmark", "Package", "Present", "Reflect"];
+const studioDays = [
+  { stage: "Orient", focus: "establish the tool, project, dependencies, and safe working boundary", actions: ["Create or open the disposable training addon and confirm its project root.", "Open the assigned editor from the Workbench toolbar and identify the panels used by the source procedure.", "Record the starting project state before changing a resource."] },
+  { stage: "Inspect", focus: "read the existing resource structure before editing it", actions: ["Locate the example resource through Resource Browser rather than a filesystem shortcut.", "Inspect its inheritance, dependencies, and referenced resources.", "Write down which property or component controls the behavior being studied."] },
+  { stage: "Reproduce", focus: "recreate the documented baseline without improvisation", actions: ["Follow the mapped source procedure in order inside the training addon.", "Save after each complete operation and note the resulting resource state.", "Run the smallest available preview or test that proves the baseline works."] },
+  { stage: "Isolate", focus: "separate one variable from the rest of the system", actions: ["Duplicate or inherit only the resource needed for this experiment.", "Disable unrelated variations so one behavior remains under test.", "Compare the isolated result with the unchanged baseline."] },
+  { stage: "Configure", focus: "apply deliberate settings and verify their ownership", actions: ["Open the configuration or component named by the source.", "Change one documented field at a time and save the resource.", "Reopen the resource and confirm the value persisted in the addon-owned copy."] },
+  { stage: "Implement", focus: "assemble the complete working behavior", actions: ["Connect the required resources, components, or script entry points.", "Compile the project and resolve errors introduced by the implementation.", "Exercise the primary success path in an isolated scenario."] },
+  { stage: "Validate", focus: "prove that required states and dependencies are correct", actions: ["Run Workbench validation on every edited resource.", "Review the console from the first new message rather than the final cascade.", "Record the validation result and the exact resource path tested."] },
+  { stage: "Debug", focus: "trace a controlled failure to its first cause", actions: ["Create or identify one reproducible failing case.", "Use the console, debugger, or diagnostic visualization appropriate to the editor.", "Correct the first causal issue and rerun the identical test."] },
+  { stage: "Integrate", focus: "connect the feature to its surrounding gameplay system", actions: ["Place the validated resource into a minimal integration scenario.", "Confirm inputs, dependencies, ownership, and lifecycle events.", "Test entry, active, and exit states without changing the isolated implementation."] },
+  { stage: "Document", focus: "turn the working result into a reproducible technical record", actions: ["Record every addon-owned path and configuration used by the result.", "Write the verification sequence another developer can repeat.", "Capture one known limitation and the evidence supporting it."] },
+  { stage: "Extend", focus: "add one bounded variation without breaking the baseline", actions: ["Create a derived variant rather than modifying the verified baseline.", "Change one behavior relevant to the course objective.", "Run baseline and variant side by side and record the difference."] },
+  { stage: "Test", focus: "exercise success, failure, and boundary cases", actions: ["Write a small test matrix with expected observable results.", "Run each case from a clean scenario state.", "Record deviations with reproduction steps and console evidence."] },
+  { stage: "Review", focus: "audit the implementation against source and course outcomes", actions: ["Compare every technical decision with its mapped Wiki section.", "Remove unused resources, stale references, and unexplained settings.", "Ask whether the evidence proves each stated course outcome."] },
+  { stage: "Polish", focus: "improve clarity and usability without hiding defects", actions: ["Normalize names, folders, labels, and presentation details.", "Retest the implementation after each polish change.", "Confirm that no cosmetic change altered the verified behavior."] },
+  { stage: "Demonstrate", focus: "produce clear public evidence of the working feature", actions: ["Prepare the smallest scenario that shows the intended behavior.", "Capture the setup, action, visible result, and relevant diagnostic state.", "Write a technical explanation that matches the recorded evidence."] },
+  { stage: "Harden", focus: "handle invalid, missing, and repeated states safely", actions: ["Test missing dependencies and invalid configuration values.", "Repeat initialization and teardown to expose lifecycle errors.", "Add only source-supported guards and verify the recovery path."] },
+  { stage: "Benchmark", focus: "measure cost and identify the first meaningful constraint", actions: ["Choose one repeatable performance scenario and baseline it.", "Use the relevant Workbench profiler or diagnostic counter.", "Change one factor, rerun the same scenario, and compare evidence."] },
+  { stage: "Package", focus: "prepare a clean addon-owned release candidate", actions: ["Audit dependencies and confirm no base-game resource was modified.", "Validate the complete addon and resolve release-blocking messages.", "Record the candidate version, test scenario, and known limitations."] },
+  { stage: "Present", focus: "explain architecture, procedure, evidence, and tradeoffs", actions: ["Walk through the resource chain from entry point to visible result.", "Demonstrate the verification test without hidden setup.", "Connect each major decision to source evidence and an observed outcome."] },
+  { stage: "Reflect", focus: "consolidate the workflow into future practice", actions: ["Review the development record from baseline through final validation.", "Identify the most expensive mistake and the checkpoint that would catch it earlier.", "Define the next experiment with a specific expected result."] },
+];
 
 export function makeDay({ subject, editor, dayNumber, days, source }) {
-  const stage = stages[dayNumber - 1] || `Studio ${dayNumber}`;
+  const blueprint = studioDays[dayNumber - 1] || { stage: `Studio ${dayNumber}`, focus: "complete a bounded technical milestone", actions: ["Open the verified addon state.", "Complete the documented milestone.", "Validate and record the result."] };
+  const stage = blueprint.stage;
   return {
     dayNumber,
     title: `${stage}: ${subject}`,
     objectives: [`Explain the ${stage.toLowerCase()} phase for ${subject}.`, `Complete a repeatable ${editor} workflow.`, "Record evidence and a troubleshooting observation."],
-    instructionalText: `Today moves ${subject} from explanation into controlled practice. Work in a disposable training addon, compare each change against the official Bohemia source, and make one change at a time so the result can be diagnosed. Day ${dayNumber} of ${days} emphasizes ${stage.toLowerCase()}, evidence, and a clean handoff to the next session.`,
-    sourceSection: `Use ${source} as the technical authority for this lesson. Confirm the current page warnings, prerequisites, naming, and editor-specific instructions before beginning the lab.`,
-    workbenchSteps: [
-      "Launch Arma Reforger Tools and open the assigned training addon rather than the read-only game project.",
-      `Open ${editor} from Workbench and locate the resources associated with ${subject}.`,
-      "Duplicate or inherit the required resource inside the training addon; do not alter base-game data.",
-      `Apply the Day ${dayNumber} ${stage.toLowerCase()} change and save after each logically complete operation.`,
-      "Compile or validate the project, resolve every new error, and test the behavior in an isolated scenario.",
-      "Capture the resource path, test result, and one lesson learned in the development record.",
-    ],
+    instructionalText: `Day ${dayNumber} of ${days} focuses on how to ${blueprint.focus} for ${subject}. Use ${editor} in a disposable addon, preserve the verified starting state, and treat each visible result or console message as evidence. This transitional lesson remains available until the source-grounded Guided Studio compiler publishes its fully cited replacement.`,
+    sourceSection: `${source} is the mapped technical authority. Use its current verified revision for interface names, resource paths, procedures, warnings, and examples; do not substitute remembered steps.`,
+    workbenchSteps: blueprint.actions.map((action, index) => `${index === 0 ? `Open ${editor}. ` : ""}${action}`),
     practicalLab: `Create a small, reversible ${subject} exercise demonstrating the ${stage.toLowerCase()} phase. The result must load without new errors and include a written test case.`,
     completionChecklist: ["Training addon opens", "Resources live inside the addon", "Validation completes", "Behavior is tested", "Development record is updated"],
     knowledgeQuestion: `What evidence proves that the Day ${dayNumber} ${subject} change is isolated, valid, and ready to continue?`,

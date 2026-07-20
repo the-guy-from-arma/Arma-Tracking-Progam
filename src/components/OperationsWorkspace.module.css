@@ -228,6 +228,7 @@
   background: #fff2cf;
   color: #624714;
 }
+.compilerPanel{margin:20px 0;border:1px solid #bfd1d9;background:#f9fbfa}.compilerPanel>header{display:flex;align-items:flex-start;justify-content:space-between;gap:30px;padding:28px;border-bottom:1px solid #d7e2e6}.compilerPanel>header small{color:#287b98;font:650 9px var(--font-plex-mono,monospace);letter-spacing:.12em}.compilerPanel>header h2{margin:7px 0 8px;font:600 28px var(--font-plex-serif,serif)}.compilerPanel>header p{max-width:760px;margin:0;color:#647b87;font-size:12px;line-height:1.6}.compilerPanel>header>span{display:grid;gap:6px;padding:12px;border:1px solid #d3b66f;color:#795b21;font:650 9px var(--font-plex-mono,monospace)}.compilerPanel>header>span[data-enabled="true"]{border-color:#78b79d;color:#176649}.compilerPanel>header>span b{font-size:8px}.compilerControls{display:grid;grid-template-columns:minmax(230px,1fr) auto minmax(230px,1fr) auto auto auto;gap:8px;align-items:end;padding:20px 28px}.compilerControls label{display:grid;gap:6px;color:#607986;font:650 8px var(--font-plex-mono,monospace)}.compilerControls select{min-height:43px;padding:0 10px;border:1px solid #bfd0d8;background:white;color:#183548}.compilerControls button,.compilerJobs button{min-height:43px;padding:0 13px;border:1px solid #1c6887;background:white;color:#145b78;font:650 8px var(--font-plex-mono,monospace);cursor:pointer}.compilerControls button:last-child{background:#135d7b;color:white}.compilerControls button:disabled{cursor:not-allowed;opacity:.45}.compilerJobs{border-top:1px solid #d7e2e6}.compilerJobs article{display:grid;grid-template-columns:minmax(260px,1fr) auto auto;gap:15px;align-items:center;padding:13px 28px;border-bottom:1px solid #e1e8ea}.compilerJobs article b,.compilerJobs article small{display:block}.compilerJobs article small{margin-top:4px;color:#71838b;font-size:9px}.compilerJobs article>strong{color:#28718d;font:650 8px var(--font-plex-mono,monospace)}.compilerJobs article>p{grid-column:1/-1;margin:0;color:#963d3d;font-size:10px}.compilerJobs article>span{display:flex;gap:6px}.compilerJobs button{min-height:32px}.compilerJobs strong[data-status="FAILED"],.compilerJobs strong[data-status="EXCEPTION"]{color:#a23d3d}.compilerJobs strong[data-status="PUBLISHED"]{color:#177051}.previewDay{padding:13px 0;border-bottom:1px solid #dce5e8}.previewDay b,.previewDay span{display:block}.previewDay span{margin-top:4px;color:#25708d;font:650 8px var(--font-plex-mono,monospace)}.previewDay p{margin:7px 0 0!important;color:#697f89!important;font-size:9px!important}
 .drawerBack {
   position: fixed;
   z-index: 100;
@@ -381,6 +382,7 @@
     grid-template-columns: 1fr;
   }
   .facultyOffice { grid-template-columns: 1fr; }
+  .compilerControls{grid-template-columns:1fr 1fr}.compilerJobs article{grid-template-columns:1fr auto}
 }
 @media (max-width: 620px) {
   .hero {
@@ -398,4 +400,5 @@
   .diagnostics {
     grid-template-columns: 1fr 1fr;
   }
+  .compilerPanel>header{flex-direction:column}.compilerControls,.compilerJobs article{grid-template-columns:1fr}.compilerJobs article>span{justify-content:flex-start}
 }

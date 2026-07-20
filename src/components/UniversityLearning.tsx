@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { UniversityView } from "./UniversityPortal";
@@ -252,6 +253,7 @@ export function UniversityLearning({
   userName: string;
   onNavigate: (view: UniversityView) => void;
 }) {
+  const router = useRouter();
   const [data, setData] = useState<Curriculum | null>(null);
   const [records, setRecords] = useState<AcademyData | null>(null);
   const [programs, setPrograms] = useState<ProgramsData | null>(null);
@@ -299,16 +301,10 @@ export function UniversityLearning({
     return () => clearTimeout(timer);
   }, [load]);
   async function openCourse(id: string) {
-    const response = await fetch(`/api/curriculum/${id}`);
-    const result = await response.json();
-    if (response.ok) setSelected(result.course);
-    else setError(result.error);
+    router.push(`/university/courses/${id}`);
   }
   async function preview(id: string) {
-    const response = await fetch(`/api/curriculum/${id}`);
-    const result = await response.json();
-    if (response.ok) setPreviewCourse(result.course);
-    else setError(result.error);
+    router.push(`/university/courses/${id}`);
   }
   async function openAnnouncement(item: NotificationItem) {
     setActiveAnnouncement(item);

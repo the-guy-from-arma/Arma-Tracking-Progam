@@ -39,6 +39,12 @@ Student identities such as `alex.morgan@enscriptuniversity.edu` are internal ESU
 ```text
 GEMINI_API_KEY=<Google AI Studio authorization key>
 GEMINI_MODEL=gemini-3.1-pro-preview
+CURRICULUM_COMPILER_ENABLED=true
+CURRICULUM_COMPILER_WORKER_SECRET=<different random value of at least 32 characters>
+CURRICULUM_AUTO_PUBLISH=true
+CURRICULUM_PUBLISH_CONFIDENCE=0.90
+CURRICULUM_COMPILER_CONCURRENCY=2
+WIKI_MEDIA_MODE=REMOTE_ATTRIBUTED
 AI_GRADING_ENABLED=true
 AI_GRADING_CONFIDENCE_THRESHOLD=0.85
 AI_GRADING_MAX_RETRIES=3
@@ -57,9 +63,10 @@ STRIPE_IDENTITY_WEBHOOK_SECRET=<Stripe webhook signing secret beginning whsec_>
 
 For age-16/17 admissions, enable Stripe Identity in the Stripe account and add a webhook endpoint at `https://enfusion-edu.up.railway.app/api/webhooks/stripe-identity`. Subscribe it to `identity.verification_session.verified`, `identity.verification_session.processing`, `identity.verification_session.requires_input`, `identity.verification_session.canceled`, and `identity.verification_session.redacted`. Never use a `NEXT_PUBLIC_*` variable for these secrets. The university database stores consent and verification-result metadata, not guardian ID images, ID numbers, or selfies.
 
-Create three Railway scheduled services:
+Create four Railway scheduled services:
 
 - Nightly wiki synchronization: `pnpm run curriculum:sync`
+- Guided Course Studio compiler, scheduled every minute while jobs are queued: `pnpm run curriculum:compiler`
 - AI grading worker, scheduled every minute: `pnpm run grading:worker`
 - Daily funding renewal and reminder processing: `pnpm run funding:renew`
 

@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     ...(courseId ? { mappings: { some: { courseId } } } : {}),
   };
   const [items, total, counts, courses] = await Promise.all([
-    db.curriculumSource.findMany({ where, include: { mappings: { include: { course: { select: { id: true, code: true, title: true } } } }, attempts: { orderBy: { startedAt: "desc" }, take: 5 } }, orderBy: [{ syncStatus: "desc" }, { wikiTitle: "asc" }], skip: (page - 1) * pageSize, take: pageSize }),
+    db.curriculumSource.findMany({ where, include: { mappings: { include: { course: { select: { id: true, code: true, title: true } } } }, attempts: { orderBy: { startedAt: "desc" }, take: 5 }, snapshots: { orderBy: { capturedAt: "desc" }, take: 1, include: { _count: { select: { media: true } } } } }, orderBy: [{ syncStatus: "desc" }, { wikiTitle: "asc" }], skip: (page - 1) * pageSize, take: pageSize }),
     db.curriculumSource.count({ where }),
     db.curriculumSource.groupBy({ by: ["syncStatus"], _count: true }),
     db.course.findMany({ where: { status: { not: "ARCHIVED" } }, select: { id: true, code: true, title: true }, orderBy: { code: "asc" } }),

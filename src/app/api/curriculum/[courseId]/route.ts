@@ -5,6 +5,7 @@ import { text } from "@/lib/input";
 import { policyGateResponse } from "@/lib/policies";
 import { campusRestrictionResponse, campusStatus, studentAcademicRestrictionResponse } from "@/lib/campus-operations";
 import { getCompletedCourseIds, getProgramSequenceBlockers } from "@/lib/academic-progress";
+import { gradeKnowledgeCheck } from "@/lib/course-studio";
 
 export async function GET(_: Request, { params }: { params: Promise<{ courseId: string }> }) {
   const user = await currentUser(); if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
@@ -22,7 +23,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ co
   { const gate = await campusRestrictionResponse("LEARNING_WRITE") || await studentAcademicRestrictionResponse(user.id, "LEARNING_WRITE"); if (gate) return gate; }
   const { courseId } = await params; const body = await request.json().catch(() => ({}));
   const dayId = text(body.dayId, 100); const answer = text(body.answer, 1000); const reflection = text(body.reflection, 1800);
-  const day = await db.courseDay.findFirst({ where: { id: dayId, courseId }, include: { course: { include: { prerequisites: true } } } });
+  const day = await db.courseDay.findFirst({ where: { id: dayId, courseId }, include: { activeContentVersion: true, course: { include: { prerequisites: true } } } });
   if (!day) return NextResponse.json({ error: "Course day not found." }, { status: 404 });
   const enrollment = await db.courseEnrollment.findUnique({ where: { courseId_userId: { courseId, userId: user.id } } });
   if (!enrollment) return NextResponse.json({ error: "Enroll before completing lessons." }, { status: 409 });
@@ -33,14 +34,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ co
   const sequenceBlockers = await getProgramSequenceBlockers(user.id, courseId, completedCourseIds);
   if (sequenceBlockers.length) return NextResponse.json({ error: `Your program keeps this course in sequence. Complete ${sequenceBlockers.join(", ")} first.`, sequenceBlockers }, { status: 409 });
   if (answer.length < 25 || reflection.length < 25) return NextResponse.json({ error: "Complete the knowledge response and development reflection." }, { status: 400 });
+  const grade = gradeKnowledgeCheck(day.activeContentVersion?.quizDefinition, answer, day.knowledgeAnswer);
   const result = await db.$transaction(async (tx) => {
-    await tx.quizAttempt.create({ data: { userId: user.id, courseDayId: day.id, answer, correct: true, score: 100 } });
-    await tx.lessonProgress.upsert({ where: { userId_courseDayId: { userId: user.id, courseDayId: day.id } }, update: { completed: true, reflection, completedAt: new Date() }, create: { userId: user.id, courseDayId: day.id, completed: true, reflection, completedAt: new Date() } });
+    await tx.quizAttempt.create({ data: { userId: user.id, courseDayId: day.id, answer, response: { answer }, correct: grade.correct, score: grade.score, questionId: String((day.activeContentVersion?.quizDefinition as Record<string, unknown> | null)?.id || "legacy-check"), questionType: grade.type, criteriaVersion: grade.version } });
+    await tx.lessonProgress.upsert({ where: { userId_courseDayId: { userId: user.id, courseDayId: day.id } }, update: { completed: grade.correct, reflection, completedAt: grade.correct ? new Date() : null }, create: { userId: user.id, courseDayId: day.id, completed: grade.correct, reflection, completedAt: grade.correct ? new Date() : null } });
     const [complete, total] = await Promise.all([tx.lessonProgress.count({ where: { userId: user.id, completed: true, courseDay: { courseId } } }), tx.courseDay.count({ where: { courseId } })]);
     const progress = total ? Math.round((complete / total) * 100) : 0;
     await tx.courseEnrollment.update({ where: { id: enrollment.id }, data: { progress } });
-    await tx.auditLog.create({ data: { actorId: user.id, action: "COURSE_DAY_COMPLETED", entity: "CourseDay", entityId: day.id, detail: { courseId, progress } } });
-    return { progress, complete, total };
+    await tx.auditLog.create({ data: { actorId: user.id, action: grade.correct ? "COURSE_DAY_COMPLETED" : "COURSE_KNOWLEDGE_CHECK_ATTEMPTED", entity: "CourseDay", entityId: day.id, detail: { courseId, progress, score: grade.score } } });
+    return { progress, complete, total, score: grade.score, correct: grade.correct };
   });
-  return NextResponse.json(result);
+  return NextResponse.json(result, { status: grade.correct ? 200 : 422 });
 }
