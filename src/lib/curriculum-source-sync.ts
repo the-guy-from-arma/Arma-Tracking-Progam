@@ -41,6 +41,21 @@ const crawlerHeaders = {
   "user-agent": "Mozilla/5.0 (compatible; EnscriptUniversityCurriculum/5.0; +https://enfusion-edu.up.railway.app/)",
   accept: "text/html,application/xhtml+xml",
 };
+const verifiedWikiAliases: Record<string, string> = {
+  "Arma Reforger:Animation Foundations": "Arma Reforger:Animation Editor",
+  "Arma Reforger:Animation Graphs": "Arma Reforger:Animation Editor",
+  "Arma Reforger:Procedural Animation": "Arma Reforger:Procedural Animation Editor",
+  "Arma Reforger:Procedural Animation Editor Basics Tutorial": "Arma Reforger:Procedural Animation Editor",
+  "Arma Reforger:Character Animation Capstone": "Arma Reforger:Animation Editor",
+  "Arma Reforger:Animation Import Pipeline": "Arma Reforger:Enfusion Blender Tools: Import/Export Animation",
+  "Arma Reforger:State Machines": "Arma Reforger:Animation Editor",
+  "Arma Reforger:Inverse Kinematics": "Arma Reforger:Animation Editor",
+  "Arma Reforger:Weapon Animation": "Arma Reforger:Weapon Animation Basic Creation",
+  "Arma Reforger:Vehicle Animation": "Arma Reforger:Animation Editor",
+  "Arma Reforger:Animation Debugging": "Arma Reforger:Animation Editor",
+  "Arma Reforger:Interactive Motion Studio": "Arma Reforger:Animation Editor",
+  "Arma Reforger:Animation Systems Capstone": "Arma Reforger:Animation Editor",
+};
 
 function decodeHtml(value: string) {
   const entities: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", ndash: "–", mdash: "—" };
@@ -186,14 +201,15 @@ function parsePage(html: string, requestedTitle: string, url: string): WikiPage 
 }
 
 async function fetchWikiPage(title: string) {
-  const url = pageUrl(title);
+  const verifiedTitle = verifiedWikiAliases[title] || title;
+  const url = pageUrl(verifiedTitle);
   const response = await fetch(url, { headers: crawlerHeaders, cache: "no-store", redirect: "follow", signal: AbortSignal.timeout(18000) });
   if (response.status === 404 || response.status === 410) return { page: null, status: response.status, url };
   if (!response.ok) throw Object.assign(new Error(`Bohemia Wiki returned HTTP ${response.status}`), { status: response.status });
   const html = await response.text();
   const isArticle = jsonConfig<boolean>(html, "wgIsArticle");
   if (isArticle === false || /noarticletext|There is currently no text in this page/i.test(html)) return { page: null, status: 404, url };
-  return { page: parsePage(html, title, response.url || url), status: response.status, url };
+  return { page: parsePage(html, verifiedTitle, response.url || url), status: response.status, url };
 }
 
 function similarity(left: string, right: string) {
@@ -221,6 +237,7 @@ function cleanError(error: unknown) {
 
 export async function syncCurriculumSource(sourceId: string, options: { actorId?: string | null; force?: boolean } = {}) {
   const source = await db.curriculumSource.findUniqueOrThrow({ where: { id: sourceId }, include: { mappings: { include: { course: { select: { title: true } } } } } });
+  const verifiedAliasTarget = verifiedWikiAliases[source.wikiTitle] || null;
   if (source.syncStatus === "DISABLED" && !options.force) throw new Error("This source is disabled. Re-enable it before synchronizing.");
   const startedAt = new Date();
   let httpStatus: number | null = null;
@@ -258,7 +275,14 @@ export async function syncCurriculumSource(sourceId: string, options: { actorId?
     const bypassStillValid = source.syncStatus === "BYPASSED" && source.bypassRevisionId === revisionId;
     const syncStatus = bypassStillValid ? "BYPASSED" : warnings.length || revisionChangedAfterBypass || resolvedFromSearch ? "WARNING" : "UPDATED";
     const updated = await db.$transaction(async (tx) => {
-      const record = await tx.curriculumSource.update({ where: { id: source.id }, data: {
+      const canonical = await tx.curriculumSource.findUnique({ where: { wikiTitle: page.title } });
+      const canonicalSourceId = canonical && canonical.id !== source.id ? canonical.id : source.id;
+      if (canonicalSourceId !== source.id) {
+        for (const mapping of source.mappings) await tx.courseSourceMapping.upsert({ where: { courseId_sourceId: { courseId: mapping.courseId, sourceId: canonicalSourceId } }, update: {}, create: { courseId: mapping.courseId, sourceId: canonicalSourceId } });
+        await tx.courseSourceMapping.deleteMany({ where: { sourceId: source.id } });
+        await tx.curriculumSource.update({ where: { id: source.id }, data: { syncStatus: "DISABLED", disabledAt: new Date(), statusWarnings: [`Verified alias retired in favor of ${page.title}.`], lastAttemptAt: new Date(), lastHttpStatus: httpStatus, lastErrorCode: "CANONICAL_ALIAS_RETIRED", lastErrorMessage: `Course mappings moved to verified source ${page.title}.` } });
+      }
+      const record = await tx.curriculumSource.update({ where: { id: canonicalSourceId }, data: {
         wikiTitle: page.title, url: pageUrl(page.title), revisionId, revisionTimestamp: page.revisionTimestamp || source.revisionTimestamp,
         categories: page.categories, statusWarnings: revisionChangedAfterBypass ? [...warnings, "Remote revision changed after warning bypass; review is required again."] : warnings,
         sourceExcerpt: excerpt, syncStatus, lastSyncedAt: new Date(), lastAttemptAt: new Date(), lastSuccessAt: new Date(),
@@ -266,15 +290,15 @@ export async function syncCurriculumSource(sourceId: string, options: { actorId?
         lastGoodRevisionId: revisionId, lastGoodExcerpt: excerpt,
         ...(revisionChangedAfterBypass ? { bypassedAt: null, bypassReason: null, bypassRevisionId: null, bypassedById: null } : {}),
       } });
-      const existing = await tx.wikiSourceSnapshot.findUnique({ where: { sourceId_revisionId: { sourceId: source.id, revisionId } } });
+      const existing = await tx.wikiSourceSnapshot.findUnique({ where: { sourceId_revisionId: { sourceId: canonicalSourceId, revisionId } } });
       if (!existing) {
         await tx.wikiSourceSnapshot.create({ data: {
-          sourceId: source.id, revisionId, revisionTimestamp: page.revisionTimestamp, title: page.title, url: pageUrl(page.title), categories: page.categories,
+          sourceId: canonicalSourceId, revisionId, revisionTimestamp: page.revisionTimestamp, title: page.title, url: pageUrl(page.title), categories: page.categories,
           warnings, structuredContent: page.structuredContent, contentChecksum: page.contentChecksum,
           media: { create: page.media.map((item) => ({ ...item })) },
         } });
       }
-      await tx.sourceSyncAttempt.create({ data: { sourceId: source.id, actorId: options.actorId || null, mode: options.force ? "FORCE" : "NORMAL", outcome: syncStatus, httpStatus, revisionId, startedAt, detail: { warnings, revisionChangedAfterBypass, resolvedFromSearch, transport: "MEDIAWIKI_STRUCTURED_HTML", blocks: page.structuredContent.length, media: page.media.length, checksum: page.contentChecksum } } });
+      await tx.sourceSyncAttempt.create({ data: { sourceId: source.id, actorId: options.actorId || null, mode: options.force ? "FORCE" : "NORMAL", outcome: syncStatus, httpStatus, revisionId, startedAt, detail: { warnings, revisionChangedAfterBypass, resolvedFromSearch, verifiedAliasTarget, canonicalSourceId, transport: "MEDIAWIKI_STRUCTURED_HTML", blocks: page.structuredContent.length, media: page.media.length, checksum: page.contentChecksum } } });
       return record;
     });
     return { source: updated, ok: true };

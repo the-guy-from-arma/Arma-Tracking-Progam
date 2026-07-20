@@ -11,6 +11,7 @@ import {
 } from "react";
 import styles from "./FacultyMessages.module.css";
 import { AcademicLoader } from "./AcademicLoader";
+import { ArrowRight, MessageCircle, Search, Users } from "lucide-react";
 
 type Message = {
   id: string;
@@ -49,6 +50,19 @@ type Conversation = {
 };
 type MessagesData = {
   conversations: Conversation[];
+  directory: {
+    id: string;
+    slug: string;
+    name: string;
+    title: string;
+    initials: string;
+    academy: string | null;
+    specialty: string;
+    biography: string;
+    availability: string;
+    isPrimaryAdvisor: boolean;
+    conversationId: string | null;
+  }[];
   unread: number;
   supportProfile: {
     outreachEnabled: boolean;
@@ -67,15 +81,18 @@ type PolicyGate = {
 
 export function FacultyMessages({
   initialConversationId,
-}: { initialConversationId?: string } = {}) {
+  initialFacultySlug,
+}: { initialConversationId?: string; initialFacultySlug?: string } = {}) {
   const [data, setData] = useState<MessagesData | null>(null);
   const [selectedId, setSelectedId] = useState(initialConversationId || "");
   const [message, setMessage] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [directorySearch, setDirectorySearch] = useState("");
   const [policyGate, setPolicyGate] = useState<PolicyGate | null>(null);
   const hasLoaded = useRef(false);
+  const requestedFacultyHandled = useRef("");
 
   const acceptPayload = useCallback((result: MessagesData) => {
     setData(result);
@@ -149,6 +166,74 @@ export function FacultyMessages({
     () => data?.conversations.find((item) => item.id === selectedId) || null,
     [data, selectedId],
   );
+  const filteredDirectory = useMemo(() => {
+    const query = directorySearch.trim().toLowerCase();
+    if (!query) return data?.directory || [];
+    return (data?.directory || []).filter((faculty) =>
+      `${faculty.name} ${faculty.title} ${faculty.academy || ""} ${faculty.specialty}`
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [data?.directory, directorySearch]);
+
+  const openFaculty = useCallback(
+    async (facultyProfileId: string, existingConversationId?: string | null) => {
+      if (existingConversationId) {
+        setSelectedId(existingConversationId);
+        document.getElementById("faculty-conversation")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+        return;
+      }
+      setNotice("Opening the faculty office…");
+      try {
+        const response = await fetch("/api/university/messages", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "start", facultyProfileId }),
+          signal: AbortSignal.timeout(15000),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok)
+          throw new Error(result.error || "The faculty office could not be opened.");
+        await load();
+        setSelectedId(result.conversationId);
+        setNotice("");
+        window.history.replaceState(null, "", "/university?view=messages");
+        requestAnimationFrame(() =>
+          document.getElementById("faculty-conversation")?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          }),
+        );
+      } catch (error) {
+        setNotice(
+          error instanceof Error
+            ? error.message
+            : "The faculty office could not be opened.",
+        );
+      }
+    },
+    [load],
+  );
+
+  useEffect(() => {
+    if (!data?.directory.length) return;
+    const slug =
+      initialFacultySlug ||
+      new URLSearchParams(window.location.search).get("faculty");
+    if (!slug) return;
+    if (requestedFacultyHandled.current === slug) return;
+    const faculty = data.directory.find((item) => item.slug === slug);
+    requestedFacultyHandled.current = slug;
+    if (!faculty) return;
+    const timer = setTimeout(
+      () => void openFaculty(faculty.id, faculty.conversationId),
+      0,
+    );
+    return () => clearTimeout(timer);
+  }, [data?.directory, initialFacultySlug, openFaculty]);
   const selectedConversationId = selected?.id;
   useEffect(() => {
     if (!selectedConversationId) return;
@@ -339,7 +424,57 @@ export function FacultyMessages({
         </aside>
       </header>
       {notice && <p className={styles.notice}>{notice}</p>}
-      <div className={styles.workspace}>
+      <section className={styles.facultyDirectory} aria-labelledby="faculty-directory-title">
+        <header>
+          <div>
+            <small>UNIVERSITY FACULTY DIRECTORY</small>
+            <h2 id="faculty-directory-title">Find the right person to ask.</h2>
+            <p>
+              Contact your advisor, a subject professor, Admissions, Academic
+              Records, Sponsored Learning, or the Dean’s office.
+            </p>
+          </div>
+          <label>
+            <Search size={17} />
+            <span className="sr-only">Search faculty</span>
+            <input
+              value={directorySearch}
+              onChange={(event) => setDirectorySearch(event.target.value)}
+              placeholder="Search by name, office, or specialty"
+            />
+          </label>
+        </header>
+        <div className={styles.directoryGrid}>
+          {filteredDirectory.map((faculty, index) => (
+            <motion.button
+              key={faculty.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: Math.min(index, 8) * 0.035 }}
+              onClick={() => void openFaculty(faculty.id, faculty.conversationId)}
+            >
+              <i>{faculty.initials}</i>
+              <span>
+                <small>{faculty.academy || "University Office"}</small>
+                <b>{faculty.name}</b>
+                <em>{faculty.title}</em>
+                <p>{faculty.specialty}</p>
+              </span>
+              <strong>
+                <MessageCircle size={15} />
+                {faculty.conversationId ? "Open" : "Message"}
+              </strong>
+              <ArrowRight size={16} />
+            </motion.button>
+          ))}
+          {!filteredDirectory.length && (
+            <div className={styles.directoryEmpty}>
+              <Users size={22} /> No faculty match that search.
+            </div>
+          )}
+        </div>
+      </section>
+      <div className={styles.workspace} id="faculty-conversation">
         <nav aria-label="Faculty conversations">
           {data.conversations.map((conversation) => (
             <button

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UniversityLearning } from "@/components/UniversityLearning";
 import { AcademicBoot } from "@/components/AcademicBoot";
+import { universityFacultyLinks } from "@/lib/ai-faculty";
 import styles from "./UniversityPortal.module.css";
 
 export type UniversityView =
@@ -71,6 +72,7 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
       : "dashboard";
   });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [facultySlug, setFacultySlug] = useState<string | null>(null);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [policyAlert, setPolicyAlert] = useState<PolicyAlert | null>(null);
   const [policyNoticeOpen, setPolicyNoticeOpen] = useState(false);
@@ -121,8 +123,19 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
     .join("");
   function choose(next: UniversityView) {
     setView(next);
+    setFacultySlug(null);
     setMobileOpen(false);
     window.history.replaceState(null, "", `/university?view=${next}`);
+  }
+  function openFaculty(slug: string) {
+    setFacultySlug(slug);
+    setView("messages");
+    setMobileOpen(false);
+    window.history.replaceState(
+      null,
+      "",
+      `/university?view=messages&faculty=${encodeURIComponent(slug)}`,
+    );
   }
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -282,6 +295,7 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
               view={view}
               userName={user.name}
               onNavigate={choose}
+              facultySlug={facultySlug}
             />
           </motion.div>
         </AnimatePresence>
@@ -312,6 +326,21 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
         <small>
           Independent online learning institution · Student responsibility $0.00
         </small>
+        <section className={styles.footerFaculty} aria-labelledby="footer-faculty-heading">
+          <header>
+            <span>FACULTY COMMONS</span>
+            <h2 id="footer-faculty-heading">University faculty and offices</h2>
+            <p>Select any name to open a private campus conversation.</p>
+          </header>
+          <div>
+            {universityFacultyLinks.map((faculty) => (
+              <button key={faculty.slug} onClick={() => openFaculty(faculty.slug)}>
+                <b>{faculty.name}</b>
+                <span>{faculty.office}</span>
+              </button>
+            ))}
+          </div>
+        </section>
       </footer>
       {policyNoticeOpen && policyAlert && (
         <div className={styles.policyNoticeBack} role="presentation">

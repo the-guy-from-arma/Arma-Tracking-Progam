@@ -11,7 +11,20 @@ import { StudentProfile } from "./StudentProfile";
 import { facultyForAcademy } from "@/lib/ai-faculty";
 import { FacultyMessages } from "./FacultyMessages";
 import { StudentPolicies } from "./StudentPolicies";
-import { Award, Banknote, BookOpenCheck, ClipboardList } from "lucide-react";
+import {
+  ArrowRight,
+  Award,
+  Banknote,
+  BookOpenCheck,
+  CalendarDays,
+  ChevronRight,
+  ClipboardList,
+  Compass,
+  GraduationCap,
+  MessageCircle,
+  Sparkles,
+  TrendingUp,
+} from "lucide-react";
 import { AcademicLoader } from "./AcademicLoader";
 
 type Enrollment = { id: string; status: string; progress: number };
@@ -248,10 +261,12 @@ export function UniversityLearning({
   view,
   userName,
   onNavigate,
+  facultySlug,
 }: {
   view: UniversityView;
   userName: string;
   onNavigate: (view: UniversityView) => void;
+  facultySlug?: string | null;
 }) {
   const router = useRouter();
   const [data, setData] = useState<Curriculum | null>(null);
@@ -371,11 +386,28 @@ export function UniversityLearning({
     );
 
   if (view === "student-center") return <StudentCenter />;
-  if (view === "messages") return <FacultyMessages />;
+  if (view === "messages")
+    return <FacultyMessages initialFacultySlug={facultySlug || undefined} />;
   if (view === "policies") return <StudentPolicies />;
   if (view === "profile") return <StudentProfile />;
 
-  if (view === "dashboard") {
+  if (view === "dashboard")
+    return (
+      <CampusHomeDashboard
+        data={data}
+        records={records}
+        funding={funding}
+        notifications={notifications}
+        userName={userName}
+        onNavigate={onNavigate}
+        openCourse={openCourse}
+        openAnnouncement={openAnnouncement}
+        activeAnnouncement={activeAnnouncement}
+        closeAnnouncement={() => setActiveAnnouncement(null)}
+      />
+    );
+
+  if (view === ("legacy-dashboard" as UniversityView)) {
     const next = data.nextCourse;
     const activeTerm = funding?.terms.find((term) => term.status === "ACTIVE");
     const totalDays = data.enrolled.reduce(
@@ -1028,6 +1060,349 @@ export function UniversityLearning({
           <Empty text="Approved assessment work will issue verifiable credentials here." />
         )}
       </div>
+    </section>
+  );
+}
+
+function CampusHomeDashboard({
+  data,
+  records,
+  funding,
+  notifications,
+  userName,
+  onNavigate,
+  openCourse,
+  openAnnouncement,
+  activeAnnouncement,
+  closeAnnouncement,
+}: {
+  data: Curriculum;
+  records: AcademyData | null;
+  funding: FundingData | null;
+  notifications: NotificationData | null;
+  userName: string;
+  onNavigate: (view: UniversityView) => void;
+  openCourse: (id: string) => Promise<void>;
+  openAnnouncement: (item: NotificationItem) => Promise<void>;
+  activeAnnouncement: NotificationItem | null;
+  closeAnnouncement: () => void;
+}) {
+  const next = data.nextCourse;
+  const activeTerm = funding?.terms.find((term) => term.status === "ACTIVE");
+  const totalDays = data.enrolled.reduce(
+    (sum, course) => sum + course._count.days,
+    0,
+  );
+  const doneDays = data.enrolled.reduce(
+    (sum, course) => sum + course.completedDays,
+    0,
+  );
+  const progress = totalDays ? Math.round((doneDays / totalDays) * 100) : 0;
+  const remainingDays = Math.max(0, totalDays - doneDays);
+  const firstName = userName.split(" ")[0];
+  const services = [
+    {
+      label: "Student Center",
+      detail: `${data.serviceCounts.activeEnrollments} active · ${data.serviceCounts.openApplications} applications`,
+      value: data.serviceCounts.activeEnrollments,
+      icon: ClipboardList,
+      view: "student-center" as UniversityView,
+    },
+    {
+      label: "Funding",
+      detail: `${money(funding?.balanceCents ?? data.grantBalanceCents)} available`,
+      value: funding?.expiringSoonCents ? "Review" : "Current",
+      icon: Banknote,
+      view: "funding" as UniversityView,
+    },
+    {
+      label: "Assignments",
+      detail: `${data.serviceCounts.pendingSubmissions} pending · ${data.serviceCounts.unreadFeedback} feedback`,
+      value: data.serviceCounts.pendingSubmissions,
+      icon: BookOpenCheck,
+      view: "submissions" as UniversityView,
+    },
+    {
+      label: "Credentials",
+      detail: `${data.serviceCounts.credentials} earned`,
+      value: data.serviceCounts.credentials,
+      icon: Award,
+      view: "credentials" as UniversityView,
+    },
+  ];
+
+  return (
+    <section className={`${styles.learning} ${styles.campusHome}`}>
+      <motion.header
+        className={styles.campusStage}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <div className={styles.campusAurora} aria-hidden="true" />
+        <div className={styles.campusStageCopy}>
+          <p className={styles.campusKicker}>
+            <span /> Enscript University · Student Campus
+          </p>
+          <h1>
+            Good to see you,
+            <em>{firstName}.</em>
+          </h1>
+          <p className={styles.campusStageLead}>
+            {next
+              ? `Your next studio session is ready in ${next.code}.`
+              : "Your academic space is ready. Choose where you want to begin."}
+          </p>
+          <div className={styles.campusStageActions}>
+            <button
+              className={styles.campusPrimaryAction}
+              onClick={() =>
+                next ? void openCourse(next.id) : onNavigate("catalog")
+              }
+            >
+              {next ? "Continue learning" : "Explore the course catalog"}
+              <ArrowRight size={18} />
+            </button>
+            <button
+              className={styles.campusTextAction}
+              onClick={() => onNavigate("messages")}
+            >
+              <MessageCircle size={17} /> Message your advisor
+            </button>
+          </div>
+        </div>
+
+        <div className={styles.campusProgressScene}>
+          <motion.div
+            className={styles.campusProgressHalo}
+            initial={{ scale: 0.88, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.18, duration: 0.7 }}
+            style={
+              { "--campus-progress": `${progress * 3.6}deg` } as React.CSSProperties
+            }
+          >
+            <span>
+              <strong>{progress}%</strong>
+              <small>coursework</small>
+            </span>
+          </motion.div>
+          <div className={styles.campusProgressCaption}>
+            <Sparkles size={16} />
+            <span>
+              <b>{doneDays} days completed</b>
+              <small>{remainingDays} remain in your active courses</small>
+            </span>
+          </div>
+        </div>
+      </motion.header>
+
+      <nav className={styles.campusDock} aria-label="Campus services">
+        {services.map((item, index) => {
+          const Icon = item.icon;
+          return (
+            <motion.button
+              key={item.label}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + index * 0.06 }}
+              whileHover={{ y: -4 }}
+              onClick={() => onNavigate(item.view)}
+            >
+              <i><Icon size={19} /></i>
+              <span>
+                <b>{item.label}</b>
+                <small>{item.detail}</small>
+              </span>
+              <em>{item.value}</em>
+              <ChevronRight size={17} />
+            </motion.button>
+          );
+        })}
+      </nav>
+
+      <div className={styles.campusFlow}>
+        <main className={styles.learningPath}>
+          <header className={styles.campusSectionHeading}>
+            <div>
+              <p>Your learning path</p>
+              <h2>Pick up where you left off</h2>
+            </div>
+            <button onClick={() => onNavigate("learning")}>
+              View all learning <ArrowRight size={16} />
+            </button>
+          </header>
+
+          {data.enrolled.length ? (
+            <div className={styles.learningRunway}>
+              {data.enrolled.slice(0, 5).map((course, index) => (
+                <motion.button
+                  key={course.id}
+                  className={styles.runwayCourse}
+                  initial={{ opacity: 0, x: -14 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.16 + index * 0.07 }}
+                  onClick={() => void openCourse(course.id)}
+                >
+                  <span className={styles.runwayMarker}>
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className={styles.runwayIdentity}>
+                    <small>{course.code} · {course.academy}</small>
+                    <b>{course.title}</b>
+                    <em>
+                      Day {Math.min(course._count.days, course.completedDays + 1)} of {course._count.days}
+                    </em>
+                  </span>
+                  <span className={styles.runwayProgress}>
+                    <i><span style={{ width: `${percent(course)}%` }} /></i>
+                    <b>{percent(course)}%</b>
+                  </span>
+                  <ArrowRight size={19} />
+                </motion.button>
+              ))}
+            </div>
+          ) : (
+            <motion.div
+              className={styles.emptyLearningPath}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.18 }}
+            >
+              <div className={styles.emptyPathArt} aria-hidden="true">
+                <Compass size={42} />
+                <span /><span /><span />
+              </div>
+              <div>
+                <p>Ready when you are</p>
+                <h3>Choose your first studio course.</h3>
+                <span>
+                  Explore guided courses or ask your advisor to shape a starting path.
+                </span>
+              </div>
+              <button onClick={() => onNavigate("catalog")}>
+                Discover courses <ArrowRight size={17} />
+              </button>
+            </motion.div>
+          )}
+
+          <div className={styles.academicRibbon}>
+            <article>
+              <GraduationCap size={20} />
+              <span><b>{records?.learningCredits || 0}</b><small>credits completed</small></span>
+            </article>
+            <article>
+              <TrendingUp size={20} />
+              <span><b>{doneDays}</b><small>learning days finished</small></span>
+            </article>
+            <article>
+              <BookOpenCheck size={20} />
+              <span><b>{data.coverage.mapped}</b><small>verified curriculum sources</small></span>
+            </article>
+            <button onClick={() => onNavigate("profile")}>
+              Open academic record <ArrowRight size={16} />
+            </button>
+          </div>
+        </main>
+
+        <aside className={styles.campusPulse}>
+          <header className={styles.campusSectionHeading}>
+            <div>
+              <p>Campus pulse</p>
+              <h2>What’s new</h2>
+            </div>
+            <span>{notifications?.unread || 0} unread</span>
+          </header>
+          <div className={styles.campusNewsStream}>
+            {notifications?.notifications.slice(0, 4).map((item, index) => (
+              <motion.button
+                key={item.id}
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.18 + index * 0.06 }}
+                onClick={() => void openAnnouncement(item)}
+              >
+                <i className={item.readAt ? styles.newsRead : styles.newsUnread} />
+                <span>
+                  <small>
+                    {new Date(item.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })} · {item.type}
+                  </small>
+                  <b>{item.title}</b>
+                  <p>{item.body}</p>
+                </span>
+                <ChevronRight size={17} />
+              </motion.button>
+            ))}
+            {!notifications?.notifications.length && (
+              <div className={styles.campusQuietState}>
+                <Sparkles size={21} />
+                <span><b>You’re all caught up.</b><small>New campus notices will appear here.</small></span>
+              </div>
+            )}
+          </div>
+          <button
+            className={styles.campusNewsLink}
+            onClick={() => onNavigate("notifications")}
+          >
+            All announcements <ArrowRight size={16} />
+          </button>
+
+          <div className={styles.nextDateLine}>
+            <CalendarDays size={21} />
+            <span>
+              <small>Next important date</small>
+              <b>Sponsored funding renewal</b>
+              <em>
+                {activeTerm
+                  ? new Date(activeTerm.endsAt).toLocaleDateString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : "Begins with your active term"}
+              </em>
+            </span>
+          </div>
+        </aside>
+      </div>
+
+      <section className={styles.facultyWalkway}>
+        <div>
+          <p>Faculty commons</p>
+          <h2>Support is part of the campus.</h2>
+          <button onClick={() => onNavigate("messages")}>
+            Visit messages <ArrowRight size={16} />
+          </button>
+        </div>
+        <div className={styles.facultyWalkwayPeople}>
+          {["Workbench Foundations", "Enforce Script", "Terrain and World Building"].map(
+            (academy, index) => {
+              const faculty = facultyForAcademy(academy);
+              return (
+                <motion.article
+                  key={faculty.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.26 + index * 0.07 }}
+                >
+                  <i>{faculty.initials}</i>
+                  <span><b>{faculty.name}</b><small>{faculty.specialty}</small></span>
+                  <em><span /> Available</em>
+                </motion.article>
+              );
+            },
+          )}
+        </div>
+      </section>
+
+      <AnimatePresence>
+        {activeAnnouncement && (
+          <AnnouncementReader item={activeAnnouncement} close={closeAnnouncement} />
+        )}
+      </AnimatePresence>
     </section>
   );
 }

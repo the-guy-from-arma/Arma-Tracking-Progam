@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { text } from "@/lib/input";
 import {
   processNextFacultyReply,
+  openFacultyConversation,
   queueFacultyReply,
   requestFacultySupport,
   retryFacultyReply,
@@ -61,6 +62,25 @@ export async function POST(request: Request) {
   }
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "send");
+  if (action === "start") {
+    try {
+      const conversation = await openFacultyConversation(
+        user.id,
+        text(body.facultyProfileId, 100),
+      );
+      return NextResponse.json({ conversationId: conversation.id });
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "The faculty office could not be opened.",
+        },
+        { status: 400 },
+      );
+    }
+  }
   const conversationId = text(body.conversationId, 100);
   const conversation = await db.facultyConversation.findFirst({
     where: { id: conversationId, studentId: user.id },

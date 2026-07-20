@@ -28,6 +28,29 @@ export const aiFaculty: AiFacultyProfile[] = [
   { id: "bell", name: "Dean Avery Bell", title: "Dean of Quality and Publishing", initials: "AV", specialty: "Testing, Workshop publishing, portfolios, and capstones", voice: "Supportive but exacting; they help students turn prototypes into credible releases.", officeHours: "Available through Campus Messages" },
 ];
 
+export const universityFacultyLinks = [
+  { slug: "elara-voss", name: "Dr. Elara Voss", office: "Academic Advising" },
+  { slug: "marisol-grant", name: "Dr. Marisol Grant", office: "Admissions" },
+  { slug: "theodore-wells", name: "Dr. Theodore Wells", office: "Academic Records" },
+  { slug: "dana-mercer", name: "Dana Mercer", office: "Sponsored Learning" },
+  { slug: "maya-chen", name: "Prof. Maya Chen", office: "Workbench Practice" },
+  { slug: "tomas-eklund", name: "Prof. Tomas Eklund", office: "Resource Systems" },
+  { slug: "nia-okafor", name: "Prof. Nia Okafor", office: "Enforce Engineering" },
+  { slug: "gabriel-rossi", name: "Prof. Gabriel Rossi", office: "Gameplay Architecture" },
+  { slug: "amina-haddad", name: "Prof. Amina Haddad", office: "Networked Simulation" },
+  { slug: "kenji-sato", name: "Prof. Kenji Sato", office: "World Technology" },
+  { slug: "sofia-alvarez", name: "Prof. Sofía Alvarez", office: "Intelligent Systems" },
+  { slug: "devon-price", name: "Prof. Devon Price", office: "Interface Design" },
+  { slug: "ilya-petrov", name: "Prof. Ilya Petrov", office: "Interactive Audio" },
+  { slug: "lucia-marin", name: "Prof. Lucía Marin", office: "Animation Systems" },
+  { slug: "amara-brooks", name: "Prof. Amara Brooks", office: "Materials and Effects" },
+  { slug: "marcus-reed", name: "Prof. Marcus Reed", office: "Armament Simulation" },
+  { slug: "hana-kovac", name: "Prof. Hana Kováč", office: "Vehicle Engineering" },
+  { slug: "malik-thompson", name: "Prof. Malik Thompson", office: "Character Production" },
+  { slug: "rachel-stein", name: "Prof. Rachel Stein", office: "Scenario Design" },
+  { slug: "avery-bell", name: "Dean Avery Bell", office: "Quality and Publishing" },
+] as const;
+
 export function facultyForAcademy(academy: string): AiFacultyProfile {
   const value = academy.toLowerCase();
   const exact: Record<string, number> = { "workbench foundations":1,"resource management":2,"enforce scripting":3,"gameplay systems":4,"multiplayer replication":5,"world and terrain":6,"artificial intelligence":7,"interface and localization":8,"audio production":9,"animation":10,"vfx and materials":11,"weapons":12,"vehicles":13,"characters and factions":14,"scenarios and game master":15,"quality and publishing":16 };
