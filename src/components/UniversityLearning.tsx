@@ -29,6 +29,15 @@ import {
 import { AcademicLoader } from "./AcademicLoader";
 
 type Enrollment = { id: string; status: string; progress: number };
+type ProgramEnrollment = {
+  id: string;
+  status: string;
+  creditsEarned: number;
+  enrolledAt: string;
+  completedAt: string | null;
+  withdrawnAt: string | null;
+  programChangePenaltyBps: number;
+};
 type Course = {
   id: string;
   code: string;
@@ -150,7 +159,7 @@ type Program = {
       workloadHours: number;
     };
   }[];
-  enrollments: Enrollment[];
+  enrollments: ProgramEnrollment[];
   applications: { id: string; status: string }[];
   audit: {
     fulfilledCourseIds: string[];
@@ -181,6 +190,7 @@ type ProgramsData = { programs: Program[]; degreeWordingEnabled: boolean };
 type EnrollmentConfirmation =
   | { kind: "COURSE"; course: CourseDetail }
   | { kind: "PROGRAM"; program: Program };
+type ProgramChangeSelection = { from: Program; to: Program };
 type FundingData = {
   balanceCents: number;
   pendingCents: number;
@@ -264,12 +274,18 @@ export function UniversityLearning({
   onNavigate,
   facultySlug,
   onOpenFaculty,
+  courseSelectionEnabled,
+  programSelectionEnabled,
+  onSelectionUnavailable,
 }: {
   view: UniversityView;
   userName: string;
   onNavigate: (view: UniversityView) => void;
   facultySlug?: string | null;
   onOpenFaculty: (slug: string) => void;
+  courseSelectionEnabled: boolean;
+  programSelectionEnabled: boolean;
+  onSelectionUnavailable: () => void;
 }) {
   const router = useRouter();
   const [data, setData] = useState<Curriculum | null>(null);
@@ -290,6 +306,8 @@ export function UniversityLearning({
   const [level, setLevel] = useState("ALL");
   const [enrollmentConfirmation, setEnrollmentConfirmation] =
     useState<EnrollmentConfirmation | null>(null);
+  const [programChange, setProgramChange] =
+    useState<ProgramChangeSelection | null>(null);
   const [error, setError] = useState("");
   const [renderedAt] = useState(() => Date.now());
 
@@ -369,6 +387,13 @@ export function UniversityLearning({
       ) || [],
     [programs, academy, level, search],
   );
+  const activeProgram = useMemo(
+    () =>
+      programs?.programs.find((program) =>
+        program.enrollments.some((item) => item.status === "ACTIVE"),
+      ) || null,
+    [programs],
+  );
   if (!data)
     return (
       <AcademicLoader
@@ -388,7 +413,13 @@ export function UniversityLearning({
       />
     );
 
-  if (view === "student-center") return <StudentCenter />;
+  if (view === "student-center")
+    return (
+      <StudentCenter
+        courseSelectionEnabled={courseSelectionEnabled}
+        onSelectionUnavailable={onSelectionUnavailable}
+      />
+    );
   if (view === "messages")
     return (
       <FacultyMessages
@@ -788,6 +819,11 @@ export function UniversityLearning({
                 onNavigate("student-center");
               }}
               enroll={() => {
+                if (!courseSelectionEnabled) {
+                  setPreviewCourse(null);
+                  onSelectionUnavailable();
+                  return;
+                }
                 setEnrollmentConfirmation({
                   kind: "COURSE",
                   course: previewCourse,
@@ -933,11 +969,11 @@ export function UniversityLearning({
                 className={styles.editorialProgramAction}
                 onClick={() => setSelectedProgram(program)}
               >
-                {program.enrollments.length && program.registrationSummary.withdrawn
+                {program.enrollments.some((item) => item.status === "ACTIVE") && program.registrationSummary.withdrawn
                   ? `RESOLVE ${program.registrationSummary.withdrawn} WITHDRAWN COURSE${program.registrationSummary.withdrawn === 1 ? "" : "S"} →`
-                  : program.enrollments.length && program.registrationSummary.missing
+                  : program.enrollments.some((item) => item.status === "ACTIVE") && program.registrationSummary.missing
                   ? `REGISTER ${program.registrationSummary.missing} REQUIRED COURSE${program.registrationSummary.missing === 1 ? "" : "S"} →`
-                  : program.enrollments.length
+                  : program.enrollments.some((item) => item.status === "ACTIVE")
                     ? "VIEW ACTIVE PROGRAM →"
                     : "READ PROGRAM DETAILS →"}
               </button>
@@ -956,10 +992,19 @@ export function UniversityLearning({
                 onNavigate("student-center");
               }}
               enroll={() => {
-                setEnrollmentConfirmation({
-                  kind: "PROGRAM",
-                  program: selectedProgram,
-                });
+                if (!programSelectionEnabled) {
+                  setSelectedProgram(null);
+                  onSelectionUnavailable();
+                  return;
+                }
+                if (activeProgram && activeProgram.id !== selectedProgram.id) {
+                  setProgramChange({ from: activeProgram, to: selectedProgram });
+                } else {
+                  setEnrollmentConfirmation({
+                    kind: "PROGRAM",
+                    program: selectedProgram,
+                  });
+                }
                 setSelectedProgram(null);
               }}
             />
@@ -983,6 +1028,16 @@ export function UniversityLearning({
               close={() => setEnrollmentConfirmation(null)}
               confirmed={async () => {
                 setEnrollmentConfirmation(null);
+                await load();
+              }}
+            />
+          )}
+          {programChange && (
+            <ProgramChangeModal
+              selection={programChange}
+              close={() => setProgramChange(null)}
+              confirmed={async () => {
+                setProgramChange(null);
                 await load();
               }}
             />
@@ -2089,6 +2144,7 @@ function ProgramDetail({
     ...new Set(program.requirements.map((item) => item.termNumber)),
   ];
   const faculty = facultyForAcademy(program.academy);
+  const isActive = program.enrollments.some((item) => item.status === "ACTIVE");
   return (
     <motion.div
       className={styles.detailBack}
@@ -2335,15 +2391,15 @@ function ProgramDetail({
             <b>{program.sponsoredBy}</b>
           </div>
           <button onClick={compare}>COMPARE OTHER PATHWAYS</button>
-          {program.enrollments.length && program.registrationSummary.withdrawn ? (
+          {isActive && program.registrationSummary.withdrawn ? (
             <button className={styles.primary} onClick={advising}>
               OPEN COURSE RE-ENTRY SUPPORT →
             </button>
-          ) : program.enrollments.length && program.registrationSummary.missing ? (
+          ) : isActive && program.registrationSummary.missing ? (
             <button className={styles.primary} onClick={enroll}>
               COMPLETE COURSE REGISTRATION →
             </button>
-          ) : program.enrollments.length ? (
+          ) : isActive ? (
             <button className={styles.primary} onClick={close}>
               PROGRAM ACTIVE
             </button>
@@ -2606,6 +2662,170 @@ function ProgramComparison({
           </button>
         </footer>
       </motion.section>
+    </motion.div>
+  );
+}
+
+type ProgramChangeQuote = {
+  graceHours: number;
+  elapsedHours: number;
+  progressPercent: number;
+  penaltyPercent: number;
+  currentBalanceImpactCents: number;
+  completedCreditsPreserved: boolean;
+  explanation: string;
+  coursePolicyNotice: string;
+  retainedActiveCourses: { code: string; title: string }[];
+  target: {
+    code: string;
+    title: string;
+    newAllocationCents: number;
+    newCourseCodes: string[];
+  } | null;
+};
+
+function ProgramChangeModal({
+  selection,
+  close,
+  confirmed,
+}: {
+  selection: ProgramChangeSelection;
+  close: () => void;
+  confirmed: () => Promise<void>;
+}) {
+  const activeEnrollment = selection.from.enrollments.find(
+    (item) => item.status === "ACTIVE",
+  );
+  const [quote, setQuote] = useState<ProgramChangeQuote | null>(null);
+  const [reason, setReason] = useState("");
+  const [policyAccepted, setPolicyAccepted] = useState(false);
+  const [courseAccepted, setCourseAccepted] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/university/programs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "quote_program_change",
+        enrollmentId: activeEnrollment?.id,
+        programId: selection.to.id,
+      }),
+    })
+      .then(async (response) => ({ response, result: await response.json() }))
+      .then(({ response, result }) => {
+        if (!active) return;
+        if (response.ok) setQuote(result.quote);
+        else setMessage(result.error || "The program-change quote is unavailable.");
+      })
+      .catch(() => {
+        if (active) setMessage("The program-change quote is unavailable. Please try again.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [activeEnrollment?.id, selection.to.id]);
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!activeEnrollment || !quote || !policyAccepted || !courseAccepted) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/university/programs", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "change_program",
+          enrollmentId: activeEnrollment.id,
+          programId: selection.to.id,
+          reason,
+          fundingAcknowledged: true,
+          refundPolicyAcknowledged: true,
+          programChangeAcknowledged: true,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) setMessage(result.error || "The program change could not be completed.");
+      else await confirmed();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <motion.div
+      className={styles.modalBack}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !busy) close();
+      }}
+    >
+      <motion.form
+        className={`${styles.applicationModal} ${styles.programChangeModal}`}
+        initial={{ scale: 0.96, y: 18 }}
+        animate={{ scale: 1, y: 0 }}
+        onSubmit={submit}
+      >
+        <button type="button" className={styles.modalClose} onClick={close} disabled={busy} aria-label="Close program change">
+          Ã—
+        </button>
+        <small>PROGRAM CHANGE REVIEW</small>
+        <h2>Move your academic pathway with a complete record.</h2>
+        <div className={styles.programChangeRoute}>
+          <span><small>CURRENT PROGRAM</small><b>{selection.from.title}</b><em>{selection.from.code}</em></span>
+          <ArrowRight aria-hidden="true" />
+          <span><small>NEW PROGRAM</small><b>{selection.to.title}</b><em>{selection.to.code}</em></span>
+        </div>
+        {!quote && !message && <p>Calculating the live 72-hour policy and curriculum impactâ€¦</p>}
+        {quote && (
+          <>
+            <section className={styles.changeDecision} data-grace={quote.penaltyPercent === 0}>
+              <div>
+                <small>{quote.penaltyPercent === 0 ? "72-HOUR GRACE PERIOD" : "AFTER THE GRACE PERIOD"}</small>
+                <h3>{quote.penaltyPercent === 0 ? "No program-change funding adjustment" : `${quote.penaltyPercent} point next-award adjustment`}</h3>
+                <p>{quote.explanation}</p>
+              </div>
+              <dl>
+                <div><dt>Program age</dt><dd>{quote.elapsedHours} hours</dd></div>
+                <div><dt>Completed progress</dt><dd>{quote.progressPercent}%</dd></div>
+                <div><dt>Balance change from switch</dt><dd>{money(quote.currentBalanceImpactCents)}</dd></div>
+              </dl>
+            </section>
+            <section className={styles.changeCurriculum}>
+              <h3>What changes when you confirm</h3>
+              <ul>
+                <li>Completed courses and earned credits remain on your record and apply wherever the new curriculum accepts them.</li>
+                <li>{quote.coursePolicyNotice}</li>
+                <li>{quote.target?.newCourseCodes.length ? `${quote.target.newCourseCodes.length} newly required courses will use ${money(quote.target.newAllocationCents)} of sponsored-learning value.` : "No new course allocation is required today; your existing and completed courses cover the immediate curriculum."}</li>
+              </ul>
+              {!!quote.retainedActiveCourses.length && (
+                <p><b>Courses remaining active:</b> {quote.retainedActiveCourses.map((course) => course.code).join(", ")}. Withdraw them separately only if you no longer intend to complete them.</p>
+              )}
+            </section>
+            <label className={styles.changeReason}>
+              WHY ARE YOU CHANGING PROGRAMS?
+              <textarea value={reason} onChange={(event) => setReason(event.target.value)} minLength={10} required placeholder="Tell advising what changed in your goals, schedule, or academic direction." />
+            </label>
+            <label className={styles.confirmationCheck}>
+              <input type="checkbox" checked={policyAccepted} onChange={(event) => setPolicyAccepted(event.target.checked)} />
+              <span>I understand the quoted 72-hour program-change rule and any next-award adjustment shown above.</span>
+            </label>
+            <label className={styles.confirmationCheck}>
+              <input type="checkbox" checked={courseAccepted} onChange={(event) => setCourseAccepted(event.target.checked)} />
+              <span>I understand active courses are not automatically withdrawn and newly required courses may create normal noncash curriculum allocations. Student responsibility remains $0.00.</span>
+            </label>
+            <button className={styles.primary} disabled={busy || reason.trim().length < 10 || !policyAccepted || !courseAccepted}>
+              {busy ? "CHANGING PROGRAMâ€¦" : "CONFIRM PROGRAM CHANGE â†’"}
+            </button>
+          </>
+        )}
+        {message && <em role="alert">{message}</em>}
+      </motion.form>
     </motion.div>
   );
 }

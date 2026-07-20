@@ -1284,20 +1284,26 @@ model AcademicProgram {
 }
 
 model ProgramEnrollment {
-  id                   String              @id @default(cuid())
-  programId            String
-  program              AcademicProgram     @relation(fields: [programId], references: [id], onDelete: Cascade)
-  userId               String
-  user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status               EnrollmentStatus    @default(ACTIVE)
-  creditsEarned        Int                 @default(0)
-  enrolledAt           DateTime            @default(now())
-  completedAt          DateTime?
-  programApplicationId String?             @unique
-  application          ProgramApplication? @relation(fields: [programApplicationId], references: [id], onDelete: SetNull)
+  id                          String              @id @default(cuid())
+  programId                   String
+  program                     AcademicProgram     @relation(fields: [programId], references: [id], onDelete: Cascade)
+  userId                      String
+  user                        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status                      EnrollmentStatus    @default(ACTIVE)
+  creditsEarned               Int                 @default(0)
+  enrolledAt                  DateTime            @default(now())
+  completedAt                 DateTime?
+  withdrawnAt                 DateTime?
+  withdrawalReason            String?
+  changeTargetProgramId       String?
+  programChangePenaltyBps     Int                 @default(0)
+  programChangePolicySnapshot Json?
+  programApplicationId        String?             @unique
+  application                 ProgramApplication? @relation(fields: [programApplicationId], references: [id], onDelete: SetNull)
 
   @@unique([programId, userId])
   @@index([userId, status])
+  @@index([userId, withdrawnAt])
 }
 
 model ProgramCourseRequirement {
@@ -1881,17 +1887,26 @@ model InstitutionPolicySetting {
 }
 
 model InstitutionOperationalSetting {
-  id             String             @id @default("institution-operations")
-  admissionsMode AdmissionsMode     @default(OPEN)
-  enrollmentMode EnrollmentMode     @default(OPEN)
-  learningMode   CampusLearningMode @default(ACTIVE)
-  timezone       String             @default("America/New_York")
-  publicTitle    String             @default("Campus is open")
-  publicMessage  String             @default("Admissions, enrollment, and learning services are available.")
-  reopensAt      DateTime?
-  season         CampusSeason       @default(GENERAL)
-  activePeriodId String?
-  updatedAt      DateTime           @updatedAt
+  id                      String             @id @default("institution-operations")
+  admissionsMode          AdmissionsMode     @default(OPEN)
+  enrollmentMode          EnrollmentMode     @default(OPEN)
+  learningMode            CampusLearningMode @default(ACTIVE)
+  timezone                String             @default("America/New_York")
+  publicTitle             String             @default("Campus is open")
+  publicMessage           String             @default("Admissions, enrollment, and learning services are available.")
+  reopensAt               DateTime?
+  season                  CampusSeason       @default(GENERAL)
+  activePeriodId          String?
+  campusBannerEnabled     Boolean            @default(false)
+  campusBannerTitle       String             @default("Welcome to Enscript University")
+  campusBannerMessage     String             @default("The university is continuing to grow. New campus services and learning experiences are being added regularly.")
+  campusBannerPreset      String?
+  campusBannerTone        String             @default("INSTITUTIONAL")
+  hiddenNavigationViews   Json               @default("[]")
+  courseSelectionEnabled  Boolean            @default(true)
+  programSelectionEnabled Boolean            @default(true)
+  experienceUpdatedAt     DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
 }
 
 model InstitutionOperationalPeriod {

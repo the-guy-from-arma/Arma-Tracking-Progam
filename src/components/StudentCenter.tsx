@@ -22,6 +22,22 @@ type Enrollment = {
     estimatedDays: number;
   };
 };
+type ProgramEnrollment = {
+  id: string;
+  status: string;
+  creditsEarned: number;
+  enrolledAt: string;
+  completedAt: string | null;
+  withdrawnAt: string | null;
+  programChangePenaltyBps: number;
+  program: {
+    id: string;
+    code: string;
+    title: string;
+    level: string;
+    creditsRequired: number;
+  };
+};
 type Grade = {
   id: string;
   totalScore: number;
@@ -60,6 +76,7 @@ type CenterData = {
     ownerOverrideMultiplierBps: number | null;
   };
   enrollments: Enrollment[];
+  programEnrollments: ProgramEnrollment[];
   grades: Grade[];
   applications: TrackedApplication[];
   policy: {
@@ -79,6 +96,16 @@ type WithdrawalQuote = {
   elapsedHours: number;
   progress: number;
   explanation: string;
+};
+type ProgramWithdrawalQuote = {
+  graceHours: number;
+  elapsedHours: number;
+  progressPercent: number;
+  penaltyPercent: number;
+  currentBalanceImpactCents: number;
+  explanation: string;
+  coursePolicyNotice: string;
+  retainedActiveCourses: { code: string; title: string }[];
 };
 type Recommendation = {
   courseCode: string;
@@ -202,7 +229,13 @@ const money = (cents: number) =>
     maximumFractionDigits: 0,
   }).format(cents / 100);
 
-export function StudentCenter() {
+export function StudentCenter({
+  courseSelectionEnabled = true,
+  onSelectionUnavailable,
+}: {
+  courseSelectionEnabled?: boolean;
+  onSelectionUnavailable?: () => void;
+}) {
   const [section, setSection] = useState<
     "overview" | "academic" | "applications" | "enrollment" | "advising"
   >(() => {
@@ -223,6 +256,11 @@ export function StudentCenter() {
   const [withdrawing, setWithdrawing] = useState<Enrollment | null>(null);
   const [withdrawalQuote, setWithdrawalQuote] =
     useState<WithdrawalQuote | null>(null);
+  const [withdrawingProgram, setWithdrawingProgram] =
+    useState<ProgramEnrollment | null>(null);
+  const [programWithdrawalQuote, setProgramWithdrawalQuote] =
+    useState<ProgramWithdrawalQuote | null>(null);
+  const [programPolicyAccepted, setProgramPolicyAccepted] = useState(false);
   const [message, setMessage] = useState("");
   const [answers, setAnswers] = useState<string[]>(Array(10).fill(""));
   const [question, setQuestion] = useState(0);
@@ -245,6 +283,14 @@ export function StudentCenter() {
   );
   const withdrawn = useMemo(
     () => data?.enrollments.filter((item) => item.status === "WITHDRAWN") || [],
+    [data],
+  );
+  const activePrograms = useMemo(
+    () => data?.programEnrollments.filter((item) => item.status === "ACTIVE") || [],
+    [data],
+  );
+  const withdrawnPrograms = useMemo(
+    () => data?.programEnrollments.filter((item) => item.status === "WITHDRAWN") || [],
     [data],
   );
   async function askAdvisor() {
@@ -271,6 +317,10 @@ export function StudentCenter() {
     setQuestion(10);
   }
   async function enroll(courseId: string) {
+    if (!courseSelectionEnabled) {
+      onSelectionUnavailable?.();
+      return;
+    }
     if (
       !confirm(
         "Final enrollment confirmation: apply internal noncash sponsored-learning credits and enroll now? This is not tuition, payment, financial aid, cash, or debt. Student responsibility remains $0.00. Withdrawal within 24 hours restores 100% unless final work was submitted; after 24 hours the lower time-and-progress restoration tier applies and may affect future renewals.",
@@ -340,6 +390,50 @@ export function StudentCenter() {
     else {
       setWithdrawing(null);
       setMessage(result.error);
+    }
+  }
+  async function openProgramWithdrawal(enrollment: ProgramEnrollment) {
+    setWithdrawingProgram(enrollment);
+    setProgramWithdrawalQuote(null);
+    setProgramPolicyAccepted(false);
+    const response = await fetch("/api/university/student-center", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "quote_program_withdrawal",
+        enrollmentId: enrollment.id,
+      }),
+    });
+    const result = await response.json();
+    if (response.ok) setProgramWithdrawalQuote(result.quote);
+    else {
+      setWithdrawingProgram(null);
+      setMessage(result.error);
+    }
+  }
+  async function withdrawProgram(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!withdrawingProgram || !programWithdrawalQuote || !programPolicyAccepted) return;
+    const reason = String(new FormData(event.currentTarget).get("reason") || "");
+    const response = await fetch("/api/university/student-center", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "withdraw_program",
+        enrollmentId: withdrawingProgram.id,
+        reason,
+        programChangeAcknowledged: true,
+      }),
+    });
+    const result = await response.json();
+    setMessage(
+      response.ok
+        ? `${withdrawingProgram.program.title} was withdrawn. Completed credits and active courses remain on your record.`
+        : result.error,
+    );
+    if (response.ok) {
+      setWithdrawingProgram(null);
+      await load();
     }
   }
   if (!data)
@@ -655,10 +749,33 @@ export function StudentCenter() {
       <div className={styles.records}>
         <section>
           <header>
-            <small>COURSE SERVICES</small>
-            <h2>Current enrollments</h2>
-            <span>{active.length} ACTIVE</span>
+            <small>ACADEMIC ENROLLMENT SERVICES</small>
+            <h2>Your active plan</h2>
+            <span>{activePrograms.length} PROGRAM Â· {active.length} COURSES</span>
           </header>
+          {activePrograms.map((item) => (
+            <article className={`${styles.enrollment} ${styles.programEnrollment}`} key={item.id}>
+              <div className={styles.progress}>
+                <b>{Math.round((item.creditsEarned / Math.max(1, item.program.creditsRequired)) * 100)}%</b>
+                <i
+                  style={
+                    {
+                      "--course-progress": `${Math.round((item.creditsEarned / Math.max(1, item.program.creditsRequired)) * 100)}%`,
+                    } as React.CSSProperties
+                  }
+                />
+              </div>
+              <div>
+                <small>{item.program.code} / {item.program.level.replaceAll("_", " ")}</small>
+                <h3>{item.program.title}</h3>
+                <span>{item.creditsEarned} of {item.program.creditsRequired} credits applied Â· completed credit is preserved during a change</span>
+              </div>
+              <div className={styles.programActions}>
+                <Link href="/university?view=programs">CHANGE PROGRAM</Link>
+                <button onClick={() => void openProgramWithdrawal(item)}>REVIEW WITHDRAWAL</button>
+              </div>
+            </article>
+          ))}
           {active.map((item) => (
             <article className={styles.enrollment} key={item.id}>
               <div className={styles.progress}>
@@ -721,6 +838,14 @@ export function StudentCenter() {
               </span>
             </li>
             <li>
+              <b>Program changes</b>
+              <span>
+                The first 72 hours carry no program-change adjustment. Later
+                changes affect the next award rate by a smaller program tier;
+                active courses use their own separate withdrawal policy.
+              </span>
+            </li>
+            <li>
               <b>Recovery</b>
               <span>
                 Improved finalized grades remove grade reductions. Owners can
@@ -747,6 +872,21 @@ export function StudentCenter() {
                   ? new Date(item.withdrawnAt).toLocaleDateString()
                   : "Recorded"}
               </time>
+            </div>
+          ))}
+        </section>
+      )}
+      {!!withdrawnPrograms.length && (
+        <section className={styles.history}>
+          <header>
+            <small>PROGRAM HISTORY</small>
+            <h2>Changed or withdrawn pathways</h2>
+          </header>
+          {withdrawnPrograms.map((item) => (
+            <div key={item.id}>
+              <span>{item.program.code} Â· {item.program.title}</span>
+              <b>{item.programChangePenaltyBps ? `${item.programChangePenaltyBps / 100} point next-award adjustment` : "72-hour grace Â· no adjustment"}</b>
+              <time>{item.withdrawnAt ? new Date(item.withdrawnAt).toLocaleDateString() : "Recorded"}</time>
             </div>
           ))}
         </section>
@@ -780,6 +920,59 @@ export function StudentCenter() {
         </section>
       )}
       <AnimatePresence>
+        {withdrawingProgram && (
+          <motion.div
+            className={styles.modalBack}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.form
+              className={`${styles.modal} ${styles.programWithdrawalModal}`}
+              onSubmit={withdrawProgram}
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+            >
+              <button type="button" onClick={() => setWithdrawingProgram(null)}>
+                Ã—
+              </button>
+              <small>LIVE PROGRAM WITHDRAWAL QUOTE</small>
+              <h2>{withdrawingProgram.program.title}</h2>
+              {programWithdrawalQuote ? (
+                <>
+                  <div className={styles.programQuote} data-grace={programWithdrawalQuote.penaltyPercent === 0}>
+                    <small>{programWithdrawalQuote.penaltyPercent === 0 ? "WITHIN 72-HOUR GRACE PERIOD" : "AFTER 72-HOUR GRACE PERIOD"}</small>
+                    <b>{programWithdrawalQuote.penaltyPercent === 0 ? "No program-change funding adjustment" : `${programWithdrawalQuote.penaltyPercent} point next-award adjustment`}</b>
+                    <p>{programWithdrawalQuote.explanation}</p>
+                  </div>
+                  <dl>
+                    <div><dt>Program age</dt><dd>{programWithdrawalQuote.elapsedHours} hours</dd></div>
+                    <div><dt>Program progress</dt><dd>{programWithdrawalQuote.progressPercent}%</dd></div>
+                    <div><dt>Available balance change</dt><dd>{money(programWithdrawalQuote.currentBalanceImpactCents)}</dd></div>
+                  </dl>
+                  <p><strong>Your academic record stays intact.</strong> Completed courses and credits are preserved. {programWithdrawalQuote.coursePolicyNotice}</p>
+                  {!!programWithdrawalQuote.retainedActiveCourses.length && (
+                    <p><strong>Still active after withdrawal:</strong> {programWithdrawalQuote.retainedActiveCourses.map((course) => course.code).join(", ")}.</p>
+                  )}
+                </>
+              ) : (
+                <p>Calculating your 72-hour program policy and academic recordâ€¦</p>
+              )}
+              <label>
+                WHY ARE YOU LEAVING THIS PROGRAM?
+                <textarea name="reason" required minLength={10} placeholder="Tell advising what changed in your goals, schedule, or academic direction." />
+              </label>
+              <label className={styles.programAcknowledgement}>
+                <input type="checkbox" checked={programPolicyAccepted} onChange={(event) => setProgramPolicyAccepted(event.target.checked)} />
+                <span>I understand this action withdraws the program only, preserves my completed credit, leaves active courses unchanged, and applies the quoted next-award adjustment only when outside 72 hours.</span>
+              </label>
+              <div>
+                <button type="button" onClick={() => setWithdrawingProgram(null)}>KEEP PROGRAM</button>
+                <button disabled={!programWithdrawalQuote || !programPolicyAccepted}>CONFIRM PROGRAM WITHDRAWAL</button>
+              </div>
+            </motion.form>
+          </motion.div>
+        )}
         {withdrawing && (
           <motion.div
             className={styles.modalBack}

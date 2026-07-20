@@ -164,6 +164,8 @@ export function operationalAvailability(status: Awaited<ReturnType<typeof refres
   return {
     admissions: status.admissionsMode === "OPEN",
     enrollment: status.enrollmentMode === "OPEN" && academicWrites,
+    courseSelection: status.courseSelectionEnabled && status.enrollmentMode === "OPEN" && academicWrites,
+    programSelection: status.programSelectionEnabled && status.enrollmentMode === "OPEN" && academicWrites,
     lessonReading: status.learningMode === "ACTIVE" || status.learningMode === "ACADEMIC_BREAK",
     lessonProgress: academicWrites,
     quizzes: academicWrites,
@@ -198,6 +200,15 @@ export async function publicCampusStatus() {
       reopensAt: null,
       season: "MAINTENANCE" as const,
       activePeriodId: null,
+      campusBannerEnabled: false,
+      campusBannerTitle: "Welcome to Enscript University",
+      campusBannerMessage: "The university is continuing to grow. New campus services and learning experiences are being added regularly.",
+      campusBannerPreset: null,
+      campusBannerTone: "INSTITUTIONAL",
+      hiddenNavigationViews: [],
+      courseSelectionEnabled: false,
+      programSelectionEnabled: false,
+      experienceUpdatedAt: new Date(),
       updatedAt: new Date(),
     };
     return {
@@ -235,6 +246,26 @@ export async function campusRestrictionResponse(capability: CampusCapability) {
       admissionsMode: status.admissionsMode,
       enrollmentMode: status.enrollmentMode,
       reopensAt: status.reopensAt,
+      statusUrl: status.statusUrl,
+    },
+    { status: 423 },
+  );
+}
+
+export async function selectionRestrictionResponse(kind: "COURSE" | "PROGRAM") {
+  const status = await campusStatus();
+  const enabled = kind === "COURSE"
+    ? status.availability.courseSelection
+    : status.availability.programSelection;
+  if (enabled) return null;
+  const label = kind === "COURSE" ? "Course" : "Program";
+  return NextResponse.json(
+    {
+      error: `${label} selection is not open right now. Welcome to Enscript University; your student record is ready, and we invite you to return soon to select your ${kind.toLowerCase()}.`,
+      code: "ACADEMIC_SELECTION_TEMPORARILY_UNAVAILABLE",
+      selection: kind,
+      courseSelectionEnabled: status.courseSelectionEnabled,
+      programSelectionEnabled: status.programSelectionEnabled,
       statusUrl: status.statusUrl,
     },
     { status: 423 },

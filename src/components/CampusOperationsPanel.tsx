@@ -11,6 +11,15 @@ type OperationsData = {
     publicTitle: string;
     publicMessage: string;
     reopensAt: string | null;
+    campusBannerEnabled: boolean;
+    campusBannerTitle: string;
+    campusBannerMessage: string;
+    campusBannerPreset: string | null;
+    campusBannerTone: string;
+    hiddenNavigationViews: string[];
+    courseSelectionEnabled: boolean;
+    programSelectionEnabled: boolean;
+    experienceUpdatedAt: string;
   };
   periods: {
     id: string;
@@ -90,6 +99,27 @@ const campusModes = [
   },
 ] as const;
 
+const bannerPresets = [
+  { id: "CUSTOM", label: "Custom announcement", tone: "INSTITUTIONAL", title: "", message: "" },
+  { id: "CAMPUS_BUILDING", label: "Campus development update", tone: "IMPORTANT", title: "Our university is growing", message: "Enscript University is actively expanding its courses, programs, faculty services, and campus tools. Some areas may open in stages. Thank you for being part of our founding student community." },
+  { id: "SEMESTER_START", label: "Semester beginning", tone: "CELEBRATION", title: "A new semester begins", message: "Welcome to a new Enscript University semester. Review your academic plan, confirm your current courses, and visit Campus Messages if you need guidance from your advisor or faculty." },
+  { id: "SPRING_RECESS", label: "Spring recess", tone: "SEASONAL", title: "Spring recess at Enscript University", message: "We hope you enjoy a restorative spring recess. Campus records and support remain available; review the campus status notice for any temporary learning restrictions." },
+  { id: "SUMMER_SESSION", label: "Summer session", tone: "SEASONAL", title: "Summer learning is underway", message: "The Enscript University summer session is open. Keep your study plan focused, check upcoming milestones, and contact your advisor whenever you need help planning the next step." },
+  { id: "FALL_WELCOME", label: "Fall semester welcome", tone: "CELEBRATION", title: "Welcome to the fall semester", message: "A new fall semester is beginning at Enscript University. Explore campus, reconnect with faculty, and review your academic plan before selecting your next learning experience." },
+  { id: "THANKSGIVING", label: "Thanksgiving message", tone: "SEASONAL", title: "A message of gratitude", message: "Enscript University is grateful for the creativity, discipline, and curiosity of our student community. We hope you have a safe and restorative Thanksgiving season." },
+  { id: "WINTER_RECESS", label: "Winter recess", tone: "SEASONAL", title: "Winter recess notice", message: "Enscript University wishes you a safe and restful winter recess. Campus records, policies, and support remain available while regular academic activity may be limited." },
+  { id: "HOLIDAY", label: "General holiday greeting", tone: "SEASONAL", title: "Warm wishes from Enscript University", message: "To every member of our campus community, we wish you a safe and meaningful holiday. Thank you for continuing to create, build, and innovate with us." },
+  { id: "NEW_YEAR", label: "New Year welcome", tone: "CELEBRATION", title: "Build what comes next", message: "Happy New Year from Enscript University. This is a new opportunity to set your academic goals, return to your learning studio, and build work you are proud to share." },
+] as const;
+
+const navigationOptions = [
+  ["learning", "My Courses"], ["programs", "Programs"], ["catalog", "Discover"],
+  ["student-center", "Student Center"], ["messages", "Campus Messages"],
+  ["faculty", "Faculty Commons"], ["policies", "Policies & Agreements"],
+  ["funding", "Funding"], ["submissions", "Assignments & Grades"],
+  ["notifications", "Announcements"], ["credentials", "Credentials"], ["profile", "Student Profile"],
+] as const;
+
 export function CampusOperationsPanel() {
   const [operations, setOperations] = useState<OperationsData | null>(null);
   const [admissions, setAdmissions] = useState<AdmissionsData | null>(null);
@@ -101,6 +131,15 @@ export function CampusOperationsPanel() {
   const [publicMessage, setPublicMessage] = useState(
     "Admissions, enrollment, and learning services are available.",
   );
+  const [bannerEnabled, setBannerEnabled] = useState(false);
+  const [bannerPreset, setBannerPreset] = useState("CUSTOM");
+  const [bannerTone, setBannerTone] = useState("INSTITUTIONAL");
+  const [bannerTitle, setBannerTitle] = useState("Welcome to Enscript University");
+  const [bannerMessage, setBannerMessage] = useState("");
+  const [bannerNotification, setBannerNotification] = useState(true);
+  const [hiddenNavigationViews, setHiddenNavigationViews] = useState<string[]>([]);
+  const [courseSelectionEnabled, setCourseSelectionEnabled] = useState(true);
+  const [programSelectionEnabled, setProgramSelectionEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -126,6 +165,14 @@ export function CampusOperationsPanel() {
         setLearningMode(operationsResult.status.learningMode);
         setPublicTitle(operationsResult.status.publicTitle);
         setPublicMessage(operationsResult.status.publicMessage);
+        setBannerEnabled(operationsResult.status.campusBannerEnabled);
+        setBannerPreset(operationsResult.status.campusBannerPreset || "CUSTOM");
+        setBannerTone(operationsResult.status.campusBannerTone || "INSTITUTIONAL");
+        setBannerTitle(operationsResult.status.campusBannerTitle);
+        setBannerMessage(operationsResult.status.campusBannerMessage);
+        setHiddenNavigationViews(Array.isArray(operationsResult.status.hiddenNavigationViews) ? operationsResult.status.hiddenNavigationViews : []);
+        setCourseSelectionEnabled(operationsResult.status.courseSelectionEnabled !== false);
+        setProgramSelectionEnabled(operationsResult.status.programSelectionEnabled !== false);
       } else setMessage(operationsResult.error || "CAMPUS OPERATIONS COULD NOT BE LOADED");
       if (admissionsResponse.ok) setAdmissions(admissionsResult);
     } catch {
@@ -144,6 +191,65 @@ export function CampusOperationsPanel() {
     setPublicTitle(mode.publicTitle);
     setPublicMessage(mode.publicMessage);
     if (mode.value !== "ACTIVE") setEnrollmentPaused(true);
+  }
+
+  function chooseBannerPreset(id: string) {
+    const preset = bannerPresets.find((item) => item.id === id) || bannerPresets[0];
+    setBannerPreset(preset.id);
+    if (preset.id !== "CUSTOM") {
+      setBannerTitle(preset.title);
+      setBannerMessage(preset.message);
+      setBannerTone(preset.tone);
+      setBannerEnabled(true);
+    }
+  }
+
+  function toggleNavigationView(view: string, visible: boolean) {
+    setHiddenNavigationViews((current) =>
+      visible ? current.filter((item) => item !== view) : [...new Set([...current, view])],
+    );
+  }
+
+  async function saveBanner(action: "publish_banner" | "clear_banner") {
+    if (saving) return;
+    setSaving(true);
+    setMessage(action === "publish_banner" ? "PUBLISHING CAMPUS ANNOUNCEMENT..." : "REMOVING CAMPUS ANNOUNCEMENT...");
+    try {
+      const response = await fetch("/api/admin/university/operations", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action, title: bannerTitle, message: bannerMessage, preset: bannerPreset, tone: bannerTone, sendNotification: bannerNotification }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      const result = await response.json();
+      setMessage(response.ok ? (action === "publish_banner" ? "CAMPUS ANNOUNCEMENT IS LIVE" : "CAMPUS ANNOUNCEMENT REMOVED") : result.error || "ANNOUNCEMENT COULD NOT BE UPDATED");
+      if (response.ok) await load();
+    } catch {
+      setMessage("THE ANNOUNCEMENT REQUEST DID NOT COMPLETE. RETRY SAFELY.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveExperienceControls() {
+    if (saving) return;
+    setSaving(true);
+    setMessage("UPDATING STUDENT CAMPUS ACCESS...");
+    try {
+      const response = await fetch("/api/admin/university/operations", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "set_experience", hiddenNavigationViews, courseSelectionEnabled, programSelectionEnabled }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      const result = await response.json();
+      setMessage(response.ok ? "STUDENT NAVIGATION AND SELECTION ACCESS UPDATED" : result.error || "CAMPUS ACCESS COULD NOT BE UPDATED");
+      if (response.ok) await load();
+    } catch {
+      setMessage("THE CAMPUS ACCESS REQUEST DID NOT COMPLETE. RETRY SAFELY.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function applySettings(overrides?: {
@@ -277,6 +383,68 @@ export function CampusOperationsPanel() {
         <article><small>ADMISSIONS</small><strong>{operations?.status.admissionsMode || "—"}</strong><span>{operations?.impact.pendingApplications || 0} active application records</span></article>
         <article><small>NEW ENROLLMENT</small><strong>{operations?.status.enrollmentMode || "—"}</strong><span>{operations?.impact.activeEnrollments || 0} active course enrollments</span></article>
         <article><small>ADMISSIONS ENGINE</small><strong>{admissions?.worker.enabled ? "ACTIVE" : "DISABLED"}</strong><span>{admissions?.worker.engine || "Deterministic review"}</span></article>
+      </div>
+
+      <div className={styles.experienceControlGrid}>
+        <section className={styles.announcementEditor}>
+          <header>
+            <div><span>CAMPUS HOME ANNOUNCEMENT</span><h3>Publish a student banner</h3></div>
+            <em data-active={bannerEnabled}>{bannerEnabled ? "LIVE" : "NOT DISPLAYED"}</em>
+          </header>
+          <label>
+            Announcement preset
+            <select value={bannerPreset} onChange={(event) => chooseBannerPreset(event.target.value)}>
+              {bannerPresets.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
+            </select>
+          </label>
+          <div className={styles.announcementFields}>
+            <label>Banner title<input value={bannerTitle} onChange={(event) => { setBannerTitle(event.target.value); setBannerPreset("CUSTOM"); }} maxLength={120} /></label>
+            <label>Presentation<select value={bannerTone} onChange={(event) => setBannerTone(event.target.value)}><option value="INSTITUTIONAL">Institutional</option><option value="CELEBRATION">Celebration</option><option value="SEASONAL">Seasonal</option><option value="IMPORTANT">Important update</option></select></label>
+          </div>
+          <label>Student message<textarea value={bannerMessage} onChange={(event) => { setBannerMessage(event.target.value); setBannerPreset("CUSTOM"); }} maxLength={700} /></label>
+          <div className={styles.bannerPreview} data-tone={bannerTone}>
+            <small>LIVE CAMPUS PREVIEW</small><b>{bannerTitle || "Announcement title"}</b><span>{bannerMessage || "Your student-facing message will appear here."}</span>
+          </div>
+          <label className={styles.inlineCheck}><input type="checkbox" checked={bannerNotification} onChange={(event) => setBannerNotification(event.target.checked)} /><span>Also add this announcement to every active student&apos;s Notifications record.</span></label>
+          <div className={styles.actions}>
+            <button type="button" disabled={saving || bannerTitle.trim().length < 3 || bannerMessage.trim().length < 12} onClick={() => void saveBanner("publish_banner")}>PUBLISH ANNOUNCEMENT</button>
+            {bannerEnabled && <button type="button" disabled={saving} onClick={() => void saveBanner("clear_banner")}>REMOVE FROM CAMPUS HOME</button>}
+          </div>
+        </section>
+
+        <section className={styles.experienceSettings}>
+          <header><span>STUDENT CAMPUS EXPERIENCE</span><h3>Navigation and selection access</h3></header>
+          <div className={styles.selectionToggles}>
+            <label className={styles.toggleCard}>
+              <input type="checkbox" checked={courseSelectionEnabled} onChange={(event) => setCourseSelectionEnabled(event.target.checked)} />
+              <span><b>Allow course selection</b><small>Students may browse at any time. Uncheck this to prevent new course enrollment.</small></span>
+            </label>
+            <label className={styles.toggleCard}>
+              <input type="checkbox" checked={programSelectionEnabled} onChange={(event) => setProgramSelectionEnabled(event.target.checked)} />
+              <span><b>Allow program selection</b><small>Uncheck this while pathways are being prepared. Existing programs and credits remain unchanged.</small></span>
+            </label>
+          </div>
+          {(!courseSelectionEnabled || !programSelectionEnabled) && (
+            <div className={styles.studentNoticePreview}>
+              <small>STUDENT POP-UP PREVIEW</small>
+              <b>Welcome to Enscript University</b>
+              <span>{!courseSelectionEnabled && !programSelectionEnabled ? "Course and program" : !courseSelectionEnabled ? "Course" : "Program"} selection is not open yet. Please return soon; your student record and campus access are ready.</span>
+            </div>
+          )}
+          <fieldset className={styles.navigationChecklist}>
+            <legend>Pages shown in student navigation</legend>
+            <p>Campus Home always remains available. Hidden pages keep their records and can be restored at any time.</p>
+            <div>
+              {navigationOptions.map(([id, label]) => (
+                <label key={id}><input type="checkbox" checked={!hiddenNavigationViews.includes(id)} onChange={(event) => toggleNavigationView(id, event.target.checked)} /><span>{label}</span></label>
+              ))}
+            </div>
+          </fieldset>
+          <div className={styles.actions}>
+            <button type="button" disabled={saving} onClick={() => void saveExperienceControls()}>APPLY STUDENT EXPERIENCE</button>
+            <button type="button" disabled={saving} onClick={() => { setHiddenNavigationViews([]); setCourseSelectionEnabled(true); setProgramSelectionEnabled(true); }}>RESET DRAFT TO ALL OPEN</button>
+          </div>
+        </section>
       </div>
 
       <div className={styles.operationsBody}>

@@ -52,6 +52,164 @@
   font-size: 12px;
   color: #9fb3c0;
 }
+.experienceControlGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+  gap: 24px;
+  margin-top: 24px;
+}
+.announcementEditor,
+.experienceSettings {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  border: 1px solid #2d4a5f;
+  background: #081926;
+  padding: 24px;
+}
+.announcementEditor > header,
+.experienceSettings > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: start;
+}
+.announcementEditor header span,
+.experienceSettings header span {
+  color: #58cce5;
+  font: 700 10px var(--font-plex-mono, monospace);
+  letter-spacing: .15em;
+}
+.announcementEditor h3,
+.experienceSettings h3 {
+  margin: 6px 0 0;
+  font: 400 28px var(--font-plex-serif, serif);
+}
+.announcementEditor header em {
+  border: 1px solid #496373;
+  padding: 7px 9px;
+  color: #839dab;
+  font: 700 8px var(--font-plex-mono, monospace);
+  letter-spacing: .08em;
+}
+.announcementEditor header em[data-active="true"] {
+  border-color: #63d8be;
+  color: #79e1c2;
+  background: #12342e;
+}
+.announcementEditor > label,
+.announcementFields label {
+  display: grid;
+  gap: 7px;
+  color: #9fb8c9;
+  font: 700 9px var(--font-plex-mono, monospace);
+  letter-spacing: .08em;
+}
+.announcementEditor input,
+.announcementEditor select,
+.announcementEditor textarea {
+  width: 100%;
+  border: 1px solid #3b5c70;
+  background: #0d2535;
+  color: #edf7fc;
+  padding: 12px;
+  font: 14px var(--font-plex-sans, sans-serif);
+}
+.announcementEditor textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+.announcementFields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px;
+  gap: 12px;
+}
+.bannerPreview,
+.studentNoticePreview {
+  display: grid;
+  gap: 6px;
+  padding: 17px 19px;
+  border-left: 4px solid #56c8dd;
+  background: linear-gradient(120deg, #102f43, #0b2637);
+}
+.bannerPreview[data-tone="CELEBRATION"] { border-left-color: #e1bd67; background: linear-gradient(120deg, #3b3020, #132d39); }
+.bannerPreview[data-tone="SEASONAL"] { border-left-color: #c79069; background: linear-gradient(120deg, #37281f, #112b38); }
+.bannerPreview[data-tone="IMPORTANT"] { border-left-color: #e2826f; background: linear-gradient(120deg, #3a2424, #112b38); }
+.bannerPreview small,
+.studentNoticePreview small {
+  color: #70d6e8;
+  font: 700 8px var(--font-plex-mono, monospace);
+  letter-spacing: .1em;
+}
+.bannerPreview b,
+.studentNoticePreview b {
+  color: #fff;
+  font: 500 19px var(--font-plex-serif, serif);
+}
+.bannerPreview span,
+.studentNoticePreview span {
+  color: #b7cad5;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.inlineCheck {
+  grid-template-columns: 18px 1fr !important;
+  align-items: start;
+  gap: 10px !important;
+  color: #b4c7d2 !important;
+  font: 400 12px/1.5 var(--font-plex-sans, sans-serif) !important;
+  letter-spacing: 0 !important;
+}
+.inlineCheck input {
+  width: 17px;
+  height: 17px;
+  margin: 1px 0 0;
+  accent-color: #63d8be;
+}
+.selectionToggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.studentNoticePreview {
+  border-left-color: #e1bd67;
+  background: #2d281e;
+}
+.navigationChecklist {
+  min-width: 0;
+  border: 1px solid #2f4e62;
+  padding: 17px;
+}
+.navigationChecklist legend {
+  padding: 0 7px;
+  color: #74d1e1;
+  font: 700 9px var(--font-plex-mono, monospace);
+  letter-spacing: .09em;
+}
+.navigationChecklist > p {
+  margin: 0 0 13px;
+  color: #8ea7b6;
+  font-size: 11px;
+}
+.navigationChecklist > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+}
+.navigationChecklist label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 7px 0;
+  color: #d5e3e9;
+  font-size: 11px;
+}
+.navigationChecklist input {
+  width: 16px;
+  height: 16px;
+  accent-color: #63d8be;
+}
 .operationsBody {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
@@ -328,6 +486,9 @@
   .operationsBody {
     grid-template-columns: 1fr;
   }
+  .experienceControlGrid {
+    grid-template-columns: 1fr;
+  }
 }
 @media (max-width: 650px) {
   .panel > header {
@@ -338,6 +499,11 @@
   .scheduler,
   .toggleGrid,
   .modeGrid {
+    grid-template-columns: 1fr;
+  }
+  .announcementFields,
+  .selectionToggles,
+  .navigationChecklist > div {
     grid-template-columns: 1fr;
   }
   .scheduler label,

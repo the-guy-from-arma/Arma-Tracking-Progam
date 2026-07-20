@@ -10,6 +10,10 @@ import { db } from "@/lib/db";
 import { text } from "@/lib/input";
 
 const learningModes = new Set(["ACTIVE", "ACADEMIC_BREAK", "MAINTENANCE", "EMERGENCY_CLOSURE"]);
+const navigationViews = new Set([
+  "learning", "programs", "catalog", "student-center", "messages", "faculty",
+  "policies", "funding", "submissions", "notifications", "credentials", "profile",
+]);
 
 async function owner() {
   const user = await currentUser();
@@ -52,6 +56,100 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Owner access required." }, { status: 403 });
   const body = await request.json().catch(() => ({}));
   const action = text(body.action, 30);
+
+  if (action === "publish_banner" || action === "clear_banner") {
+    await refreshOperationalStatus();
+    const enabled = action === "publish_banner";
+    const title = text(body.title, 120);
+    const message = text(body.message, 700);
+    const preset = text(body.preset, 60) || null;
+    const tone = ["INSTITUTIONAL", "CELEBRATION", "SEASONAL", "IMPORTANT"].includes(String(body.tone))
+      ? String(body.tone)
+      : "INSTITUTIONAL";
+    if (enabled && (title.length < 3 || message.length < 12)) {
+      return NextResponse.json({ error: "Add a banner title and a complete student message." }, { status: 400 });
+    }
+    const now = new Date();
+    const status = await db.institutionOperationalSetting.update({
+      where: { id: "institution-operations" },
+      data: {
+        campusBannerEnabled: enabled,
+        ...(enabled ? { campusBannerTitle: title, campusBannerMessage: message, campusBannerPreset: preset, campusBannerTone: tone } : {}),
+      },
+    });
+    await db.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: enabled ? "CAMPUS_BANNER_PUBLISHED" : "CAMPUS_BANNER_CLEARED",
+        entity: "InstitutionOperationalSetting",
+        entityId: status.id,
+        detail: enabled ? { title, message, preset, tone } : { previousTitle: status.campusBannerTitle },
+      },
+    });
+    if (enabled && body.sendNotification !== false) {
+      after(async () => {
+        try {
+          const students = await db.user.findMany({ where: { isStudent: true, accountClosedAt: null }, select: { id: true } });
+          if (students.length) await db.notification.createMany({
+            data: students.map((student) => ({ userId: student.id, type: "SYSTEM" as const, title, body: message, actionUrl: "/university?view=dashboard", dedupeKey: `campus-banner:${now.getTime()}:${student.id}` })),
+            skipDuplicates: true,
+          });
+        } catch { /* The published banner remains authoritative if notification delivery is delayed. */ }
+      });
+    }
+    return NextResponse.json({ status });
+  }
+
+  if (action === "set_experience") {
+    await refreshOperationalStatus();
+    const hiddenNavigationViews: string[] = Array.isArray(body.hiddenNavigationViews)
+      ? [...new Set<string>(
+          body.hiddenNavigationViews
+            .map((item: unknown) => String(item))
+            .filter((item: string) => navigationViews.has(item)),
+        )]
+      : [];
+    const courseSelectionEnabled = body.courseSelectionEnabled === true;
+    const programSelectionEnabled = body.programSelectionEnabled === true;
+    const previous = await db.institutionOperationalSetting.findUniqueOrThrow({ where: { id: "institution-operations" } });
+    const selectionChanged = previous.courseSelectionEnabled !== courseSelectionEnabled || previous.programSelectionEnabled !== programSelectionEnabled;
+    const now = new Date();
+    const status = await db.institutionOperationalSetting.update({
+      where: { id: "institution-operations" },
+      data: {
+        hiddenNavigationViews,
+        courseSelectionEnabled,
+        programSelectionEnabled,
+        ...(selectionChanged ? { experienceUpdatedAt: now } : {}),
+      },
+    });
+    await db.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: "CAMPUS_EXPERIENCE_CONTROLS_UPDATED",
+        entity: "InstitutionOperationalSetting",
+        entityId: status.id,
+        detail: { hiddenNavigationViews, courseSelectionEnabled, programSelectionEnabled, previous: { hiddenNavigationViews: previous.hiddenNavigationViews, courseSelectionEnabled: previous.courseSelectionEnabled, programSelectionEnabled: previous.programSelectionEnabled } },
+      },
+    });
+    if (selectionChanged) {
+      const allOpen = courseSelectionEnabled && programSelectionEnabled;
+      const title = allOpen ? "Course and program selection is open" : "Your campus account is ready";
+      const notice = allOpen
+        ? "You can now explore and select Enscript University courses and academic programs."
+        : `Welcome to Enscript University. ${!courseSelectionEnabled && !programSelectionEnabled ? "Course and program" : !courseSelectionEnabled ? "Course" : "Program"} selection is not open yet. Please return soon; your student record and campus access remain available.`;
+      after(async () => {
+        try {
+          const students = await db.user.findMany({ where: { isStudent: true, accountClosedAt: null }, select: { id: true } });
+          if (students.length) await db.notification.createMany({
+            data: students.map((student) => ({ userId: student.id, type: "SYSTEM" as const, title, body: notice, actionUrl: "/university?view=dashboard", dedupeKey: `selection-access:${now.getTime()}:${student.id}` })),
+            skipDuplicates: true,
+          });
+        } catch { /* Access controls do not depend on notification delivery. */ }
+      });
+    }
+    return NextResponse.json({ status });
+  }
 
   if (action === "set_controls") {
     const admissionsMode = body.admissionsPaused === true ? "PAUSED" : "OPEN";

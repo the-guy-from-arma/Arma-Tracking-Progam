@@ -430,6 +430,33 @@
     800 7px ui-monospace,
     monospace;
 }
+.programEnrollment {
+  margin: 16px 0 6px;
+  padding: 18px;
+  border: 1px solid #b9d6e4;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #edf7fa, #f8fbfc);
+}
+.programActions {
+  display: grid;
+  gap: 7px;
+  justify-items: stretch;
+}
+.programActions a,
+.programActions button {
+  min-width: 132px;
+  border: 1px solid #b7ccd8;
+  border-radius: 8px;
+  background: #fff;
+  color: #245c77;
+  padding: 9px 11px;
+  text-align: center;
+  text-decoration: none;
+  font: 700 8px var(--font-plex-mono, "IBM Plex Mono", monospace);
+}
+.programActions button {
+  color: #81443f;
+}
 .records ol {
   list-style: none;
   margin: 20px 0 0;
@@ -569,6 +596,81 @@
   border-color: #9b413c;
   background: #a94d46;
   color: white;
+}
+.programWithdrawalModal {
+  width: min(690px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  font-family: var(--font-plex-sans, "IBM Plex Sans", sans-serif);
+}
+.programQuote {
+  display: grid;
+  gap: 7px;
+  margin: 16px 0;
+  padding: 17px;
+  border-left: 4px solid #b66e36;
+  border-radius: 10px;
+  background: #fbf2e8;
+}
+.programQuote[data-grace="true"] {
+  border-left-color: #228261;
+  background: #e9f6ef;
+}
+.programQuote > small {
+  color: #39718a;
+  font: 700 8px var(--font-plex-mono, "IBM Plex Mono", monospace);
+  letter-spacing: .08em;
+}
+.programQuote > b {
+  color: #18374a;
+  font: 600 17px var(--font-plex-serif, "IBM Plex Serif", serif);
+}
+.programQuote p {
+  margin: 0;
+}
+.programWithdrawalModal dl {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0;
+  border: 1px solid #d3e0e7;
+  border-radius: 10px;
+}
+.programWithdrawalModal dl div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-left: 1px solid #d3e0e7;
+}
+.programWithdrawalModal dl div:first-child {
+  border-left: 0;
+}
+.programWithdrawalModal dt,
+.programWithdrawalModal dd {
+  margin: 0;
+  font-size: 10px;
+}
+.programWithdrawalModal dt {
+  color: #6a8191;
+}
+.programWithdrawalModal dd {
+  color: #193c51;
+  font-weight: 700;
+}
+.modal .programAcknowledgement {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 10px;
+  align-items: start;
+  color: #294c5e;
+  font: 500 11px/1.55 var(--font-plex-sans, "IBM Plex Sans", sans-serif);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.programAcknowledgement input {
+  width: 17px;
+  min-height: 17px;
+  margin: 2px 0 0;
+  accent-color: #176987;
 }
 .loading {
   min-height: 70vh;
@@ -1039,6 +1141,14 @@
 :global([data-university-theme="dark"]) .advisor { border-color:#31566c; background:linear-gradient(145deg,#0c263a,#123752); }
 :global([data-university-theme="dark"]) .modal { border-color:#31566c; background:#0e2130; color:#e5edf2; }
 :global([data-university-theme="dark"]) .modal textarea { border-color:#365269; background:#091722; color:#e5edf2; }
+:global([data-university-theme="dark"]) .programEnrollment { border-color:#31566c; background:linear-gradient(135deg,#102b3a,#0c202d); }
+:global([data-university-theme="dark"]) .programActions a,
+:global([data-university-theme="dark"]) .programActions button { border-color:#365a6c; background:#091923; color:#bfe5f2; }
+:global([data-university-theme="dark"]) .programQuote { background:#30251a; }
+:global([data-university-theme="dark"]) .programQuote[data-grace="true"] { background:#123329; }
+:global([data-university-theme="dark"]) .programQuote > b,
+:global([data-university-theme="dark"]) .programWithdrawalModal dd,
+:global([data-university-theme="dark"]) .modal .programAcknowledgement { color:#dbe8ec; }
 .recommendationFaculty{display:flex!important;align-items:center;gap:10px;margin-top:14px!important}.recommendationFaculty>b{display:grid;width:34px;height:34px;border-radius:50%;color:#8de3eb;background:#174862;font:600 8px var(--font-plex-mono,monospace);place-items:center}.recommendationFaculty>span{display:grid}.recommendationFaculty small{color:#62b5d0!important;font-size:7px!important}.recommendationFaculty strong{margin-top:2px;color:#e9f3f5;font-size:11px}.recommendationFaculty em{margin:3px 0 0!important;padding:0!important;border:0!important;color:#8fa9b7!important;font-size:8px!important}
 .center{font-family:var(--font-plex-sans,"IBM Plex Sans",sans-serif)}.hero h1,.advisor h2,.advisor h3,.records h2,.history h2{font-family:var(--font-plex-serif,"IBM Plex Serif",serif);font-weight:600}.advisor>header p,.hero>div>span,.results p{font-size:13px;line-height:1.7}
 
@@ -1053,4 +1163,5 @@
 :global([data-university-theme="dark"]) .hero{border-color:#315264;background:radial-gradient(circle at 82% 5%,#2b829d30,transparent 34%),linear-gradient(135deg,#102737,#0c202e);color:#edf4f7;box-shadow:0 18px 50px #0003}:global([data-university-theme="dark"]) .hero>div>span{color:#aec0c8}:global([data-university-theme="dark"]) .hero aside{border-color:#36596b;background:#132f40}:global([data-university-theme="dark"]) .hero aside span{color:#9dc4b2}:global([data-university-theme="dark"]) .standingGrid article,:global([data-university-theme="dark"]) .applicationTracker,:global([data-university-theme="dark"]) .records>section,:global([data-university-theme="dark"]) .records>aside,:global([data-university-theme="dark"]) .history{border-color:#315264;background:#102635;color:#e8f0f4;box-shadow:0 12px 34px #0003}:global([data-university-theme="dark"]) .standingGrid span,:global([data-university-theme="dark"]) .applicationTracker p,:global([data-university-theme="dark"]) .records span,:global([data-university-theme="dark"]) .records li span{color:#adc0c9}
 @media(max-width:1050px){.hero{grid-template-columns:minmax(0,1fr) 270px}.standingGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.records{grid-template-columns:1fr}}
 @media(max-width:700px){.center{padding-inline:14px}.hero{grid-template-columns:1fr;padding:24px}.hero:after{display:none}.hero aside{width:100%}.standingGrid{grid-template-columns:1fr}.standingGrid article{min-height:0}.applicationTracker>header,.records>section,.records>aside,.history{padding:22px}.enrollment{grid-template-columns:1fr}.enrollment>button{justify-self:start}.advisor>header{grid-template-columns:1fr}.bot{justify-self:start;margin-top:20px}.interview{padding:28px 24px}.options{grid-template-columns:1fr}}
+@media(max-width:700px){.programActions{justify-items:start}.programActions a,.programActions button{width:100%}.programWithdrawalModal dl{grid-template-columns:1fr}.programWithdrawalModal dl div{border-left:0;border-top:1px solid #d3e0e7}.programWithdrawalModal dl div:first-child{border-top:0}}
 @media(prefers-reduced-motion:reduce){.centerNav button,.centerNav a,.options button{transition:none}.options button:hover,.options button.selected{transform:none}}

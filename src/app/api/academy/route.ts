@@ -7,7 +7,7 @@ import { queueSubmissionForAi } from "@/lib/ai-grading";
 import { getCompletedCourseIds, getProgramSequenceBlockers } from "@/lib/academic-progress";
 import { ensureStudentFacultyNetwork } from "@/lib/faculty-network";
 import { policyGateResponse } from "@/lib/policies";
-import { campusRestrictionResponse, campusStatus, studentAcademicRestrictionResponse } from "@/lib/campus-operations";
+import { campusRestrictionResponse, campusStatus, selectionRestrictionResponse, studentAcademicRestrictionResponse } from "@/lib/campus-operations";
 import { activateAcademicProgram } from "@/lib/program-enrollment";
 
 const courseLevels = new Set(["FOUNDATION", "INTERMEDIATE", "ADVANCED", "CAPSTONE"]);
@@ -72,6 +72,8 @@ export async function POST(request: Request) {
   const action = String(body.action || "");
 
   if (["enroll_course", "enroll_program"].includes(action)) { const gate = await campusRestrictionResponse("ENROLLMENT") || await studentAcademicRestrictionResponse(user.id, "ENROLLMENT"); if (gate) return gate; }
+  if (action === "enroll_course") { const gate = await selectionRestrictionResponse("COURSE"); if (gate) return gate; }
+  if (action === "enroll_program") { const gate = await selectionRestrictionResponse("PROGRAM"); if (gate) return gate; }
   if (action === "submit_mod") { const gate = await campusRestrictionResponse("SUBMISSION") || await studentAcademicRestrictionResponse(user.id, "SUBMISSION"); if (gate) return gate; }
 
   if (action === "create_course") {

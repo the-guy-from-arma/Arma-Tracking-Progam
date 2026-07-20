@@ -70,6 +70,14 @@ type OperationalAlert = {
   publicMessage: string;
   reopensAt: string | null;
   season: string;
+  campusBannerEnabled: boolean;
+  campusBannerTitle: string;
+  campusBannerMessage: string;
+  campusBannerTone: string;
+  hiddenNavigationViews: string[];
+  courseSelectionEnabled: boolean;
+  programSelectionEnabled: boolean;
+  experienceUpdatedAt: string;
 };
 
 export function UniversityPortal({ user }: { user: PortalUser }) {
@@ -88,6 +96,7 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
   const [policyAlert, setPolicyAlert] = useState<PolicyAlert | null>(null);
   const [policyNoticeOpen, setPolicyNoticeOpen] = useState(false);
   const [operations, setOperations] = useState<OperationalAlert | null>(null);
+  const [selectionNoticeOpen, setSelectionNoticeOpen] = useState(false);
   useEffect(() => {
     const initialize = setTimeout(() => {
       const saved = localStorage.getItem("efu:theme");
@@ -98,8 +107,24 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       void fetch("/api/campus/status", { cache: "no-store" })
-        .then((response) => response.json())
-        .then((result) => setOperations(result))
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Campus status unavailable");
+          return response.json();
+        })
+        .then((result: OperationalAlert) => {
+          setOperations(result);
+          const hidden = Array.isArray(result.hiddenNavigationViews) ? result.hiddenNavigationViews : [];
+          setView((current) => {
+            if (!hidden.includes(current)) return current;
+            window.history.replaceState(null, "", "/university?view=dashboard");
+            return "dashboard";
+          });
+          if (result.courseSelectionEnabled && result.programSelectionEnabled) return;
+          const noticeKey = `enscript:selection-notice:${result.experienceUpdatedAt}`;
+          if (sessionStorage.getItem(noticeKey)) return;
+          sessionStorage.setItem(noticeKey, "shown");
+          setSelectionNoticeOpen(true);
+        })
         .catch(() => undefined);
     }, 0);
     return () => clearTimeout(timer);
@@ -132,7 +157,21 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
     .map((part) => part[0])
     .slice(0, 2)
     .join("");
+  const hiddenViews = new Set(
+    Array.isArray(operations?.hiddenNavigationViews)
+      ? operations.hiddenNavigationViews
+      : [],
+  );
+  const visibleStudentViews = studentViews.filter(
+    (item) => item.id === "dashboard" || !hiddenViews.has(item.id),
+  );
   function choose(next: UniversityView) {
+    if (hiddenViews.has(next)) {
+      setView("dashboard");
+      setMobileOpen(false);
+      window.history.replaceState(null, "", "/university?view=dashboard");
+      return;
+    }
     setView(next);
     setFacultySlug(null);
     setMobileOpen(false);
@@ -160,6 +199,9 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
       return next;
     });
   }
+  function selectionUnavailable() {
+    setSelectionNoticeOpen(true);
+  }
 
   return (
     <main className={styles.campus} data-university-theme={theme}>
@@ -180,16 +222,18 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
               priority
             />
           </Link>
-          <button
-            className={styles.courseSelector}
-            onClick={() => choose("learning")}
-          >
-            <span>MY COURSES</span>
-            <b>
-              {view === "learning" ? "Active learning" : "Open course selector"}
-            </b>
-            <i>⌄</i>
-          </button>
+          {!hiddenViews.has("learning") && (
+            <button
+              className={styles.courseSelector}
+              onClick={() => choose("learning")}
+            >
+              <span>MY COURSES</span>
+              <b>
+                {view === "learning" ? "Active learning" : "Open your courses"}
+              </b>
+              <i>⌄</i>
+            </button>
+          )}
           <nav className={styles.utilities} aria-label="Student utilities">
             <button
               className={styles.themeToggle}
@@ -199,38 +243,46 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
               <i>{theme === "dark" ? "☀" : "◐"}</i>
               <span>{theme === "dark" ? "Light" : "Dark"}</span>
             </button>
-            <button
-              onClick={() => choose("student-center")}
-              aria-label="Student center"
-            >
-              <i>?</i>
-              <span>Help</span>
-            </button>
-            <button
-              onClick={() => choose("notifications")}
-              aria-label="Announcements"
-            >
-              <i>◌</i>
-              <span>Alerts</span>
-              <em />
-            </button>
-            <button
-              onClick={() => choose("submissions")}
-              aria-label="Assignments and grades"
-            >
-              <i>✓</i>
-              <span>Grades</span>
-            </button>
-            <button
-              className={styles.profileButton}
-              onClick={() => choose("profile")}
-            >
-              <i>{initials}</i>
-              <span>
-                <b>{user.name}</b>
-                <small>{user.studentNumber || "STUDENT PROFILE"}</small>
-              </span>
-            </button>
+            {!hiddenViews.has("student-center") && (
+              <button
+                onClick={() => choose("student-center")}
+                aria-label="Student center"
+              >
+                <i>?</i>
+                <span>Help</span>
+              </button>
+            )}
+            {!hiddenViews.has("notifications") && (
+              <button
+                onClick={() => choose("notifications")}
+                aria-label="Announcements"
+              >
+                <i>◌</i>
+                <span>Alerts</span>
+                <em />
+              </button>
+            )}
+            {!hiddenViews.has("submissions") && (
+              <button
+                onClick={() => choose("submissions")}
+                aria-label="Assignments and grades"
+              >
+                <i>✓</i>
+                <span>Grades</span>
+              </button>
+            )}
+            {!hiddenViews.has("profile") && (
+              <button
+                className={styles.profileButton}
+                onClick={() => choose("profile")}
+              >
+                <i>{initials}</i>
+                <span>
+                  <b>{user.name}</b>
+                  <small>{user.studentNumber || "STUDENT PROFILE"}</small>
+                </span>
+              </button>
+            )}
           </nav>
           <button
             className={styles.menuButton}
@@ -247,7 +299,7 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
         aria-label="University navigation"
       >
         <div>
-          {studentViews.map((item) => (
+          {visibleStudentViews.map((item) => (
             <button
               key={item.id}
               className={view === item.id ? styles.active : ""}
@@ -267,6 +319,21 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
           <span><b>{operations.publicTitle}</b> {operations.publicMessage}</span>
           {operations.reopensAt && <time dateTime={operations.reopensAt}>REOPENS {new Date(operations.reopensAt).toLocaleString()}</time>}
         </div>
+      )}
+      {view === "dashboard" && operations?.campusBannerEnabled && (
+        <motion.section
+          className={styles.campusAnnouncement}
+          data-tone={operations.campusBannerTone}
+          role="status"
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <span>ENSCRIPT UNIVERSITY · CAMPUS ANNOUNCEMENT</span>
+          <div><b>{operations.campusBannerTitle}</b><p>{operations.campusBannerMessage}</p></div>
+          {!hiddenViews.has("notifications") && (
+            <button onClick={() => choose("notifications")}>OPEN ANNOUNCEMENTS →</button>
+          )}
+        </motion.section>
       )}
       {view === "dashboard" &&
         policyAlert?.bundleStatus === "ACTION_REQUIRED" && (
@@ -308,6 +375,9 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
               onNavigate={choose}
               facultySlug={facultySlug}
               onOpenFaculty={openFaculty}
+              courseSelectionEnabled={operations?.courseSelectionEnabled !== false}
+              programSelectionEnabled={operations?.programSelectionEnabled !== false}
+              onSelectionUnavailable={selectionUnavailable}
             />
           </motion.div>
         </AnimatePresence>
@@ -326,19 +396,15 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
           />
         </div>
         <nav>
-          <button onClick={() => choose("student-center")}>
-            Student Services
-          </button>
-          <button onClick={() => choose("funding")}>Funding Center</button>
-          <button onClick={() => choose("profile")}>Academic Record</button>
-          <button onClick={() => choose("policies")}>
-            Policies & Agreements
-          </button>
+          {!hiddenViews.has("student-center") && <button onClick={() => choose("student-center")}>Student Services</button>}
+          {!hiddenViews.has("funding") && <button onClick={() => choose("funding")}>Funding Center</button>}
+          {!hiddenViews.has("profile") && <button onClick={() => choose("profile")}>Academic Record</button>}
+          {!hiddenViews.has("policies") && <button onClick={() => choose("policies")}>Policies & Agreements</button>}
         </nav>
         <small>
           Independent online learning institution · Student responsibility $0.00
         </small>
-        <section className={styles.footerFaculty} aria-labelledby="footer-faculty-heading">
+        {!hiddenViews.has("faculty") && <section className={styles.footerFaculty} aria-labelledby="footer-faculty-heading">
           <header>
             <span>FACULTY COMMONS</span>
             <h2 id="footer-faculty-heading">Faculty and university offices</h2>
@@ -356,8 +422,35 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
               <span>Faculty Commons →</span>
             </button>
           </div>
-        </section>
+        </section>}
       </footer>
+      {selectionNoticeOpen && operations && (
+        <div className={styles.selectionNoticeBack} role="presentation">
+          <motion.section
+            className={styles.selectionNotice}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="selection-notice-title"
+            initial={{ opacity: 0, scale: .96, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+          >
+            <button className={styles.policyNoticeClose} aria-label="Close selection notice" onClick={() => setSelectionNoticeOpen(false)}>×</button>
+            <span>WELCOME TO ENSCRIPT UNIVERSITY</span>
+            <h2 id="selection-notice-title">Your campus account is ready.</h2>
+            <p>
+              {!operations.courseSelectionEnabled && !operations.programSelectionEnabled
+                ? "Course and program selection is not open yet."
+                : !operations.courseSelectionEnabled
+                  ? "Course selection is not open yet."
+                  : "Program selection is not open yet."} Please return soon to choose your next academic experience. Your student profile, records, messages, policies, and available campus services remain protected.
+            </p>
+            <div>
+              <button onClick={() => setSelectionNoticeOpen(false)}>CONTINUE TO CAMPUS HOME</button>
+              {!hiddenViews.has("notifications") && <button onClick={() => { setSelectionNoticeOpen(false); choose("notifications"); }}>VIEW ANNOUNCEMENTS →</button>}
+            </div>
+          </motion.section>
+        </div>
+      )}
       {policyNoticeOpen && policyAlert && (
         <div className={styles.policyNoticeBack} role="presentation">
           <section

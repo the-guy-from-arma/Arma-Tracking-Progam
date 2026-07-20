@@ -52,12 +52,13 @@ export function calculateFundingStanding(input: { scores: number[]; withdrawalCo
 export async function getOrCreateFundingStanding(userId: string) { return db.studentFundingStanding.upsert({ where: { userId }, update: {}, create: { userId } }); }
 
 export async function recalculateFundingStanding(userId: string) {
-  const [current, withdrawals, decisions] = await Promise.all([
+  const [current, withdrawals, programChanges, decisions] = await Promise.all([
     getOrCreateFundingStanding(userId),
     db.courseEnrollment.findMany({ where: { userId, status: "WITHDRAWN" }, select: { withdrawalPenaltyBps: true } }),
+    db.programEnrollment.findMany({ where: { userId, status: "WITHDRAWN" }, select: { programChangePenaltyBps: true } }),
     db.aiGradeDecision.findMany({ where: { status: "AUTO_FINALIZED", submission: { studentId: userId, appeals: { none: { status: { in: ["SUBMITTED", "IN_REVIEW"] } } } } }, select: { totalScore: true, createdAt: true }, orderBy: { createdAt: "desc" } }),
   ]);
-  const calculated = calculateFundingStanding({ scores: decisions.map((item) => item.totalScore), withdrawalCount: withdrawals.length, withdrawalPenaltyBps: withdrawals.reduce((sum, item) => sum + item.withdrawalPenaltyBps, 0), ownerOverrideMultiplierBps: current.ownerOverrideMultiplierBps });
+  const calculated = calculateFundingStanding({ scores: decisions.map((item) => item.totalScore), withdrawalCount: withdrawals.length, withdrawalPenaltyBps: withdrawals.reduce((sum, item) => sum + item.withdrawalPenaltyBps, 0) + programChanges.reduce((sum, item) => sum + item.programChangePenaltyBps, 0), ownerOverrideMultiplierBps: current.ownerOverrideMultiplierBps });
   return db.studentFundingStanding.update({ where: { userId }, data: { ...calculated, withdrawalCount: withdrawals.length, lastGradeAt: decisions[0]?.createdAt || null } });
 }
 

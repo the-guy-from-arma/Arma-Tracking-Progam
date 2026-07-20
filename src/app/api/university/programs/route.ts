@@ -5,8 +5,9 @@ import { text } from "@/lib/input";
 import { trackingEvent } from "@/lib/application-tracking";
 import { buildProgramAudits, getCompletedCourseIds, getProgramAudit } from "@/lib/academic-progress";
 import { policyGateResponse } from "@/lib/policies";
-import { campusRestrictionResponse, studentAcademicRestrictionResponse } from "@/lib/campus-operations";
+import { campusRestrictionResponse, selectionRestrictionResponse, studentAcademicRestrictionResponse } from "@/lib/campus-operations";
 import { activateAcademicProgram } from "@/lib/program-enrollment";
+import { changeAcademicProgram, quoteProgramChange } from "@/lib/program-change";
 
 export async function GET() {
   const user = await currentUser();
@@ -52,11 +53,28 @@ export async function POST(request: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   if (user.isStudent) { const gate = await policyGateResponse(user.id); if (gate) return gate; }
-  { const gate = await campusRestrictionResponse("ENROLLMENT") || await studentAcademicRestrictionResponse(user.id, "ENROLLMENT"); if (gate) return gate; }
   const body = await request.json().catch(() => ({}));
   const programId = text(body.programId, 100);
+  const action = text(body.action, 40) || "enroll_program";
+  const enrollmentId = text(body.enrollmentId, 100);
+  if (action === "quote_program_change") {
+    try {
+      return NextResponse.json(await quoteProgramChange(user.id, enrollmentId, programId || undefined));
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "A program-change quote could not be prepared." }, { status: 409 });
+    }
+  }
+  { const gate = await campusRestrictionResponse("ENROLLMENT") || await studentAcademicRestrictionResponse(user.id, "ENROLLMENT"); if (gate) return gate; }
+  { const gate = await selectionRestrictionResponse("PROGRAM"); if (gate) return gate; }
   if (body.fundingAcknowledged !== true || body.refundPolicyAcknowledged !== true) return NextResponse.json({ error: "Review and acknowledge the sponsored-learning allocation and withdrawal policy before activating a program." }, { status: 400 });
   try {
+    if (action === "change_program") {
+      const reason = text(body.reason, 500);
+      if (!enrollmentId || !programId || reason.length < 10 || body.programChangeAcknowledged !== true) {
+        return NextResponse.json({ error: "Choose both programs, provide a brief reason, and acknowledge the program-change quote." }, { status: 400 });
+      }
+      return NextResponse.json(await changeAcademicProgram({ userId: user.id, actorId: user.id, enrollmentId, targetProgramId: programId, reason }), { status: 201 });
+    }
     const result = await activateAcademicProgram({
       userId: user.id,
       actorId: user.id,
