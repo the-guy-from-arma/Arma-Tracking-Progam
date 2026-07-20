@@ -14,7 +14,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const host = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host") || "localhost:3000";
   const protocol = requestHeaders.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
   const origin = `${protocol}://${host}`;
-  const image = `${origin}/og.png`;
+  // Keep the social card on a university-specific, versioned URL so link
+  // unfurlers cannot reuse the retired Project VALORIS preview cached at /og.png.
+  const image = `${origin}/enfusion-university-social-2026.png?v=20260719`;
 
   return {
     title: { default: "Enfusion University", template: "%s · Enfusion University" },
@@ -28,14 +30,14 @@ export async function generateMetadata(): Promise<Metadata> {
       description: "A complete online campus for Enfusion development education and studio-assessed learning.",
       url: origin,
       siteName: "Enfusion University",
-      images: [{ url: image, width: 1792, height: 922, alt: "Enfusion University — Create, Build, Innovate" }],
+      images: [{ url: image, secureUrl: image, width: 1731, height: 909, type: "image/png", alt: "Enfusion University — Create, Build, Innovate" }],
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
       title: "Enfusion University",
       description: "Structured Enfusion development education and sponsored learning.",
-      images: [image],
+      images: [{ url: image, alt: "Enfusion University — Create, Build, Innovate" }],
     },
   };
 }
