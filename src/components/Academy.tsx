@@ -43,7 +43,7 @@ export function Academy({ initialTab = "catalog", context = "valoris" }: { initi
   const university = context === "university";
   return <div className="academy">
     <section className="academyHero">
-      <div><p className="kicker">{university ? "ENFUSION UNIVERSITY / ONLINE CAMPUS" : "PROJECT VALORIS / DEVELOPMENT ACADEMY"}</p><h2>{university ? <>Your education.<br/><em>Built in practice.</em></> : <>Learn by building.<br/><em>Advance by shipping.</em></>}</h2><p>{university ? "A professional student experience for course enrollment, assessed mod assignments, studio feedback, academic pathways, and permanent learner records." : "Studio-authored courses turn real Arma Reforger mods into reviewed portfolio work, community credentials, and progressive learning pathways."}</p></div>
+      <div><p className="kicker">{university ? "ENSCRIPT UNIVERSITY / ONLINE CAMPUS" : "PROJECT VALORIS / DEVELOPMENT ACADEMY"}</p><h2>{university ? <>Your education.<br/><em>Built in practice.</em></> : <>Learn by building.<br/><em>Advance by shipping.</em></>}</h2><p>{university ? "A professional student experience for course enrollment, assessed mod assignments, studio feedback, academic pathways, and permanent learner records." : "Studio-authored courses turn real Arma Reforger mods into reviewed portfolio work, community credentials, and progressive learning pathways."}</p></div>
       <aside><span>ACADEMIC RECORD</span><strong>{data.learningCredits}</strong><small>COMMUNITY LEARNING CREDITS</small><div><b>{data.certificates.length}</b> credentials earned</div></aside>
     </section>
     <nav className="academyTabs" aria-label="Academy sections">

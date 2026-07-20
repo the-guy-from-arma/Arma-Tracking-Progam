@@ -93,7 +93,7 @@ export function AuthForm({
           {owner
             ? "A separate administrative surface for admissions, sponsorship, curriculum synchronization, AI assessment operations, and audit controls."
             : university
-              ? "Enfusion University is a complete online campus for structured courses, assessed mod assignments, academic pathways, and durable learner records."
+              ? "Enscript University is a complete online campus for structured courses, assessed mod assignments, academic pathways, and durable learner records."
               : "Project VALORIS brings live development work, studio collaboration, approvals, and community leadership into one professional network."}
         </p>
         <div className="accessSignals">
@@ -125,7 +125,7 @@ export function AuthForm({
                     ? "Student sign in"
                     : "Enter Project VALORIS"
                   : university
-                    ? "Apply to Enfusion University"
+                    ? "Apply to Enscript University"
                     : "Join Project VALORIS"}
             </h2>
             <p>
@@ -133,7 +133,7 @@ export function AuthForm({
                 ? "Use the Railway-configured owner account. Student accounts are refused here."
                 : mode === "login"
                   ? university
-                    ? "Use your internal EFU ID or recovery email."
+                    ? "Use your internal ESU ID or recovery email."
                     : "Open your development workspace."
                   : university
                     ? "Your internal institution identity is issued after registration."
@@ -157,14 +157,14 @@ export function AuthForm({
               DEVELOPMENT CONCENTRATION <small>OPTIONAL</small>
               <input
                 name="specialty"
-                placeholder="Enfusion scripting, terrain, audio…"
+                placeholder="Enfusion Workbench scripting, terrain, audio…"
               />
             </label>
           </>
         )}
         <label>
           {university && mode === "login"
-            ? "INTERNAL EFU ID OR RECOVERY EMAIL"
+            ? "INTERNAL ESU ID OR RECOVERY EMAIL"
             : mode === "register"
               ? "PERSONAL / RECOVERY EMAIL"
               : "EMAIL"}
@@ -175,7 +175,7 @@ export function AuthForm({
             autoComplete="email"
             placeholder={
               university
-                ? "alex.morgan@enfusionuniversity.edu"
+                ? "alex.morgan@enscriptuniversity.edu"
                 : "developer@studio.com"
             }
           />
@@ -225,14 +225,14 @@ export function AuthForm({
         )}
         {university && (
           <p className="identityDisclosure">
-            The @enfusionuniversity.edu EFU ID is an internal website login. It
+            The @enscriptuniversity.edu ESU ID is an internal website login. It
             is not an internet email mailbox.
           </p>
         )}
       </form>
       <footer className="accessFoot">
         {university
-          ? "ENFUSION UNIVERSITY / COMMUNITY-BASED ONLINE EDUCATION"
+          ? "ENSCRIPT UNIVERSITY / COMMUNITY-BASED ONLINE EDUCATION"
           : "PROJECT VALORIS / THUNDER BUDDIES STUDIOS × BLACK RIDGE STUDIOS"}{" "}
         / 2026
       </footer>
@@ -245,23 +245,23 @@ function Brand({ university, owner }: { university: boolean; owner: boolean }) {
     return (
       <div className="brand authInstitutionBrand">
         <Image
-          src="/enfusion-university-lockup.png"
-          alt="Enfusion University"
-          width={1600}
-          height={388}
+          src="/enscript-university-lockup.png"
+          alt="Enscript University"
+          width={1983}
+          height={793}
         />
         {owner && <small>OWNER ADMINISTRATION · RESTRICTED ACCESS</small>}
       </div>
     );
   return (
     <div className="brand">
-      <b>{owner ? "OA" : university ? "EU" : "V"}</b>
+      <b>{owner ? "OA" : university ? "ES" : "V"}</b>
       <span>
         <strong>
           {owner
             ? "OWNER ADMINISTRATION"
             : university
-              ? "ENFUSION UNIVERSITY"
+              ? "ENSCRIPT UNIVERSITY"
               : "PROJECT VALORIS"}
         </strong>
         <small>

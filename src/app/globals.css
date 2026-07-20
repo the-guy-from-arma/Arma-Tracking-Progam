@@ -1878,27 +1878,26 @@ button {
   display: grid;
   place-items: center;
   padding: 30px;
-  background: radial-gradient(circle at 50% 15%, #17392d, #040907 58%);
+  background: radial-gradient(circle at 50% 12%, #16324a, #040b12 62%);
 }
 .credentialSheet {
   width: min(920px, 100%);
   min-height: 620px;
-  border: 1px solid #4b7868;
+  border: 1px solid #8e7347;
   background:
-    radial-gradient(circle at 80% 10%, #69e4b914, transparent 30%),
-    linear-gradient(145deg, #10231c, #07100d);
+    radial-gradient(circle at 80% 10%, #c9a46220, transparent 32%),
+    linear-gradient(145deg, #0d263a, #07141f);
   padding: 55px;
   box-shadow: 0 30px 100px #000;
   position: relative;
 }
 .credentialSheet:after {
-  content: "V";
+  content: "";
   position: absolute;
-  right: 55px;
-  top: 70px;
-  color: #69e4b90d;
-  font: 260px/1 var(--mono);
-  font-weight: 800;
+  inset: 105px 45px 100px;
+  background: url("/enscript-university-lockup.png") center / min(76%, 620px) auto no-repeat;
+  opacity: 0.035;
+  pointer-events: none;
 }
 .credentialSheet > header {
   display: flex;
@@ -1922,7 +1921,7 @@ button {
 }
 .credentialSheet header p {
   margin: 0;
-  color: var(--mint);
+  color: #d8b875;
   font: 9px var(--mono);
   letter-spacing: 1.7px;
 }
@@ -1932,7 +1931,7 @@ button {
 }
 .credentialOverline {
   margin: 75px 0 12px;
-  color: #71867c;
+  color: #b99a62;
   font: 8px var(--mono);
   letter-spacing: 2px;
 }
@@ -1952,7 +1951,7 @@ button {
 .credentialSheet h2 {
   font-size: 26px;
   font-weight: 450;
-  color: var(--mint);
+  color: #d8b875;
   margin: 0;
 }
 .credentialCopy {
@@ -1965,8 +1964,8 @@ button {
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   margin-top: 35px;
-  border-top: 1px solid #315146;
-  border-bottom: 1px solid #315146;
+  border-top: 1px solid #66583f;
+  border-bottom: 1px solid #66583f;
   padding: 18px 0;
 }
 .credentialMeta span {
@@ -1984,7 +1983,7 @@ button {
 }
 .credentialSheet > footer strong {
   font: 9px var(--mono);
-  color: var(--mint);
+  color: #d8b875;
 }
 .credentialSheet > footer p {
   font-size: 9px;
@@ -2095,9 +2094,8 @@ button {
     grid-template-columns: repeat(2, 1fr);
   }
   .credentialSheet:after {
-    right: 10px;
-    top: 100px;
-    font-size: 180px;
+    inset: 130px 16px 110px;
+    background-size: min(92%, 620px) auto;
   }
 }
 

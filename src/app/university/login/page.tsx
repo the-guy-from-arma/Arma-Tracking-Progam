@@ -4,8 +4,8 @@ import { currentUser } from "@/lib/auth";
 import { UniversitySignIn } from "@/components/UniversitySignIn";
 
 export const metadata: Metadata = {
-  title: "Student sign in | Enfusion University",
-  description: "Secure access to the Enfusion University student campus.",
+  title: "Student sign in | Enscript University",
+  description: "Secure access to the Enscript University student campus.",
 };
 
 export const dynamic = "force-dynamic";

@@ -7,7 +7,7 @@ import { policyCompliance } from "@/lib/policies";
 
 export const INITIAL_GRANT_CENTS = 5_000_000;
 export const ESTIMATED_PROGRAM_VALUE_CENTS = 4_275_000;
-const DECISION_VERSION = "efu-character-duration-v1";
+const DECISION_VERSION = "enscript-character-duration-v1";
 const MIN_REVIEW_DELAY_MS = 90_000;
 const MAX_REVIEW_DELAY_MS = 10 * 60_000;
 const REVIEW_DELAY_PER_CHARACTER_MS = 150;
@@ -52,7 +52,7 @@ export function admissionReviewTiming(input: ReviewTimingInput, from = new Date(
 }
 
 function identityDomain() {
-  return String(process.env.UNIVERSITY_IDENTITY_DOMAIN || "enfusionuniversity.edu").trim().toLowerCase().replace(/^@/, "");
+  return "enscriptuniversity.edu";
 }
 
 function aliasFor(name: string, studentNumber: string) {
@@ -63,10 +63,10 @@ function aliasFor(name: string, studentNumber: string) {
 
 async function ensureOrientationCourse(tx: Prisma.TransactionClient) {
   const course = await tx.course.upsert({
-    where: { code: "EFU-ORI-100" },
+    where: { code: "ESU-ORI-100" },
     update: { status: "DRAFT", catalogVisible: false, learningCredits: 0, serviceValueCents: 0 },
     create: {
-      code: "EFU-ORI-100",
+      code: "ESU-ORI-100",
       title: "Campus Orientation & Academic Readiness",
       summary: "A guided introduction to campus navigation, academic records, sponsored-learning terminology, integrity expectations, advising, and thoughtful course selection.",
       deliverable: "Complete the orientation checklist and prepare a first-course planning note with your academic advisor.",
@@ -88,9 +88,9 @@ async function ensureOrientationCourse(tx: Prisma.TransactionClient) {
     create: {
       courseId: course.id,
       dayNumber: 1,
-      title: "Your first day at Enfusion University",
+      title: "Your first day at Enscript University",
       objectives: ["Locate essential campus services", "Review academic expectations", "Prepare a first-course conversation"],
-      instructionalText: "Welcome to Enfusion University. This orientation introduces the records, support systems, policies, and planning tools that will follow you throughout your studies.",
+      instructionalText: "Welcome to Enscript University. This orientation introduces the records, support systems, policies, and planning tools that will follow you throughout your studies.",
       sourceSection: "Institutional orientation; no external technical source is required.",
       workbenchSteps: ["Open Student Center", "Review Policies & Agreements", "Open Funding Center", "Locate Messages", "Write your first-course planning note"],
       practicalLab: "Visit each core campus service and prepare a short note describing the first technical skill you want to build.",
@@ -112,7 +112,7 @@ export async function finalizeAdmission(applicationId: string, actorId?: string 
       if (!guardian || guardian.status !== "VERIFIED" || !guardian.adultVerified || !guardian.nameMatched)
         throw new Error("Verified parent or guardian consent is required before this applicant can be admitted.");
     }
-    const studentNumber = `EFU-${new Date().getUTCFullYear()}-${crypto.randomInt(100000, 999999)}`;
+    const studentNumber = `ESU-${new Date().getUTCFullYear()}-${crypto.randomInt(100000, 999999)}`;
     const academicEmail = `${aliasFor(application.user.name, studentNumber)}@${identityDomain()}`;
     const nextBalance = application.user.grantBalanceCents + INITIAL_GRANT_CENTS;
     const user = await tx.user.update({
@@ -129,7 +129,7 @@ export async function finalizeAdmission(applicationId: string, actorId?: string 
     const fundingAward = await tx.fundingAward.upsert({
       where: { referenceNumber: `ADMISSION-${user.id}` },
       update: {},
-      create: { referenceNumber: `ADMISSION-${user.id}`, userId: user.id, type: "INTERNAL_GRANT", sourceName: "Thunder Buddies Studios Sponsored Learning Grant", originalAmountCents: INITIAL_GRANT_CENTS, remainingAmountCents: INITIAL_GRANT_CENTS, publicDescription: "Opening sponsored-learning value issued upon admission.", restrictions: "Eligible Enfusion University learning services only; noncashable and nontransferable.", issuingDepartment: "Office of Admissions" },
+      create: { referenceNumber: `ADMISSION-${user.id}`, userId: user.id, type: "INTERNAL_GRANT", sourceName: "Thunder Buddies Studios Sponsored Learning Grant", originalAmountCents: INITIAL_GRANT_CENTS, remainingAmountCents: INITIAL_GRANT_CENTS, publicDescription: "Opening sponsored-learning value issued upon admission.", restrictions: "Eligible Enscript University learning services only; noncashable and nontransferable.", issuingDepartment: "Office of Admissions" },
     });
     await tx.grantLedger.upsert({
       where: { idempotencyKey: `admission-award:${user.id}` },
@@ -145,10 +145,10 @@ export async function finalizeAdmission(applicationId: string, actorId?: string 
     await tx.notification.upsert({
       where: { dedupeKey: `admission-welcome:${user.id}` },
       update: {},
-      create: { userId: user.id, type: "ACADEMIC", title: "Welcome to Enfusion University", body: "Your student identity is active. Begin Campus Orientation, then meet with Dr. Elara Voss before confirming your first technical course.", actionUrl: "/university?view=learning", dedupeKey: `admission-welcome:${user.id}` },
+      create: { userId: user.id, type: "ACADEMIC", title: "Welcome to Enscript University", body: "Your student identity is active. Begin Campus Orientation, then meet with Dr. Elara Voss before confirming your first technical course.", actionUrl: "/university?view=learning", dedupeKey: `admission-welcome:${user.id}` },
     });
-    await tx.studentActivityEvent.create({ data: { studentId: user.id, actorId: actorId || user.id, type: "APPLICATION", title: "Admitted to Enfusion University", detail: "Automated review completed and the student record was activated.", entity: "StudentApplication", entityId: application.id } });
-    await tx.studentActivityEvent.create({ data: { studentId: user.id, actorId: actorId || user.id, type: "ENROLLMENT", title: "Enrolled in EFU-ORI-100", detail: orientation.title, entity: "CourseEnrollment", entityId: enrollment.id } });
+    await tx.studentActivityEvent.create({ data: { studentId: user.id, actorId: actorId || user.id, type: "APPLICATION", title: "Admitted to Enscript University", detail: "Automated review completed and the student record was activated.", entity: "StudentApplication", entityId: application.id } });
+    await tx.studentActivityEvent.create({ data: { studentId: user.id, actorId: actorId || user.id, type: "ENROLLMENT", title: "Enrolled in ESU-ORI-100", detail: orientation.title, entity: "CourseEnrollment", entityId: enrollment.id } });
     await tx.auditLog.create({ data: { actorId: actorId || user.id, action: "UNIVERSITY_STUDENT_AUTO_ADMITTED", entity: "StudentApplication", entityId: application.id, detail: { studentNumber, academicEmail, orientationCourseId: orientation.id, grantAwardCents: INITIAL_GRANT_CENTS } } });
     return { user, admitted: true };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
@@ -303,6 +303,6 @@ export function admissionAwardSummary(academicIdentity: string, studentNumber: s
       { label: "Workbench e-services and learning infrastructure", amountCents: 675_000 },
       { label: "Portfolio assessment and credential services", amountCents: 600_000 },
     ],
-    disclosure: "Estimated sponsored-service values are internal program estimates. The grant is non-cash, is not federal student aid, creates no debt, and may only be allocated to Enfusion University learning services.",
+    disclosure: "Estimated sponsored-service values are internal program estimates. The grant is non-cash, is not federal student aid, creates no debt, and may only be allocated to Enscript University learning services.",
   };
 }

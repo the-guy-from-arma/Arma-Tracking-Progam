@@ -8,11 +8,11 @@ echo "[startup] Applying PostgreSQL migrations."
 pnpm exec prisma migrate deploy
 echo "[startup] Checking owner authority configuration."
 node scripts/bootstrap.mjs
-echo "[startup] Seeding the Enfusion University curriculum."
+echo "[startup] Seeding the Enscript University curriculum."
 node scripts/seed-curriculum.mjs
-echo "[startup] Seeding the Enfusion University faculty network."
+echo "[startup] Seeding the Enscript University faculty network."
 node scripts/seed-faculty.mjs
 echo "[startup] Preparing immutable university policy drafts."
 node scripts/seed-policies.mjs
-echo "[startup] Launching Enfusion University on port ${PORT:-3000}."
+echo "[startup] Launching Enscript University on port ${PORT:-3000}."
 exec pnpm exec next start -p "${PORT:-3000}"

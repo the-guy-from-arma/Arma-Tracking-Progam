@@ -12,7 +12,7 @@ type WikiPage = {
 
 const wikiOrigin = "https://community.bohemia.net";
 const crawlerHeaders = {
-  "user-agent": "Mozilla/5.0 (compatible; EnfusionUniversityCurriculum/4.0; +https://enfusion-edu.up.railway.app/)",
+  "user-agent": "Mozilla/5.0 (compatible; EnscriptUniversityCurriculum/4.0; +https://enfusion-edu.up.railway.app/)",
   accept: "text/html,application/xhtml+xml",
 };
 

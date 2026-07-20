@@ -16,7 +16,7 @@ export default function ApplicationError({
 
   return (
     <main className="application-error">
-      <span>ENFUSION UNIVERSITY · CAMPUS RECOVERY</span>
+      <span>ENSCRIPT UNIVERSITY · CAMPUS RECOVERY</span>
       <h1>This page did not finish loading.</h1>
       <p>
         Your operating change and student records remain protected. Retry the

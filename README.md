@@ -1,12 +1,12 @@
-# Project VALORIS
+# Enscript University
 
-A Railway-first two-portal PWA operated by Thunder Buddies Studios and Black Ridge Studios: Project VALORIS for professional Arma Reforger development knowledge and Enfusion University for structured online education.
+A Railway-first online university operated by Thunder Buddies Studios and Black Ridge Studios for structured Enfusion Workbench education, sponsored learning, and permanent academic records.
 
 ## Included
 
 - Secure accounts with owner, admin, veteran, developer, and trainee roles
-- Animated Glass Orbit gateway, university campus, and VALORIS knowledge network
-- Project intake, workspaces, objectives, notes, decisions, blockers, references, and owner approval
+- Branded animated campus gateway, admissions experience, and authenticated university portal
+- Student, faculty, admissions, funding, curriculum, policy, and owner operations workspaces
 - 192 courses across 16 academies with 2,640 complete day-by-day Workbench lessons
 - 144 stackable short, associate, and bachelor-level academic programs
 - Enrollment, external-evidence submission, Gemini assessment, exception review, and appeals
@@ -18,7 +18,7 @@ A Railway-first two-portal PWA operated by Thunder Buddies Studios and Black Rid
 
 ## Credential status
 
-Enfusion University is an independent, non-accredited learning institution. Its credentials record learning and portfolio assessment; they are not accredited academic degrees or guaranteed transferable college credits. Public degree wording remains disabled unless appropriate legal authorization is documented.
+Enscript University is an independent, non-accredited learning institution. Its credentials record learning and portfolio assessment; they are not accredited academic degrees or guaranteed transferable college credits. Public degree wording remains disabled unless appropriate legal authorization is documented.
 
 ## Railway deployment
 
@@ -26,14 +26,13 @@ Enfusion University is an independent, non-accredited learning institution. Its 
 2. Deploy this repository.
 3. Set `DATABASE_URL` from Railway PostgreSQL.
 4. Set `OWNER_EMAIL`, `OWNER_NAME`, and a unique `OWNER_PASSWORD` containing at least 12 characters.
-5. Optionally set `UNIVERSITY_IDENTITY_DOMAIN`; it defaults to `enfusionuniversity.edu`.
-6. Set `WIKI_SYNC_SECRET` to a long random value for authenticated curriculum synchronization.
-7. Add the server-only Gemini and funding variables listed below.
-8. Deploy. Startup applies migrations, seeds the complete curriculum, and creates or synchronizes the owner account.
+5. Set `WIKI_SYNC_SECRET` to a long random value for authenticated curriculum synchronization.
+6. Add the server-only Gemini and funding variables listed below.
+7. Deploy. Startup applies migrations, seeds the complete curriculum, and creates or synchronizes the owner account.
 
-`OWNER_EMAIL` and `OWNER_PASSWORD` are optional as a pair so a missing Railway variable cannot crash the service. Without them, Project VALORIS starts normally but owner-only controls remain unavailable. Never commit the production password.
+`OWNER_EMAIL` and `OWNER_PASSWORD` are optional as a pair so a missing Railway variable cannot crash the service. Without them, the campus starts normally but owner-only controls remain unavailable. Never commit the production password.
 
-Student identities such as `alex.morgan@enfusionuniversity.edu` are internal EFU login identifiers only. They do not create an internet mailbox or represent ownership of the matching `.edu` domain; the student’s verified personal email remains the recovery and contact address.
+Student identities such as `alex.morgan@enscriptuniversity.edu` are internal ESU login identifiers only. They do not create an internet mailbox or represent ownership of the matching `.edu` domain; the student’s verified personal email remains the recovery and contact address.
 
 ### Railway runtime variables
 

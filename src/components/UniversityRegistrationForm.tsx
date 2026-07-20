@@ -355,10 +355,10 @@ export function UniversityRegistrationForm({
       <header className="admissionsHeader">
         <Link href="/" className="admissionsBrand">
           <Image
-            src="/enfusion-university-lockup.png"
-            alt="Enfusion University — Create, Build, Innovate"
-            width={1600}
-            height={388}
+            src="/enscript-university-lockup.png"
+            alt="Enscript University — Create, Build, Innovate"
+            width={1983}
+            height={793}
             priority
           />
         </Link>
@@ -372,10 +372,10 @@ export function UniversityRegistrationForm({
         <aside className="admissionsRail">
           <div className="admissionsRailLogo">
             <Image
-              src="/enfusion-university-lockup.png"
-              alt="Enfusion University"
-              width={1600}
-              height={388}
+              src="/enscript-university-lockup.png"
+              alt="Enscript University"
+              width={1983}
+              height={793}
             />
           </div>
           <p>APPLICATION PROGRESS</p>
@@ -424,11 +424,11 @@ export function UniversityRegistrationForm({
         >
           <header className="admissionsIntro">
             <div>
-              <p>ENFUSION UNIVERSITY / ADMISSIONS</p>
+              <p>ENSCRIPT UNIVERSITY / ADMISSIONS</p>
               <h1>
                 Build your future
                 <br />
-                <em>inside Enfusion.</em>
+                <em>through Enfusion Workbench.</em>
               </h1>
               <span>
                 A detailed application for your academic identity, personalized
@@ -569,7 +569,7 @@ export function UniversityRegistrationForm({
                         </h3>
                         <p>
                           The adult completes a separate, one-time verification.
-                          Enfusion University records the consent and verification
+                          Enscript University records the consent and verification
                           result; it does not retain the ID image, ID number, or
                           selfie.
                         </p>
@@ -703,7 +703,7 @@ export function UniversityRegistrationForm({
                   <label>
                     PRIMARY CONCENTRATION
                     <select name="specialty" required>
-                      <option>Enfusion scripting</option>
+                      <option>Enfusion Workbench scripting</option>
                       <option>Game systems design</option>
                       <option>Terrain and world building</option>
                       <option>3D assets and vehicles</option>
@@ -1053,7 +1053,7 @@ export function UniversityRegistrationForm({
         <i>×</i>
         <span>BLACK RIDGE STUDIOS</span>
         <small>
-          Enfusion University is an independent, non-accredited learning
+          Enscript University is an independent, non-accredited learning
           institution. <Link href="/policies">Policy Center</Link>
         </small>
       </footer>
@@ -1075,17 +1075,17 @@ export function UniversityRegistrationForm({
               transition={{ duration: 0.28 }}
             >
               <Image
-                src="/enfusion-university-lockup.png"
-                alt="Enfusion University"
-                width={1600}
-                height={388}
+                src="/enscript-university-lockup.png"
+                alt="Enscript University"
+                width={1983}
+                height={793}
               />
               <small>FINAL APPLICATION CONFIRMATION</small>
               <h2 id="submission-confirmation-title">
                 Ready to submit your application?
               </h2>
               <p>
-                This is the final step. Enfusion University will create your
+                This is the final step. Enscript University will create your
                 tracking number, evaluate your application, and issue your
                 student record after a successful decision.
               </p>
@@ -1240,10 +1240,10 @@ function AwardDecision({ award, enter }: { award: Award; enter: () => void }) {
         <header>
           <div className="awardLogo">
             <Image
-              src="/enfusion-university-lockup.png"
-              alt="Enfusion University"
-              width={1600}
-              height={388}
+              src="/enscript-university-lockup.png"
+              alt="Enscript University"
+              width={1983}
+              height={793}
             />
           </div>
           <div>
@@ -1266,7 +1266,7 @@ function AwardDecision({ award, enter }: { award: Award; enter: () => void }) {
         </div>
         <div className="awardIdentity">
           <div>
-            <small>EFU CAMPUS IDENTITY</small>
+            <small>ESU CAMPUS IDENTITY</small>
             <strong>{award.academicIdentity}</strong>
             <span>Internal login identifier · not an internet mailbox</span>
           </div>

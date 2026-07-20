@@ -91,7 +91,7 @@ export function GuardianConsentView({ token }: { token: string }) {
   return (
     <main className={styles.page}>
       <header className={styles.masthead}>
-        <Link href="/"><Image src="/enfusion-university-lockup.png" alt="Enfusion University" width={1600} height={388} priority /></Link>
+        <Link href="/"><Image src="/enscript-university-lockup.png" alt="Enscript University" width={1983} height={793} priority /></Link>
         <span>OFFICE OF ADMISSIONS · GUARDIAN SERVICES</span>
       </header>
       <section className={styles.shell}>
@@ -108,7 +108,7 @@ export function GuardianConsentView({ token }: { token: string }) {
         </aside>
         <article className={styles.reader}>
           {!consent && !error && <p role="status">Opening secure invitation…</p>}
-          {consent && complete && <div className={styles.complete}><ShieldCheck /><small>ADMISSIONS VERIFICATION</small><h2>Consent and adult identity confirmed</h2><p>Enfusion University has resumed the applicant’s admissions review. No further identity action is required.</p><dl><div><dt>GUARDIAN</dt><dd>{consent.guardianName}</dd></div><div><dt>VERIFIED</dt><dd>{consent.verifiedAt ? new Date(consent.verifiedAt).toLocaleString() : "Recorded"}</dd></div></dl></div>}
+          {consent && complete && <div className={styles.complete}><ShieldCheck /><small>ADMISSIONS VERIFICATION</small><h2>Consent and adult identity confirmed</h2><p>Enscript University has resumed the applicant’s admissions review. No further identity action is required.</p><dl><div><dt>GUARDIAN</dt><dd>{consent.guardianName}</dd></div><div><dt>VERIFIED</dt><dd>{consent.verifiedAt ? new Date(consent.verifiedAt).toLocaleString() : "Recorded"}</dd></div></dl></div>}
           {consent && consent.status === "ALTERNATIVE_REVIEW" && <div className={styles.complete}><small>ALTERNATIVE REVIEW REQUESTED</small><h2>Your request is safely recorded.</h2><p>Admissions will use the policy contact process to arrange an appropriate alternative. The applicant remains pending and is not denied.</p></div>}
           {consent && ["IDENTITY_PENDING", "PROCESSING"].includes(consent.status) && <div className={styles.processing}><span /><small>IDENTITY PROVIDER</small><h2>Verification is processing</h2><p>This page will update automatically when the verified adult/name-match result arrives.</p></div>}
           {consent && !complete && !["ALTERNATIVE_REVIEW", "IDENTITY_PENDING", "PROCESSING"].includes(consent.status) && !alternative && (
@@ -118,8 +118,8 @@ export function GuardianConsentView({ token }: { token: string }) {
               {consent.status === "EXPIRED" ? <div className={styles.notice}>This invitation has expired. Ask the applicant to issue a new secure link from the admissions tracking page.</div> : <>
                 <label>TYPE YOUR FULL LEGAL NAME TO SIGN<input name="signerName" required defaultValue={consent.guardianName} autoComplete="name" /></label>
                 <label className={styles.check}><input name="parentalResponsibilityAttested" type="checkbox" required /><span><b>Parental responsibility</b>I am the applicant’s parent or legal guardian and have authority to provide this consent.</span></label>
-                <label className={styles.check}><input name="studentParticipationAuthorized" type="checkbox" required /><span><b>Participation authorization</b>I authorize this 16- or 17-year-old applicant to apply for and, if admitted, participate in Enfusion University’s online learning services.</span></label>
-                <label className={styles.check}><input name="privacyAcknowledged" type="checkbox" required /><span><b>Identity and privacy notice</b>I understand the hosted provider checks my government ID and live selfie, while Enfusion University retains only limited consent and verification-result records.</span></label>
+                <label className={styles.check}><input name="studentParticipationAuthorized" type="checkbox" required /><span><b>Participation authorization</b>I authorize this 16- or 17-year-old applicant to apply for and, if admitted, participate in Enscript University’s online learning services.</span></label>
+                <label className={styles.check}><input name="privacyAcknowledged" type="checkbox" required /><span><b>Identity and privacy notice</b>I understand the hosted provider checks my government ID and live selfie, while Enscript University retains only limited consent and verification-result records.</span></label>
                 <button disabled={busy}>{busy ? "CREATING SECURE SESSION…" : "CONSENT AND VERIFY IDENTITY →"}</button>
               </>}
               <button className={styles.alternativeButton} type="button" onClick={() => setAlternative(true)}>REQUEST AN ALTERNATIVE VERIFICATION METHOD</button>

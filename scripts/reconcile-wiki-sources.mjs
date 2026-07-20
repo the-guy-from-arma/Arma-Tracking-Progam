@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 const db = new PrismaClient();
 const reportOnly = process.env.RECONCILE_APPLY !== "true";
 const wikiOrigin = "https://community.bohemia.net";
-const headers = { "user-agent": "Mozilla/5.0 (compatible; EnfusionUniversityReconciliation/3.0; +https://enfusion-edu.up.railway.app/)", accept: "text/html,application/xhtml+xml" };
+const headers = { "user-agent": "Mozilla/5.0 (compatible; EnscriptUniversityReconciliation/3.0; +https://enfusion-edu.up.railway.app/)", accept: "text/html,application/xhtml+xml" };
 
 async function wikiSearch(search) {
   const response = await fetch(`${wikiOrigin}/wiki/Special:Search?search=${encodeURIComponent(`${search} Arma Reforger`)}`, { headers, signal: AbortSignal.timeout(12000) });

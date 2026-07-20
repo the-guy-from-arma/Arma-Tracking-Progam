@@ -64,8 +64,37 @@ try {
         create: { documentId: document.id, version: 3, content: versionTwoContent, checksum: checksum(versionTwoContent), revisionNote: "Applicants age 16–17, guardian consent, and privacy-minimized age assurance", status: "DRAFT", materialChange: true },
       });
     }
+    const rebrandNote = "Institutional rebrand to Enscript University";
+    const existingRebrand = await db.policyVersion.findFirst({
+      where: { documentId: document.id, revisionNote: rebrandNote },
+      select: { id: true },
+    });
+    if (!existingRebrand) {
+      const latest = await db.policyVersion.findFirst({
+        where: { documentId: document.id },
+        orderBy: { version: "desc" },
+        select: { version: true, content: true },
+      });
+      const rebrandedContent = JSON.parse(
+        JSON.stringify(latest?.content || policy.content)
+          .replaceAll("Enfusion University", "Enscript University")
+          .replaceAll("enfusionuniversity.edu", "enscriptuniversity.edu")
+          .replaceAll("EFU-", "ESU-"),
+      );
+      await db.policyVersion.create({
+        data: {
+          documentId: document.id,
+          version: (latest?.version || 0) + 1,
+          content: rebrandedContent,
+          checksum: checksum(rebrandedContent),
+          revisionNote: rebrandNote,
+          status: "DRAFT",
+          materialChange: true,
+        },
+      });
+    }
   }
-  console.log(`[policies] ${INITIAL_POLICIES.length} base policies, six version-two drafts, and four guardian-consent version-three drafts are ready for legal review.`);
+  console.log(`[policies] ${INITIAL_POLICIES.length} base policies and Enscript University rebrand drafts are ready for legal review.`);
 } finally {
   await db.$disconnect();
 }

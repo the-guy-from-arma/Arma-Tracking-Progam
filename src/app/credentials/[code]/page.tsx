@@ -13,8 +13,12 @@ export default async function CredentialPage({
   params: Promise<{ code: string }>;
 }) {
   const { code } = await params;
+  const requestedCode = code.toUpperCase();
+  const currentCode = requestedCode.startsWith("EFU-")
+    ? `ESU-${requestedCode.slice(4)}`
+    : requestedCode;
   const credential = await db.certificate.findUnique({
-    where: { credentialCode: code.toUpperCase(), publicVisible: true },
+    where: { credentialCode: currentCode, publicVisible: true },
     include: {
       user: { select: { name: true } },
       course: { select: { code: true, studio: true } },
@@ -25,9 +29,9 @@ export default async function CredentialPage({
     <main className="credentialPage">
       <section className="credentialSheet">
         <header>
-          <div className="credentialLogo"><Image src="/enfusion-university-lockup.png" alt="Enfusion University" width={1600} height={388}/></div>
+          <div className="credentialLogo"><Image src="/enscript-university-lockup.png" alt="Enscript University" width={1983} height={793}/></div>
           <div>
-            <p>ENFUSION UNIVERSITY</p>
+            <p>ENSCRIPT UNIVERSITY</p>
             <strong>VERIFIED ACADEMIC RECORD</strong>
           </div>
         </header>
@@ -64,7 +68,7 @@ export default async function CredentialPage({
         <footer>
           <strong>{credential.issuer}</strong>
           <p>
-            Enfusion University credentials document independent learning and
+            Enscript University credentials document independent learning and
             portfolio assessment. They are not accredited college credit or an
             accredited academic degree unless a recognized institution
             separately confirms acceptance.

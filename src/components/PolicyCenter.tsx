@@ -66,14 +66,14 @@ export function PolicyCenter({ initialSlug }: { initialSlug?: string }) {
           records qualified legal review and trademark clearance. Admissions
           signing is paused until publication.
         </p>
-        <Link href="/">Return to Enfusion University</Link>
+        <Link href="/">Return to Enscript University</Link>
       </section>
     );
   return (
     <div className={styles.center}>
       <aside className={styles.index}>
         <Link href="/" className={styles.wordmark}>
-          ENFUSION <small>UNIVERSITY</small>
+          ENSCRIPT <small>UNIVERSITY</small>
         </Link>
         <span>INSTITUTIONAL POLICY CENTER</span>
         <h1>Policies, rights, and academic terms</h1>

@@ -72,8 +72,8 @@ try {
       const estimatedDays = durations[subjectIndex];
       const workloadHours = estimatedDays * 7;
       const serviceValueCents = workloadHours * 22500 + 80000 + 120000 + 160000 + (levels[subjectIndex] === "CAPSTONE" ? 30000 : 0);
-      const code = `EFU-${String(academyIndex + 1).padStart(2, "0")}${String(subjectIndex + 1).padStart(2, "0")}`;
-      const legacyCode = subjectIndex < 4 ? `EFU-${String(academyIndex + 1).padStart(2, "0")}${subjectIndex + 1}` : null;
+      const code = `ESU-${String(academyIndex + 1).padStart(2, "0")}${String(subjectIndex + 1).padStart(2, "0")}`;
+      const legacyCode = subjectIndex < 4 ? `ESU-${String(academyIndex + 1).padStart(2, "0")}${subjectIndex + 1}` : null;
       const source = wikiTitle(subject);
       const url = sourceUrl(source);
       const narrative = courseNarrative(subject, editor, estimatedDays);
@@ -133,7 +133,7 @@ try {
         const trackIndex = profileIndex % 3;
         const level = profile.level;
         const required = programShape(profile, own, courseMatrix, academyIndex);
-        const code = `EFU-P${String(academyIndex + 1).padStart(2, "0")}-${level[0]}${trackIndex + 1}`;
+        const code = `ESU-P${String(academyIndex + 1).padStart(2, "0")}-${level[0]}${trackIndex + 1}`;
         const title = profile.label(academy, own);
         const focus = profile.focus(academy, own);
         const credentialTitle = level === "SHORT" ? title : `${title} Program Completion Credential`;

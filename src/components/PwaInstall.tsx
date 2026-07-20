@@ -42,7 +42,7 @@ export function PwaInstall() {
     <aside className="install">
       <div>
         <strong>
-          {ios ? "ADD ENFUSION UNIVERSITY TO IPHONE" : "INSTALL ENFUSION UNIVERSITY"}
+          {ios ? "ADD ENSCRIPT UNIVERSITY TO IPHONE" : "INSTALL ENSCRIPT UNIVERSITY"}
         </strong>
         <span>
           {ios

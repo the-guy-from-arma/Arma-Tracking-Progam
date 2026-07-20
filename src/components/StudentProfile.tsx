@@ -186,7 +186,7 @@ export function StudentProfile() {
         .split(" ")
         .map((part) => part[0])
         .slice(0, 2)
-        .join("") || "EU",
+        .join("") || "ES",
     [data],
   );
   async function save(event: FormEvent) {

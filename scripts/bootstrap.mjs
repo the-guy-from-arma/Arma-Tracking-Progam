@@ -9,7 +9,7 @@ const db = new PrismaClient();
 try {
   const email = (process.env.OWNER_EMAIL || "").trim().toLowerCase();
   const password = process.env.OWNER_PASSWORD || "";
-  const name = (process.env.OWNER_NAME || "Project VALORIS Owner").trim();
+  const name = (process.env.OWNER_NAME || "Enscript University Owner").trim();
 
   if (!email && !password) {
     console.warn(

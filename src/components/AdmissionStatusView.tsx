@@ -254,10 +254,10 @@ export function AdmissionStatusView({ applicantName }: { applicantName: string }
       <header className={styles.masthead}>
         <Link href="/">
           <Image
-            src="/enfusion-university-lockup.png"
-            alt="Enfusion University"
-            width={1600}
-            height={388}
+            src="/enscript-university-lockup.png"
+            alt="Enscript University"
+            width={1983}
+            height={793}
             priority
           />
         </Link>
@@ -429,7 +429,7 @@ export function AdmissionStatusView({ applicantName }: { applicantName: string }
               </summary>
               <div className={styles.applicationFacts}>
                 <dl>
-                  <div><dt>CONCENTRATION</dt><dd>{data.application.profile.concentration || "General Enfusion development"}</dd></div>
+                  <div><dt>CONCENTRATION</dt><dd>{data.application.profile.concentration || "General Enfusion Workbench development"}</dd></div>
                   <div><dt>EXPERIENCE LEVEL</dt><dd>{data.application.profile.experienceLevel.replaceAll("_", " ")}</dd></div>
                   <div><dt>WEEKLY AVAILABILITY</dt><dd>{data.application.profile.weeklyHours} hours</dd></div>
                   <div><dt>TIME ZONE</dt><dd>{data.application.profile.timeZone}</dd></div>

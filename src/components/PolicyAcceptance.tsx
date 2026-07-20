@@ -91,7 +91,7 @@ export function PolicyAcceptance() {
   return (
     <main className={styles.page}>
       <header>
-        <Link href="/">ENFUSION UNIVERSITY</Link>
+        <Link href="/">ENSCRIPT UNIVERSITY</Link>
         <span>POLICY ACCEPTANCE</span>
       </header>
       <div className={styles.layout}>
@@ -195,7 +195,7 @@ export function PolicyAcceptance() {
           </button>
           <small className={styles.legal}>
             You may print every document before signing. Withdrawing electronic
-            consent closes online access because Enfusion University is
+            consent closes online access because Enscript University is
             online-only.
           </small>
         </section>

@@ -86,7 +86,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Confirm qualified legal review and separate Enfusion University trademark review before publication.",
+            "Confirm qualified legal review and separate Enscript University trademark review before publication.",
         },
         { status: 400 },
       );

@@ -27,7 +27,7 @@ export async function ensureLegacyFundingSource(userId: string) {
     userId, type: "UNIVERSITY_CREDIT", status: "AVAILABLE", sourceName: "Legacy institutional sponsored-learning balance",
     originalAmountCents: user.grantBalanceCents, remainingAmountCents: user.grantBalanceCents,
     publicDescription: "Opening source record for sponsored-learning value established before source-level accounting was activated.",
-    restrictions: "Usable only for eligible Enfusion University learning services; noncashable and nontransferable.",
+    restrictions: "Usable only for eligible Enscript University learning services; noncashable and nontransferable.",
     issuingDepartment: "University Sponsorship Office", legacy: true,
   } });
 }

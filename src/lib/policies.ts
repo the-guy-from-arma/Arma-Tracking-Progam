@@ -25,7 +25,7 @@ export function requestPolicyMetadata(request: Request) {
 }
 
 export function createReceiptNumber() {
-  return `EFU-SIG-${new Date().getUTCFullYear()}-${crypto.randomBytes(6).toString("hex").toUpperCase()}`;
+  return `ESU-SIG-${new Date().getUTCFullYear()}-${crypto.randomBytes(6).toString("hex").toUpperCase()}`;
 }
 
 export async function getPolicySetting(client: DbClient = db) {

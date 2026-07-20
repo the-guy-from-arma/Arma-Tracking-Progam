@@ -90,10 +90,10 @@ export function UniversitySignIn() {
               transition={{ duration: reduceMotion ? 0 : 1.15, delay: 0.12, ease: [0.76, 0, 0.24, 1] }}
             >
               <Image
-                src={theme === "dark" ? "/enfusion-university-lockup.png" : "/enfusion-university-lockup-light.png"}
-                alt="Enfusion University — Create, Build, Innovate"
-                width={1600}
-                height={388}
+                src={theme === "dark" ? "/enscript-university-lockup.png" : "/enscript-university-lockup-light.png"}
+                alt="Enscript University — Create, Build, Innovate"
+                width={1983}
+                height={793}
                 priority
               />
             </motion.div>
@@ -133,21 +133,21 @@ export function UniversitySignIn() {
         >
           <div className={styles.panelTopline} aria-hidden="true"><span /></div>
           <header className={styles.panelHeader}>
-            <span className={styles.accessMark}>EU · ACCESS 01</span>
-            <p>Enfusion University</p>
+            <span className={styles.accessMark}>ES · ACCESS 01</span>
+            <p>Enscript University</p>
             <h2 id="signin-title">Welcome back.</h2>
-            <p>Sign in with your internal EFU ID or the recovery email attached to your student profile.</p>
+            <p>Sign in with your internal ESU ID or the recovery email attached to your student profile.</p>
           </header>
 
           <form className={styles.form} onSubmit={submit}>
             <label>
-              <span>EFU ID or recovery email</span>
+              <span>ESU ID or recovery email</span>
               <input
                 name="email"
                 required
                 type="email"
                 autoComplete="email"
-                placeholder="alex.morgan@enfusionuniversity.edu"
+                placeholder="alex.morgan@enscriptuniversity.edu"
               />
             </label>
             <label>
@@ -180,7 +180,7 @@ export function UniversitySignIn() {
           </div>
 
           <p className={styles.disclosure}>
-            Your @enfusionuniversity.edu identifier is a secure internal campus login,
+            Your @enscriptuniversity.edu identifier is a secure internal campus login,
             not an internet email mailbox.
           </p>
         </motion.section>
@@ -188,7 +188,7 @@ export function UniversitySignIn() {
 
       <footer className={styles.footer}>
         <span>Thunder Buddies Studios × Black Ridge Studios</span>
-        <span>Enfusion University · Create · Build · Innovate · <Link href="/policies">Policies</Link></span>
+        <span>Enscript University · Create · Build · Innovate · <Link href="/policies">Policies</Link></span>
       </footer>
     </main>
   );

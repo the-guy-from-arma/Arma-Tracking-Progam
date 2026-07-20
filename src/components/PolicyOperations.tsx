@@ -152,7 +152,7 @@ export function PolicyOperations() {
               checked={trademark}
               onChange={(event) => setTrademark(event.target.checked)}
             />
-            The “Enfusion University” name received separate trademark review.
+            The “Enscript University” name received separate trademark review.
           </label>
           <button
             disabled={busy || !legal || !trademark}

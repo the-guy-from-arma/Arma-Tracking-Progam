@@ -172,7 +172,7 @@ export function AdminOverview() {
           <h2>Create a faculty account</h2>
           <p>
             Creates a secured FACULTY role with a private recovery address and
-            an internal @enfusionuniversity.edu campus identity.
+            an internal @enscriptuniversity.edu campus identity.
           </p>
         </header>
         <form onSubmit={createFaculty}>

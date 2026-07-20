@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   const dayStart = new Date(Date.now() - 86400000);
   if (!user && await db.policyInquiry.count({ where: { requesterEmail, createdAt: { gte: dayStart } } }) >= 5) return NextResponse.json({ error: "Inquiry limit reached. Try again later." }, { status: 429 });
   const token = user ? null : crypto.randomBytes(24).toString("base64url");
-  const trackingNumber = `EFU-POL-${new Date().getUTCFullYear()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+  const trackingNumber = `ESU-POL-${new Date().getUTCFullYear()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
   const inquiry = await db.policyInquiry.create({ data: { trackingNumber, tokenHash: token ? tokenHash(token) : null, userId: user?.id, requesterName, requesterEmail, category: category as never, subject, disputeDeadline: category === "TERMS_DISPUTE" ? new Date(Date.now() + 30 * 86400000) : null, messages: { create: { role: "REQUESTER", authorId: user?.id, body: message } } } });
   await db.auditLog.create({ data: { actorId: user?.id, action: category === "TERMS_DISPUTE" ? "TERMS_DISPUTE_NOTICE_RECEIVED" : "POLICY_INQUIRY_CREATED", entity: "PolicyInquiry", entityId: inquiry.id, detail: { trackingNumber, category } } });
   return NextResponse.json({ trackingNumber, accessToken: token, statusUrl: token ? `/policies/inquiries/${trackingNumber}?token=${encodeURIComponent(token)}` : `/university?view=policies` }, { status: 201 });

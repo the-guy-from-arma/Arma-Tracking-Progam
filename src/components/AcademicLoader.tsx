@@ -27,10 +27,10 @@ export function AcademicLoader({
       <div className={styles.identity}>
         <div className={styles.logoReveal}>
           <Image
-            src="/enfusion-university-lockup.png"
-            alt="Enfusion University — Create, Build, Innovate"
-            width={1600}
-            height={388}
+            src="/enscript-university-lockup.png"
+            alt="Enscript University — Create, Build, Innovate"
+            width={1983}
+            height={793}
             priority
           />
         </div>

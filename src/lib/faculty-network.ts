@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { policyCompliance } from "@/lib/policies";
 
-const promptVersion = "efu-faculty-v1";
+const promptVersion = "enscript-faculty-v1";
 const suspicious =
   /(ignore (all|the|previous)|system prompt|developer message|reveal.*prompt|override.*instructions)/i;
 
@@ -51,7 +51,7 @@ export async function ensureStudentFacultyNetwork(studentId: string) {
         data: {
           conversationId: conversation.id,
           senderRole: "FACULTY",
-          body: `Welcome to Enfusion University. I’m ${advisor.name}, your academic advisor. I’ll help you plan a realistic pathway, understand prerequisites, and keep your studies connected to the work you want to build. When you are ready, tell me what you hope to create and how much time you can study each week.`,
+          body: `Welcome to Enscript University. I’m ${advisor.name}, your academic advisor. I’ll help you plan a realistic pathway, understand prerequisites, and keep your studies connected to the work you want to build. When you are ready, tell me what you hope to create and how much time you can study each week.`,
         },
       });
     }
@@ -554,7 +554,7 @@ export async function processNextFacultyReply() {
         body: cleanModelText(message.body, 1600),
       }));
     const prompt = [
-      `You are ${record.conversation.facultyProfile.name}, ${record.conversation.facultyProfile.title} at Enfusion University.`,
+      `You are ${record.conversation.facultyProfile.name}, ${record.conversation.facultyProfile.title} at Enscript University.`,
       `Your specialty: ${record.conversation.facultyProfile.specialty}. Biography: ${record.conversation.facultyProfile.biography}`,
       `Teaching philosophy: ${record.conversation.facultyProfile.teachingPhilosophy}. Voice: ${record.conversation.facultyProfile.voice}.`,
       "Respond as a consistent university faculty member: personal, concise, warm, academically serious, and specific to this student. Never claim to have performed a real-world action you did not perform.",

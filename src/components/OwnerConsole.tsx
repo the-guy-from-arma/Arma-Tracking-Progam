@@ -84,10 +84,10 @@ export function OwnerConsole({ ownerName }: { ownerName: string }) {
       <header className={styles.top}>
         <Link href="/" className={styles.brand}>
           <Image
-            src="/enfusion-university-lockup.png"
-            alt="Enfusion University"
-            width={1600}
-            height={388}
+            src="/enscript-university-lockup.png"
+            alt="Enscript University"
+            width={1983}
+            height={793}
           />
           <span>
             <strong>OWNER ADMINISTRATION</strong>

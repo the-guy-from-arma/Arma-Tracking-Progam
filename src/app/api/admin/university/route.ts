@@ -132,10 +132,10 @@ export async function POST(request: Request) {
       .filter(Boolean)
       .slice(0, 3)
       .join(".") || "faculty";
-  let academicEmail = `${base}.faculty@enfusionuniversity.edu`;
+  let academicEmail = `${base}.faculty@enscriptuniversity.edu`;
   let suffix = 2;
   while (await db.user.findFirst({ where: { academicEmail } }))
-    academicEmail = `${base}.faculty${suffix++}@enfusionuniversity.edu`;
+    academicEmail = `${base}.faculty${suffix++}@enscriptuniversity.edu`;
   const faculty = await db.$transaction(async (tx) => {
     const created = await tx.user.create({
       data: {

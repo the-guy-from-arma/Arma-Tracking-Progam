@@ -29,8 +29,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (decision === "APPROVED") {
       certificate = await tx.certificate.upsert({
         where: { submissionId: id },
-        update: { title: submission.course.title, issuer: `${submission.course.studio} / Enfusion University`, learningCredits: submission.course.learningCredits },
-        create: { credentialCode: `EFU-${crypto.randomBytes(5).toString("hex").toUpperCase()}`, userId: submission.studentId, courseId: submission.courseId, submissionId: id, title: submission.course.title, issuer: `${submission.course.studio} / Enfusion University`, learningCredits: submission.course.learningCredits },
+        update: { title: submission.course.title, issuer: `${submission.course.studio} / Enscript University`, learningCredits: submission.course.learningCredits },
+        create: { credentialCode: `ESU-${crypto.randomBytes(5).toString("hex").toUpperCase()}`, userId: submission.studentId, courseId: submission.courseId, submissionId: id, title: submission.course.title, issuer: `${submission.course.studio} / Enscript University`, learningCredits: submission.course.learningCredits },
       });
       await tx.courseEnrollment.update({ where: { courseId_userId: { courseId: submission.courseId, userId: submission.studentId } }, data: { status: "COMPLETED", progress: 100, completedAt: new Date() } });
     }

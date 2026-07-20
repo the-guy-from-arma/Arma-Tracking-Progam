@@ -174,11 +174,11 @@ export async function GET(
     .slice(0, 24);
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
-  pdf.setTitle(`Enfusion University - ${TITLES[type]}`);
-  pdf.setAuthor("Enfusion University Office of Academic Records");
+  pdf.setTitle(`Enscript University - ${TITLES[type]}`);
+  pdf.setAuthor("Enscript University Office of Academic Records");
   pdf.setSubject(`Private institutional record ${documentId}`);
   pdf.setKeywords([
-    "Enfusion University",
+    "Enscript University",
     "institutional record",
     type,
     documentId,
@@ -212,7 +212,7 @@ export async function GET(
   try {
     logo = await pdf.embedPng(
       await readFile(
-        path.join(process.cwd(), "public", "enfusion-university-lockup.png"),
+        path.join(process.cwd(), "public", "enscript-university-lockup.png"),
       ),
     );
   } catch {
@@ -229,24 +229,24 @@ export async function GET(
     page.drawRectangle({ x: 0, y: 692, width: 612, height: 100, color: navy });
     page.drawRectangle({ x: 0, y: 686, width: 612, height: 6, color: gold });
     if (logo) {
-      page.drawImage(logo, { x: 46, y: 718, width: 270, height: 65.5 });
+      page.drawImage(logo, { x: 42, y: 704, width: 220, height: 88 });
       page.drawImage(logo, {
-        x: 60,
-        y: 326,
-        width: 500,
-        height: 121.25,
-        opacity: 0.085,
+        x: 72,
+        y: 300,
+        width: 468,
+        height: 187,
+        opacity: 0.055,
         rotate: degrees(-10),
       });
     } else {
-      page.drawText("ENFUSION UNIVERSITY", {
+      page.drawText("ENSCRIPT UNIVERSITY", {
         x: 48,
         y: 747,
         size: 18,
         font: bold,
         color: paper,
       });
-      page.drawText("ENFUSION UNIVERSITY", {
+      page.drawText("ENSCRIPT UNIVERSITY", {
         x: 92,
         y: 370,
         size: 38,
@@ -576,7 +576,7 @@ export async function GET(
   ensure(type === "sponsored-learning-statement" ? 100 : 82);
   section("Required notice", "Institutional Status and Record Control");
   text(
-    "Enfusion University is an independent, non-accredited online learning institution. This private institutional record is not an accredited transcript, degree, professional license, or guarantee of transfer, employer acceptance, or third-party recognition.",
+    "Enscript University is an independent, non-accredited online learning institution. This private institutional record is not an accredited transcript, degree, professional license, or guarantee of transfer, employer acceptance, or third-party recognition.",
     { size: 7.4, color: muted, leading: 10.5, gap: 5 },
   );
   if (type === "sponsored-learning-statement")
@@ -662,7 +662,7 @@ export async function GET(
   return new NextResponse(new Uint8Array(bytes), {
     headers: {
       "content-type": "application/pdf",
-      "content-disposition": `attachment; filename="enfusion-${type}-${record.studentNumber || "student"}.pdf"`,
+      "content-disposition": `attachment; filename="enscript-${type}-${record.studentNumber || "student"}.pdf"`,
       "cache-control": "private, no-store",
       "x-document-id": documentId,
       "x-document-renderer-version": DOCUMENT_RENDERER_VERSION,

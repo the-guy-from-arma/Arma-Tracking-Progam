@@ -173,10 +173,10 @@ export async function POST(request: Request) {
           .join("")
           .toUpperCase(),
       academy,
-      specialty: text(body.specialty, 300) || "Enfusion development education",
+      specialty: text(body.specialty, 300) || "Enfusion Workbench development education",
       biography:
         text(body.biography, 1000) ||
-        `${name} supports Enfusion University learners through structured technical study.`,
+        `${name} supports Enscript University learners through structured technical study.`,
       teachingPhilosophy:
         text(body.teachingPhilosophy, 1000) ||
         "Build understanding through evidence, reflection, and repeatable practice.",

@@ -1,12 +1,11 @@
-const CACHE = "enfusion-university-static-v5";
+const CACHE = "enscript-university-static-v6";
 const STATIC_ASSETS = [
   "/manifest.webmanifest",
-  "/icons/icon.svg",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
-  "/enfusion-university-lockup.png",
-  "/enfusion-university-lockup-light.png",
+  "/enscript-university-lockup.png",
+  "/enscript-university-lockup-light.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -21,7 +20,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith("enfusion-university-") && key !== CACHE)
+            .filter((key) => key !== CACHE)
             .map((key) => caches.delete(key)),
         ),
       )

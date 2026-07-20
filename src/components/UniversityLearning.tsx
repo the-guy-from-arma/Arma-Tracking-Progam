@@ -398,7 +398,7 @@ export function UniversityLearning({
           animate={{ opacity: 1, y: 0 }}
         >
           <div>
-            <p>ENFUSION UNIVERSITY · STUDENT CAMPUS</p>
+            <p>ENSCRIPT UNIVERSITY · STUDENT CAMPUS</p>
             <h1>Welcome back, {userName.split(" ")[0]}</h1>
             <span>
               Continue your technical coursework, review new feedback, and stay
@@ -1016,7 +1016,7 @@ export function UniversityLearning({
       <div className={styles.credentialGrid}>
         {records?.certificates.map((certificate) => (
           <article className={styles.credentialCard} key={certificate.id}>
-            <div className={styles.seal}>EU</div>
+            <div className={styles.seal}>ES</div>
             <small>{new Date(certificate.issuedAt).toLocaleDateString()}</small>
             <h2>{certificate.title}</h2>
             <p>{certificate.issuer}</p>
@@ -1195,7 +1195,7 @@ function FundingCenter({
       <PageHead
         eyebrow="SPONSORED LEARNING ACCOUNT"
         title="Funding center"
-        copy="A complete record of internal, noncash educational sponsorship applied to your Enfusion University study."
+        copy="A complete record of internal, noncash educational sponsorship applied to your Enscript University study."
         count="YOU OWE $0.00"
       />
       <div className={styles.valueDisclosure}>
@@ -1735,7 +1735,7 @@ function ProgramDetail({
         <header>
           <div>
             <div className={styles.detailInstitution}>
-              ENFUSION UNIVERSITY · SCHOOL OF {program.academy.toUpperCase()}
+              ENSCRIPT UNIVERSITY · SCHOOL OF {program.academy.toUpperCase()}
             </div>
             <small>
               {program.code} / {program.academy}

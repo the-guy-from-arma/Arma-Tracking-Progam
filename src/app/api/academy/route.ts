@@ -92,7 +92,7 @@ export async function POST(request: Request) {
   }
 
   if (action === "enroll_course") {
-    if (!user.isStudent && !isAdmin(user.role)) return NextResponse.json({ error: "Activate an Enfusion University student identity before enrolling." }, { status: 403 });
+    if (!user.isStudent && !isAdmin(user.role)) return NextResponse.json({ error: "Activate an Enscript University student identity before enrolling." }, { status: 403 });
     if (body.fundingAcknowledged !== true || body.refundPolicyAcknowledged !== true) return NextResponse.json({ error: "Review and acknowledge the sponsored-learning allocation and withdrawal policy before enrolling." }, { status: 400 });
     const courseId = text(body.courseId, 100);
     const course = await db.course.findFirst({ where: { id: courseId, status: "PUBLISHED" }, include: { prerequisites: true } });

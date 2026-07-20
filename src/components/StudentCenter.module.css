@@ -24,7 +24,7 @@
   box-shadow: 0 25px 70px #285b8215;
 }
 .hero:after {
-  content: "EU";
+  content: "ES";
   position: absolute;
   right: 350px;
   top: -35px;

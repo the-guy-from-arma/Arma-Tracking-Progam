@@ -16,28 +16,28 @@ export async function generateMetadata(): Promise<Metadata> {
   const origin = `${protocol}://${host}`;
   // Keep the social card on a university-specific, versioned URL so link
   // unfurlers cannot reuse the retired Project VALORIS preview cached at /og.png.
-  const image = `${origin}/enfusion-university-social-2026.png?v=20260719`;
+  const image = `${origin}/enscript-university-social-2026.png?v=20260719-enscript`;
 
   return {
-    title: { default: "Enfusion University", template: "%s · Enfusion University" },
+    title: { default: "Enscript University", template: "%s · Enscript University" },
     description: "Structured Enfusion Workbench education, sponsored learning, intelligent assessment, and durable academic records.",
-    applicationName: "Enfusion University",
+    applicationName: "Enscript University",
     manifest: "/manifest.webmanifest",
-    appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Enfusion University" },
-    icons: { icon: "/icons/icon.svg", apple: "/icons/apple-touch-icon.png" },
+    appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Enscript University" },
+    icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
     openGraph: {
-      title: "Enfusion University — Create, Build, Innovate",
-      description: "A complete online campus for Enfusion development education and studio-assessed learning.",
+      title: "Enscript University — Create, Build, Innovate",
+      description: "A complete online campus for Enfusion Workbench development education and studio-assessed learning.",
       url: origin,
-      siteName: "Enfusion University",
-      images: [{ url: image, secureUrl: image, width: 1731, height: 909, type: "image/png", alt: "Enfusion University — Create, Build, Innovate" }],
+      siteName: "Enscript University",
+      images: [{ url: image, secureUrl: image, width: 1536, height: 1024, type: "image/png", alt: "Enscript University — Create, Build, Innovate" }],
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
-      title: "Enfusion University",
-      description: "Structured Enfusion development education and sponsored learning.",
-      images: [{ url: image, alt: "Enfusion University — Create, Build, Innovate" }],
+      title: "Enscript University",
+      description: "Structured Enfusion Workbench development education and sponsored learning.",
+      images: [{ url: image, alt: "Enscript University — Create, Build, Innovate" }],
     },
   };
 }

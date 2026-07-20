@@ -147,12 +147,12 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
               className={styles.universityLogo}
               src={
                 theme === "dark"
-                  ? "/enfusion-university-lockup.png"
-                  : "/enfusion-university-lockup-light.png"
+                  ? "/enscript-university-lockup.png"
+                  : "/enscript-university-lockup-light.png"
               }
-              alt="Enfusion University — Create, Build, Innovate"
-              width={1600}
-              height={388}
+              alt="Enscript University — Create, Build, Innovate"
+              width={1983}
+              height={793}
               priority
             />
           </Link>
@@ -260,7 +260,7 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
         )}
       <div className={styles.contextBar}>
         <div>
-          <span>ENFUSION UNIVERSITY</span>
+          <span>ENSCRIPT UNIVERSITY</span>
           <i>/</i>
           <b>{studentViews.find((item) => item.id === view)?.label}</b>
         </div>
@@ -291,12 +291,12 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
           <Image
             src={
               theme === "dark"
-                ? "/enfusion-university-lockup.png"
-                : "/enfusion-university-lockup-light.png"
+                ? "/enscript-university-lockup.png"
+                : "/enscript-university-lockup-light.png"
             }
-            alt="Enfusion University — Create, Build, Innovate"
-            width={1600}
-            height={388}
+            alt="Enscript University — Create, Build, Innovate"
+            width={1983}
+            height={793}
           />
         </div>
         <nav>

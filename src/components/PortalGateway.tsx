@@ -55,12 +55,12 @@ export function PortalGateway({
       </div>
 
       <header className={styles.header}>
-        <Link href="/" className={styles.brand} aria-label="Enfusion University home">
+        <Link href="/" className={styles.brand} aria-label="Enscript University home">
           <Image
-            src="/enfusion-university-lockup.png"
-            alt="Enfusion University — Create, Build, Innovate"
-            width={1600}
-            height={388}
+            src="/enscript-university-lockup.png"
+            alt="Enscript University — Create, Build, Innovate"
+            width={1983}
+            height={793}
             priority
           />
         </Link>
@@ -98,7 +98,7 @@ export function PortalGateway({
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: reduceMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
         >
-          <p>Online technical university · Enfusion development</p>
+          <p>Online technical university · Enfusion Workbench development</p>
           <h1 id="university-gateway-title">
             Learn the system.
             <em>Build the future.</em>
@@ -134,7 +134,7 @@ export function PortalGateway({
           aria-hidden="true"
         >
           <div className={styles.rings}><i /><i /><i /></div>
-          <div className={styles.symbol}>EU</div>
+          <div className={styles.symbol}>ES</div>
           <span className={styles.signalOne} />
           <span className={styles.signalTwo} />
           <p>CREATE · BUILD · INNOVATE</p>
@@ -162,10 +162,10 @@ export function PortalGateway({
           >
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.28 }}>
               <Image
-                src="/enfusion-university-lockup.png"
-                alt="Opening Enfusion University"
-                width={1600}
-                height={388}
+                src="/enscript-university-lockup.png"
+                alt="Opening Enscript University"
+                width={1983}
+                height={793}
               />
               <span>Preparing your campus</span>
             </motion.div>

@@ -1420,7 +1420,7 @@ model GradingRubric {
   version       Int      @default(1)
   criteria      Json
   passingScore  Int      @default(70)
-  promptVersion String   @default("efu-grader-v1")
+  promptVersion String   @default("enscript-grader-v1")
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

@@ -5,7 +5,7 @@ import { UniversityRegistrationForm } from "@/components/UniversityRegistrationF
 import { db } from "@/lib/db";
 import "@/components/UniversityRegistrationForm.css";
 import "@/components/UniversityRegistrationReliability.css";
-export const metadata: Metadata = { title: "Enfusion University admissions" };
+export const metadata: Metadata = { title: "Enscript University admissions" };
 export const dynamic = "force-dynamic";
 export default async function UniversityRegister() {
   const user = await currentUser();

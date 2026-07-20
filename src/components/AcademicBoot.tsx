@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import styles from "./AcademicBoot.module.css";
 export function AcademicBoot({
-  label = "ENFUSION UNIVERSITY",
+  label = "ENSCRIPT UNIVERSITY",
 }: {
   label?: string;
 }) {
@@ -26,10 +26,10 @@ export function AcademicBoot({
     <div className={styles.boot} role="status" aria-live="polite">
       <div className={styles.logo}>
         <Image
-          src="/enfusion-university-lockup.png"
-          alt="Enfusion University"
-          width={1600}
-          height={388}
+          src="/enscript-university-lockup.png"
+          alt="Enscript University"
+          width={1983}
+          height={793}
           priority
         />
       </div>

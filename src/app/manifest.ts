@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Enfusion University",
-    short_name: "Enfusion U",
-    description: "Structured Enfusion development education, sponsored learning, and academic records.",
+    name: "Enscript University",
+    short_name: "Enscript U",
+    description: "Structured Enfusion Workbench development education, sponsored learning, and academic records.",
     id: "/",
     start_url: "/",
     scope: "/",
@@ -14,7 +14,6 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#061421",
     categories: ["education", "productivity", "developer tools"],
     icons: [
-      { src: "/icons/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],

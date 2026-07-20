@@ -141,7 +141,7 @@ export async function POST(request: Request) {
   const policyVersionIds = policyValidation.policies.map((policy) => policy.currentVersion.id);
   const signatureMetadata = requestPolicyMetadata(request);
 
-  if (signedIn?.isStudent) return NextResponse.json({ error: "This account is already enrolled at Enfusion University." }, { status: 409 });
+  if (signedIn?.isStudent) return NextResponse.json({ error: "This account is already enrolled at Enscript University." }, { status: 409 });
   if (signedIn && signedIn.email !== personalEmail) return NextResponse.json({ error: "Use the recovery email attached to your signed-in university account." }, { status: 409 });
   if (!signedIn && await db.user.findFirst({ where: { OR: [{ email: personalEmail }, { academicEmail: personalEmail }] } })) return NextResponse.json({ error: "An account already exists for that email. Sign in to resume its application." }, { status: 409 });
 
