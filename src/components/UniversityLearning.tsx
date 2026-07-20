@@ -10,6 +10,7 @@ import { StudentCenter } from "./StudentCenter";
 import { StudentProfile } from "./StudentProfile";
 import { facultyForAcademy } from "@/lib/ai-faculty";
 import { FacultyMessages } from "./FacultyMessages";
+import { FacultyCommons } from "./FacultyCommons";
 import { StudentPolicies } from "./StudentPolicies";
 import {
   ArrowRight,
@@ -262,11 +263,13 @@ export function UniversityLearning({
   userName,
   onNavigate,
   facultySlug,
+  onOpenFaculty,
 }: {
   view: UniversityView;
   userName: string;
   onNavigate: (view: UniversityView) => void;
   facultySlug?: string | null;
+  onOpenFaculty: (slug: string) => void;
 }) {
   const router = useRouter();
   const [data, setData] = useState<Curriculum | null>(null);
@@ -387,7 +390,13 @@ export function UniversityLearning({
 
   if (view === "student-center") return <StudentCenter />;
   if (view === "messages")
-    return <FacultyMessages initialFacultySlug={facultySlug || undefined} />;
+    return (
+      <FacultyMessages
+        initialFacultySlug={facultySlug || undefined}
+        onOpenDirectory={() => onNavigate("faculty")}
+      />
+    );
+  if (view === "faculty") return <FacultyCommons onMessage={onOpenFaculty} />;
   if (view === "policies") return <StudentPolicies />;
   if (view === "profile") return <StudentProfile />;
 

@@ -22,6 +22,7 @@ export type UniversityView =
   | "credentials"
   | "submissions"
   | "messages"
+  | "faculty"
   | "policies";
 const studentViews: { id: UniversityView; label: string; short: string }[] = [
   { id: "dashboard", label: "Campus Home", short: "Home" },
@@ -30,6 +31,7 @@ const studentViews: { id: UniversityView; label: string; short: string }[] = [
   { id: "catalog", label: "Discover", short: "Discover" },
   { id: "student-center", label: "Student Center", short: "Center" },
   { id: "messages", label: "Campus Messages", short: "Messages" },
+  { id: "faculty", label: "Faculty Commons", short: "Faculty" },
   { id: "policies", label: "Policies & Agreements", short: "Policies" },
   { id: "funding", label: "Funding", short: "Funding" },
   { id: "submissions", label: "Assignments & Grades", short: "Grades" },
@@ -37,6 +39,15 @@ const studentViews: { id: UniversityView; label: string; short: string }[] = [
   { id: "credentials", label: "Credentials", short: "Awards" },
   { id: "profile", label: "Student Profile", short: "Profile" },
 ];
+const footerFacultyLinks = universityFacultyLinks.filter((faculty) =>
+  [
+    "elara-voss",
+    "marisol-grant",
+    "theodore-wells",
+    "dana-mercer",
+    "avery-bell",
+  ].includes(faculty.slug),
+);
 
 type PortalUser = {
   name: string;
@@ -296,6 +307,7 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
               userName={user.name}
               onNavigate={choose}
               facultySlug={facultySlug}
+              onOpenFaculty={openFaculty}
             />
           </motion.div>
         </AnimatePresence>
@@ -329,16 +341,20 @@ export function UniversityPortal({ user }: { user: PortalUser }) {
         <section className={styles.footerFaculty} aria-labelledby="footer-faculty-heading">
           <header>
             <span>FACULTY COMMONS</span>
-            <h2 id="footer-faculty-heading">University faculty and offices</h2>
-            <p>Select any name to open a private campus conversation.</p>
+            <h2 id="footer-faculty-heading">Faculty and university offices</h2>
+            <p>Leadership contacts are always one message away.</p>
           </header>
           <div>
-            {universityFacultyLinks.map((faculty) => (
+            {footerFacultyLinks.map((faculty) => (
               <button key={faculty.slug} onClick={() => openFaculty(faculty.slug)}>
                 <b>{faculty.name}</b>
                 <span>{faculty.office}</span>
               </button>
             ))}
+            <button className={styles.allFacultyLink} onClick={() => choose("faculty")}>
+              <b>Complete faculty directory</b>
+              <span>Faculty Commons →</span>
+            </button>
           </div>
         </section>
       </footer>

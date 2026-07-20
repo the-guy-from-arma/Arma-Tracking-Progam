@@ -11,7 +11,6 @@ import {
 } from "react";
 import styles from "./FacultyMessages.module.css";
 import { AcademicLoader } from "./AcademicLoader";
-import { ArrowRight, MessageCircle, Search, Users } from "lucide-react";
 
 type Message = {
   id: string;
@@ -82,14 +81,18 @@ type PolicyGate = {
 export function FacultyMessages({
   initialConversationId,
   initialFacultySlug,
-}: { initialConversationId?: string; initialFacultySlug?: string } = {}) {
+  onOpenDirectory,
+}: {
+  initialConversationId?: string;
+  initialFacultySlug?: string;
+  onOpenDirectory?: () => void;
+} = {}) {
   const [data, setData] = useState<MessagesData | null>(null);
   const [selectedId, setSelectedId] = useState(initialConversationId || "");
   const [message, setMessage] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState("");
-  const [directorySearch, setDirectorySearch] = useState("");
   const [policyGate, setPolicyGate] = useState<PolicyGate | null>(null);
   const hasLoaded = useRef(false);
   const requestedFacultyHandled = useRef("");
@@ -166,16 +169,6 @@ export function FacultyMessages({
     () => data?.conversations.find((item) => item.id === selectedId) || null,
     [data, selectedId],
   );
-  const filteredDirectory = useMemo(() => {
-    const query = directorySearch.trim().toLowerCase();
-    if (!query) return data?.directory || [];
-    return (data?.directory || []).filter((faculty) =>
-      `${faculty.name} ${faculty.title} ${faculty.academy || ""} ${faculty.specialty}`
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [data?.directory, directorySearch]);
-
   const openFaculty = useCallback(
     async (facultyProfileId: string, existingConversationId?: string | null) => {
       if (existingConversationId) {
@@ -421,59 +414,12 @@ export function FacultyMessages({
           <span>
             unread faculty {data.unread === 1 ? "message" : "messages"}
           </span>
+          {onOpenDirectory && (
+            <button onClick={onOpenDirectory}>FIND FACULTY →</button>
+          )}
         </aside>
       </header>
       {notice && <p className={styles.notice}>{notice}</p>}
-      <section className={styles.facultyDirectory} aria-labelledby="faculty-directory-title">
-        <header>
-          <div>
-            <small>UNIVERSITY FACULTY DIRECTORY</small>
-            <h2 id="faculty-directory-title">Find the right person to ask.</h2>
-            <p>
-              Contact your advisor, a subject professor, Admissions, Academic
-              Records, Sponsored Learning, or the Dean’s office.
-            </p>
-          </div>
-          <label>
-            <Search size={17} />
-            <span className="sr-only">Search faculty</span>
-            <input
-              value={directorySearch}
-              onChange={(event) => setDirectorySearch(event.target.value)}
-              placeholder="Search by name, office, or specialty"
-            />
-          </label>
-        </header>
-        <div className={styles.directoryGrid}>
-          {filteredDirectory.map((faculty, index) => (
-            <motion.button
-              key={faculty.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: Math.min(index, 8) * 0.035 }}
-              onClick={() => void openFaculty(faculty.id, faculty.conversationId)}
-            >
-              <i>{faculty.initials}</i>
-              <span>
-                <small>{faculty.academy || "University Office"}</small>
-                <b>{faculty.name}</b>
-                <em>{faculty.title}</em>
-                <p>{faculty.specialty}</p>
-              </span>
-              <strong>
-                <MessageCircle size={15} />
-                {faculty.conversationId ? "Open" : "Message"}
-              </strong>
-              <ArrowRight size={16} />
-            </motion.button>
-          ))}
-          {!filteredDirectory.length && (
-            <div className={styles.directoryEmpty}>
-              <Users size={22} /> No faculty match that search.
-            </div>
-          )}
-        </div>
-      </section>
       <div className={styles.workspace} id="faculty-conversation">
         <nav aria-label="Faculty conversations">
           {data.conversations.map((conversation) => (

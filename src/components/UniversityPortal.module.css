@@ -606,7 +606,7 @@
 
 .footerFaculty > div {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0 24px;
 }
 
@@ -643,6 +643,14 @@
   white-space: nowrap;
 }
 
+.footer .footerFaculty .allFacultyLink {
+  padding-inline: 13px;
+  border-radius: 4px 14px 4px 14px;
+  background: #102b38;
+}
+
+.footer .footerFaculty .allFacultyLink span { color: #7fd7cf; }
+
 .campus[data-university-theme="light"] .footerFaculty {
   border-color: #d6dfdf;
 }
@@ -653,6 +661,7 @@
   color: #17394f;
 }
 .campus[data-university-theme="light"] .footer .footerFaculty button span { color: #68808c; }
+.campus[data-university-theme="light"] .footer .footerFaculty .allFacultyLink { background: #e4eff0; }
 
 @media (max-width: 1100px) {
   .footerFaculty > div { grid-template-columns: repeat(3, minmax(0, 1fr)); }
