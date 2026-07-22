@@ -134,7 +134,19 @@ export function PortalGateway({
           aria-hidden="true"
         >
           <div className={styles.rings}><i /><i /><i /></div>
-          <div className={styles.symbol}>ES</div>
+          <div className={styles.emblem}>
+            <span className={styles.emblemHalo} />
+            <span className={styles.emblemCrop}>
+              <Image
+                src="/enscript-university-lockup.png"
+                alt=""
+                width={1983}
+                height={793}
+                priority
+              />
+            </span>
+            <span className={styles.emblemSweep} />
+          </div>
           <span className={styles.signalOne} />
           <span className={styles.signalTwo} />
           <p>CREATE · BUILD · INNOVATE</p>
